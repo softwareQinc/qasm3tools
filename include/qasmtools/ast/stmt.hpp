@@ -230,12 +230,9 @@ class ProgramBlock : public ASTNode {
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "{\n";
         for (auto& x : body_) {
-            std::visit(
-                utils::overloaded{
-                    [&os](auto& stmt) {
-                        stmt->pretty_print(os);
-                    }},
-                x);
+            std::visit([&os](auto& stmt) {
+                stmt->pretty_print(os);
+            }, x);
         }
         os << "}\n";
 
@@ -309,12 +306,9 @@ class QuantumBlock : public ASTNode {
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "{\n";
         for (auto& x : body_) {
-            std::visit(
-                utils::overloaded{
-                    [&os](auto& stmt) {
-                        stmt->pretty_print(os);
-                    }},
-                x);
+            std::visit([&os](auto& stmt) {
+                stmt->pretty_print(os);
+            }, x);
         }
         os << "}\n";
 
