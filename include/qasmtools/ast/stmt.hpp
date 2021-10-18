@@ -46,14 +46,14 @@ namespace qasmtools {
 namespace ast {
 
 /**
- * \class qasmtools::ast::Stmt
+ * \class qasmtools::ast::StmtBase
  * \brief Base class for openQASM statements
  */
-class Stmt : public ASTNode {
+class StmtBase : public ASTNode {
   public:
-    Stmt(parser::Position pos) : ASTNode(pos) {}
-    virtual ~Stmt() = default;
-    virtual Stmt* clone() const override = 0;
+    StmtBase(parser::Position pos) : ASTNode(pos) {}
+    virtual ~StmtBase() = default;
+    virtual StmtBase* clone() const override = 0;
 
     /**
      * \brief Internal pretty-printer which can suppress the output of the
@@ -72,29 +72,29 @@ class Stmt : public ASTNode {
  * \class qasmtools::ast::GlobalStmt
  * \brief Statement sub-class for global statements
  */
-class GlobalStmt : public Stmt {
+class GlobalStmt : public StmtBase {
   public:
-    GlobalStmt(parser::Position pos) : Stmt(pos) {}
+    GlobalStmt(parser::Position pos) : StmtBase(pos) {}
     virtual ~GlobalStmt() = default;
     virtual GlobalStmt* clone() const = 0;
 };
 /**
- * \class qasmtools::ast::LocalStmt
+ * \class qasmtools::ast::Stmt
  * \brief Statement sub-class for local statements
  */
-class LocalStmt : public Stmt {
+class Stmt : public StmtBase {
   public:
-    LocalStmt(parser::Position pos) : Stmt(pos) {}
-    virtual ~LocalStmt() = default;
-    virtual LocalStmt* clone() const = 0;
+    Stmt(parser::Position pos) : StmtBase(pos) {}
+    virtual ~Stmt() = default;
+    virtual Stmt* clone() const = 0;
 };
 /**
  * \class qasmtools::ast::QuantumStmt
  * \brief Statement sub-class for quantum statements
  */
-class QuantumStmt : public LocalStmt {
+class QuantumStmt : public Stmt {
   public:
-    QuantumStmt(parser::Position pos) : LocalStmt(pos) {}
+    QuantumStmt(parser::Position pos) : Stmt(pos) {}
     virtual ~QuantumStmt() = default;
     virtual QuantumStmt* clone() const = 0;
 };
@@ -112,9 +112,9 @@ class TimingStmt : public QuantumStmt {
  * \class qasmtools::ast::ControlStmt
  * \brief Statement sub-class for control statements
  */
-class ControlStmt : public Stmt {
+class ControlStmt : public StmtBase {
   public:
-    ControlStmt(parser::Position pos) : Stmt(pos) {}
+    ControlStmt(parser::Position pos) : StmtBase(pos) {}
     virtual ~ControlStmt() = default;
     virtual ControlStmt* clone() const = 0;
 };
@@ -122,9 +122,9 @@ class ControlStmt : public Stmt {
  * \class qasmtools::ast::QuantumLoop
  * \brief Statement sub-class for quantum loops
  */
-class QuantumLoop : public Stmt {
+class QuantumLoop : public StmtBase {
   public:
-    QuantumLoop(parser::Position pos) : Stmt(pos) {}
+    QuantumLoop(parser::Position pos) : StmtBase(pos) {}
     virtual ~QuantumLoop() = default;
     virtual QuantumLoop* clone() const = 0;
 };
@@ -184,7 +184,7 @@ class QuantumMeasurement final : public ASTNode {
  * \brief Class for program blocks
  */
 class ProgramBlock : public ASTNode {
-    using ProgramBlockStmt = std::variant<ptr<LocalStmt>, ptr<ControlStmt>>;
+    using ProgramBlockStmt = std::variant<ptr<Stmt>, ptr<ControlStmt>>;
     std::list<ProgramBlockStmt> body_; ///< the body of the block
 
   public:
@@ -232,7 +232,7 @@ class ProgramBlock : public ASTNode {
         for (const auto& x : body_) {
             std::visit(
                 utils::overloaded{
-                    [&os](const ptr<LocalStmt>& ls) {
+                    [&os](const ptr<Stmt>& ls) {
                         ls->pretty_print(os);
                     },
                     [&os](const ptr<ControlStmt>& cs) {
@@ -249,8 +249,8 @@ class ProgramBlock : public ASTNode {
         for (const auto& x : body_) {
             std::visit(
                 utils::overloaded{
-                    [&tmp](const ptr<LocalStmt>& ls) {
-                        tmp.emplace_back(ptr<LocalStmt>(ls->clone()));
+                    [&tmp](const ptr<Stmt>& ls) {
+                        tmp.emplace_back(ptr<Stmt>(ls->clone()));
                     },
                     [&tmp](const ptr<ControlStmt>& cs) {
                         tmp.emplace_back(ptr<ControlStmt>(cs->clone()));
@@ -413,7 +413,7 @@ class QuantumLoopBlock : public ASTNode {
 /**
  * \class qasmtools::ast::MeasureStmt
  * \brief Class for quantum measurement statements
- * \see qasmtools::ast::Stmt
+ * \see qasmtools::ast::StmtBase
  */
 class MeasureStmt final : public QuantumStmt {
     QuantumMeasurement measurement_; ///< the quantum measurement
@@ -463,9 +463,9 @@ class MeasureStmt final : public QuantumStmt {
 /**
  * \class qasmtools::ast::ExprStmt
  * \brief Class for expression statements
- * \see qasmtools::ast::Stmt
+ * \see qasmtools::ast::StmtBase
  */
-class ExprStmt final : public LocalStmt {
+class ExprStmt final : public Stmt {
     ptr<Expr> exp_; ///< the expression
 
   public:
@@ -476,7 +476,7 @@ class ExprStmt final : public LocalStmt {
      * \param exp The expression
      */
     ExprStmt(parser::Position pos, ptr<Expr> exp)
-        : LocalStmt(pos), exp_(std::move(exp)) {}
+        : Stmt(pos), exp_(std::move(exp)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -512,9 +512,9 @@ class ExprStmt final : public LocalStmt {
 /**
  * \class qasmtools::ast::MeasureAsgnStmt
  * \brief Class for measurement assignment statements
- * \see qasmtools::ast::Stmt
+ * \see qasmtools::ast::StmtBase
  */
-class MeasureAsgnStmt final : public LocalStmt {
+class MeasureAsgnStmt final : public Stmt {
     QuantumMeasurement measurement_; ///< the quantum measurement
     VarAccess c_arg_;                ///< the classical bit|register
 
@@ -528,7 +528,7 @@ class MeasureAsgnStmt final : public LocalStmt {
      */
     MeasureAsgnStmt(parser::Position pos, QuantumMeasurement&& qm,
                     VarAccess&& c_arg)
-        : LocalStmt(pos), measurement_(std::move(qm)), c_arg_(std::move(c_arg))
+        : Stmt(pos), measurement_(std::move(qm)), c_arg_(std::move(c_arg))
     {}
 
     /**
@@ -583,7 +583,7 @@ class MeasureAsgnStmt final : public LocalStmt {
 /**
  * \class qasmtools::ast::ResetStmt
  * \brief Class for reset statements
- * \see qasmtools::ast::Stmt
+ * \see qasmtools::ast::StmtBase
  */
 class ResetStmt final : public QuantumStmt {
     std::vector<VarAccess> args_; ///< list of quantum bits|registers
@@ -662,7 +662,7 @@ class ResetStmt final : public QuantumStmt {
 /**
  * \class qasmtools::ast::BarrierStmt
  * \brief Class for barrier statement
- * \see qasmtools::ast::Stmt
+ * \see qasmtools::ast::StmtBase
  */
 class BarrierStmt final : public QuantumStmt {
     std::vector<VarAccess> args_; ///< list of quantum bits|registers
@@ -742,9 +742,9 @@ class BarrierStmt final : public QuantumStmt {
 /**
  * \class qasmtools::ast::IfStmt
  * \brief Class for if statements
- * \see qasmtools::ast::Stmt
+ * \see qasmtools::ast::StmtBase
  */
-class IfStmt final : public LocalStmt {
+class IfStmt final : public Stmt {
     ptr<Expr> cond_;         ///< boolean expression to check
     ptr<ProgramBlock> then_; ///< block to be executed if true
     ptr<ProgramBlock> else_; ///< block to be executed if false
@@ -760,7 +760,7 @@ class IfStmt final : public LocalStmt {
      */
     IfStmt(parser::Position pos, ptr<Expr> cond, ptr<ProgramBlock> then,
            ptr<ProgramBlock> els)
-        : LocalStmt(pos), cond_(std::move(cond)), then_(std::move(then)),
+        : Stmt(pos), cond_(std::move(cond)), then_(std::move(then)),
           else_(std::move(els)) {}
 
     /**
@@ -810,7 +810,7 @@ class IfStmt final : public LocalStmt {
 /**
  * \class qasmtools::ast::BreakStmt
  * \brief Class for "break" statements
- * \see qasmtools::ast::Stmt
+ * \see qasmtools::ast::StmtBase
  */
 class BreakStmt final : public ControlStmt {
 
@@ -840,7 +840,7 @@ class BreakStmt final : public ControlStmt {
 /**
  * \class qasmtools::ast::ContinueStmt
  * \brief Class for "continue" statements
- * \see qasmtools::ast::Stmt
+ * \see qasmtools::ast::StmtBase
  */
 class ContinueStmt final : public ControlStmt {
 
@@ -870,7 +870,7 @@ class ContinueStmt final : public ControlStmt {
 /**
  * \class qasmtools::ast::ReturnStmt
  * \brief Class for "return" statements
- * \see qasmtools::ast::Stmt
+ * \see qasmtools::ast::StmtBase
  */
 class ReturnStmt final : public ControlStmt {
     using RetType = std::variant<std::monostate, QuantumMeasurement, ptr<Expr>>;
@@ -917,9 +917,9 @@ class ReturnStmt final : public ControlStmt {
 /**
  * \class qasmtools::ast::EndStmt
  * \brief Class for "end" statements
- * \see qasmtools::ast::Stmt
+ * \see qasmtools::ast::StmtBase
  */
-class EndStmt final : public LocalStmt {
+class EndStmt final : public Stmt {
 
   public:
     /**
@@ -927,7 +927,7 @@ class EndStmt final : public LocalStmt {
      *
      * \param pos The source position
      */
-    EndStmt(parser::Position pos) : LocalStmt(pos) {}
+    EndStmt(parser::Position pos) : Stmt(pos) {}
 
     /**
      * \brief Protected heap-allocated construction

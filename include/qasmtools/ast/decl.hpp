@@ -228,7 +228,7 @@ class QuantumRegisterDecl final : public GlobalStmt, public Decl {
  * \brief Class for classical register declarations
  * \see qasmtools::ast::Decl
  */
-class ClassicalRegisterDecl final : public LocalStmt, public Decl {
+class ClassicalRegisterDecl final : public Stmt, public Decl {
     int size_;     ///< the size of the register
 
   public:
@@ -240,7 +240,7 @@ class ClassicalRegisterDecl final : public LocalStmt, public Decl {
      * \param size the size of the register
      */
     ClassicalRegisterDecl(parser::Position pos, symbol id, int size)
-        : LocalStmt(pos), Decl(id), size_(size) {}
+        : Stmt(pos), Decl(id), size_(size) {}
 
     /**
      * \brief Protected heap-allocated construction

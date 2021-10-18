@@ -41,7 +41,7 @@ namespace ast {
  * \brief Program class
  */
 class Program : public ASTNode {
-    using ProgramStmt = std::variant<ptr<GlobalStmt>, ptr<LocalStmt>>;
+    using ProgramStmt = std::variant<ptr<GlobalStmt>, ptr<Stmt>>;
     bool std_include_;            ///< whether the program includes stdgates
     std::list<ProgramStmt> body_; ///< the body of the program
 
@@ -98,7 +98,7 @@ class Program : public ASTNode {
                     [&os, this](const ptr<GlobalStmt>& gs) {
                         gs->pretty_print(os, std_include_);
                     },
-                    [&os, this](const ptr<LocalStmt>& ls) {
+                    [&os, this](const ptr<Stmt>& ls) {
                         ls->pretty_print(os, std_include_);
                     }},
                 x);
@@ -114,8 +114,8 @@ class Program : public ASTNode {
                     [&tmp](const ptr<GlobalStmt>& gs) {
                         tmp.emplace_back(ptr<GlobalStmt>(gs->clone()));
                     },
-                    [&tmp](const ptr<LocalStmt>& ls) {
-                        tmp.emplace_back(ptr<LocalStmt>(ls->clone()));
+                    [&tmp](const ptr<Stmt>& ls) {
+                        tmp.emplace_back(ptr<Stmt>(ls->clone()));
                     }},
                 x);
         }
