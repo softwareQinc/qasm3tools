@@ -92,28 +92,32 @@ class Program : public ASTNode {
         if (std_include_)
             os << "include \"stdgates.inc\";\n";
         os << "\n";
-        for (auto it = body_.begin(); it != body_.end(); it++) {
-            if (std::holds_alternative<ptr<GlobalStmt>>(*it)) {
-                auto& global = std::get<ptr<GlobalStmt>>(*it);
-                global->pretty_print(os, std_include_);
-            } else {
-                auto& local = std::get<ptr<LocalStmt>>(*it);
-                local->pretty_print(os, std_include_);
-            }
+        for (const auto& x : body_) {
+            std::visit(
+                utils::overloaded{
+                    [&os, this](const ptr<GlobalStmt>& gs) {
+                        gs->pretty_print(os, std_include_);
+                    },
+                    [&os, this](const ptr<LocalStmt>& ls) {
+                        ls->pretty_print(os, std_include_);
+                    }},
+                x);
         }
 
         return os;
     }
     Program* clone() const override {
         std::list<ProgramStmt> tmp;
-        for (auto it = body_.begin(); it != body_.end(); it++) {
-            if (std::holds_alternative<ptr<GlobalStmt>>(*it)) {
-                auto& global = std::get<ptr<GlobalStmt>>(*it);
-                tmp.emplace_back(ptr<GlobalStmt>(global->clone()));
-            } else {
-                auto& local = std::get<ptr<LocalStmt>>(*it);
-                tmp.emplace_back(ptr<LocalStmt>(local->clone()));
-            }
+        for (const auto& x : body_) {
+            std::visit(
+                utils::overloaded{
+                    [&tmp](const ptr<GlobalStmt>& gs) {
+                        tmp.emplace_back(ptr<GlobalStmt>(gs->clone()));
+                    },
+                    [&tmp](const ptr<LocalStmt>& ls) {
+                        tmp.emplace_back(ptr<LocalStmt>(ls->clone()));
+                    }},
+                x);
         }
         return new Program(pos_, std_include_, std::move(tmp));
     }

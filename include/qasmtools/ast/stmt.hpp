@@ -229,14 +229,16 @@ class ProgramBlock : public ASTNode {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "{\n";
-        for (auto it = body_.begin(); it != body_.end(); it++) {
-            if (std::holds_alternative<ptr<LocalStmt>>(*it)) {
-                auto& local = std::get<ptr<LocalStmt>>(*it);
-                os << *local;
-            } else {
-                auto& control = std::get<ptr<ControlStmt>>(*it);
-                os << *control;
-            }
+        for (const auto& x : body_) {
+            std::visit(
+                utils::overloaded{
+                    [&os](const ptr<LocalStmt>& ls) {
+                        ls->pretty_print(os);
+                    },
+                    [&os](const ptr<ControlStmt>& cs) {
+                        cs->pretty_print(os);
+                    }},
+                x);
         }
         os << "}\n";
 
@@ -244,14 +246,16 @@ class ProgramBlock : public ASTNode {
     }
     ProgramBlock* clone() const override {
         std::list<ProgramBlockStmt> tmp;
-        for (auto it = body_.begin(); it != body_.end(); it++) {
-            if (std::holds_alternative<ptr<LocalStmt>>(*it)) {
-                auto& local = std::get<ptr<LocalStmt>>(*it);
-                tmp.emplace_back(ptr<LocalStmt>(local->clone()));
-            } else {
-                auto& control = std::get<ptr<ControlStmt>>(*it);
-                tmp.emplace_back(ptr<ControlStmt>(control->clone()));
-            }
+        for (const auto& x : body_) {
+            std::visit(
+                utils::overloaded{
+                    [&tmp](const ptr<LocalStmt>& ls) {
+                        tmp.emplace_back(ptr<LocalStmt>(ls->clone()));
+                    },
+                    [&tmp](const ptr<ControlStmt>& cs) {
+                        tmp.emplace_back(ptr<ControlStmt>(cs->clone()));
+                    }},
+                x);
         }
         return new ProgramBlock(pos_, std::move(tmp));
     }
@@ -307,14 +311,16 @@ class QuantumBlock : public ASTNode {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "{\n";
-        for (auto it = body_.begin(); it != body_.end(); it++) {
-            if (std::holds_alternative<ptr<QuantumStmt>>(*it)) {
-                auto& qstmt = std::get<ptr<QuantumStmt>>(*it);
-                os << *qstmt;
-            } else {
-                auto& qloop = std::get<ptr<QuantumLoop>>(*it);
-                os << *qloop;
-            }
+        for (const auto& x : body_) {
+            std::visit(
+                utils::overloaded{
+                    [&os](const ptr<QuantumStmt>& qs) {
+                        qs->pretty_print(os);
+                    },
+                    [&os](const ptr<QuantumLoop>& ql) {
+                        ql->pretty_print(os);
+                    }},
+                x);
         }
         os << "}\n";
 
@@ -322,14 +328,16 @@ class QuantumBlock : public ASTNode {
     }
     QuantumBlock* clone() const override {
         std::list<QuantumBlockStmt> tmp;
-        for (auto it = body_.begin(); it != body_.end(); it++) {
-            if (std::holds_alternative<ptr<QuantumStmt>>(*it)) {
-                auto& qstmt = std::get<ptr<QuantumStmt>>(*it);
-                tmp.emplace_back(ptr<QuantumStmt>(qstmt->clone()));
-            } else {
-                auto& qloop = std::get<ptr<QuantumLoop>>(*it);
-                tmp.emplace_back(ptr<QuantumLoop>(qloop->clone()));
-            }
+        for (const auto& x : body_) {
+            std::visit(
+                utils::overloaded{
+                    [&tmp](const ptr<QuantumStmt>& qs) {
+                        tmp.emplace_back(ptr<QuantumStmt>(qs->clone()));
+                    },
+                    [&tmp](const ptr<QuantumLoop>& ql) {
+                        tmp.emplace_back(ptr<QuantumLoop>(ql->clone()));
+                    }},
+                x);
         }
         return new QuantumBlock(pos_, std::move(tmp));
     }
@@ -384,8 +392,8 @@ class QuantumLoopBlock : public ASTNode {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "{\n";
-        for (auto it = body_.begin(); it != body_.end(); it++) {
-            os << **it;
+        for (const auto& x : body_) {
+            os << *x;
         }
         os << "}\n";
 
