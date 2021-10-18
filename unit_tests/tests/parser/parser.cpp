@@ -36,7 +36,7 @@ TEST(ASTNodes, Construction) {
         qasmtools::ast::EndStmt({});
         //decl
         qasmtools::ast::QuantumRegisterDecl qrd({}, "quantum_zyx", 3);
-        qasmtools::ast::QuantumRegisterDecl crd({}, "classic_zyx", 3);
+        qasmtools::ast::ClassicalRegisterDecl crd({}, "classic_zyx", 3);
     });
 }
 /******************************************************************************/
