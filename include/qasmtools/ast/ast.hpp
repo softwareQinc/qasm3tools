@@ -33,6 +33,7 @@
 #include "base.hpp"
 #include "decl.hpp"
 #include "expr.hpp"
+#include "gate.hpp"
 #include "program.hpp"
 #include "stmt.hpp"
 #include "visitor.hpp"

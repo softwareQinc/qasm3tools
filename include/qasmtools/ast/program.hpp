@@ -58,7 +58,7 @@ class Program : public BlockBase<ProgramStmt, Program> {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << "OpenQASM 3.0;\n";
+        os << "OPENQASM 3.0;\n";
         if (std_include_)
             os << "include \"stdgates.inc\";\n";
         os << "\n";

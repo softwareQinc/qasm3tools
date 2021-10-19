@@ -42,8 +42,6 @@ class PiExpr;
 class IntExpr;
 class RealExpr;
 class VarExpr;
-class UGate;
-class DeclaredGate;
 
 /* Completed OpenQASM 3 AST nodes */
 class Program;
@@ -64,6 +62,12 @@ class EndStmt;
 class GateDecl;
 class QuantumRegisterDecl;
 class ClassicalRegisterDecl;
+class CtrlModifier;
+class InvModifier;
+class PowModifier;
+class UGate;
+class GPhase;
+class DeclaredGate;
 
 /**
  * \class qasmtools::ast::Visitor
@@ -106,7 +110,11 @@ class Visitor {
     virtual void visit(ReturnStmt&) = 0;
     virtual void visit(EndStmt&) = 0;
     // Gates
+    virtual void visit(CtrlModifier&) = 0;
+    virtual void visit(InvModifier&) = 0;
+    virtual void visit(PowModifier&) = 0;
     virtual void visit(UGate&) = 0;
+    virtual void visit(GPhase&) = 0;
     virtual void visit(DeclaredGate&) = 0;
     // Declarations
     virtual void visit(GateDecl&) = 0;
