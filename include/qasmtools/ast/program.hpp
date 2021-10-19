@@ -40,11 +40,10 @@ namespace ast {
  * \class qasmtools::ast::Program
  * \brief Program class
  */
-class Program : public ASTNode {
-    using ProgramStmt = std::variant<ptr<GlobalStmt>, ptr<Stmt>>;
-    bool std_include_;            ///< whether the program includes stdgates
-    std::list<ProgramStmt> body_; ///< the body of the program
 
+using ProgramStmt = std::variant<ptr<GlobalStmt>, ptr<Stmt>>;
+class Program : public BlockBase<ProgramStmt, Program> {
+    bool std_include_;
   public:
     /**
      * \brief Constructs a QASM program
@@ -55,36 +54,7 @@ class Program : public ASTNode {
      */
     Program(parser::Position pos, bool std_include,
             std::list<ProgramStmt>&& body)
-        : ASTNode(pos), std_include_(std_include), body_(std::move(body)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<Program> create(parser::Position pos, bool std_include,
-                               std::list<ProgramStmt>&& body) {
-        return std::make_unique<Program>(pos, std_include, std::move(body));
-    }
-
-    /**
-     * \brief Get the program body
-     *
-     * \return Reference to the body as a list of statements
-     */
-    std::list<ProgramStmt>& body() { return body_; }
-
-    /**
-     * \brief Get an iterator to the beginning of the body
-     *
-     * \return std::list iterator
-     */
-    std::list<ProgramStmt>::iterator begin() { return body_.begin(); }
-
-    /**
-     * \brief Get an iterator to the end of the body
-     *
-     * \return std::list iterator
-     */
-    std::list<ProgramStmt>::iterator end() { return body_.end(); }
+        : BlockBase(pos, std::move(body)), std_include_(std_include) {}
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {

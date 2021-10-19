@@ -184,7 +184,7 @@ class BlockBase : public ASTNode {
      */
     typename std::list<T>::iterator end() { return body_.end(); }
 
-    std::ostream& pretty_print(std::ostream& os) const override {
+    virtual std::ostream& pretty_print(std::ostream& os) const override {
         os << "{\n";
         for (auto& x : body_) {
             std::visit([&os](auto& stmt) {
