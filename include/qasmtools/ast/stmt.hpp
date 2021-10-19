@@ -204,14 +204,14 @@ class BlockBase : public ASTNode {
  * \class qasmtools::ast::ProgramBlock
  * \brief Class for program blocks
  */
-using ProgramBlockType = std::variant<ptr<Stmt>, ptr<ControlStmt>>;
-class ProgramBlock : public BlockBase<ProgramBlockType, ProgramBlock> {
-    using BlockBase<ProgramBlockType, ProgramBlock>::BlockBase;
+using ProgramBlockStmt = std::variant<ptr<Stmt>, ptr<ControlStmt>>;
+class ProgramBlock : public BlockBase<ProgramBlockStmt, ProgramBlock> {
+    using BlockBase<ProgramBlockStmt, ProgramBlock>::BlockBase;
   public:
     void accept(Visitor& visitor) override { visitor.visit(*this); }
   protected:
     ProgramBlock* clone() const override {
-        std::list<ProgramBlockType> tmp;
+        std::list<ProgramBlockStmt> tmp;
         for (auto& x : body_) {
             std::visit([&tmp](auto& stmt) {
                 tmp.emplace_back(object::clone(*stmt));
@@ -225,14 +225,14 @@ class ProgramBlock : public BlockBase<ProgramBlockType, ProgramBlock> {
  * \class qasmtools::ast::QuantumBlock
  * \brief Class for quantum program blocks
  */
-using QuantumBlockType = std::variant<ptr<QuantumStmt>, ptr<QuantumLoop>>;
-class QuantumBlock : public BlockBase<QuantumBlockType, QuantumBlock> {
-    using BlockBase<QuantumBlockType, QuantumBlock>::BlockBase;
+using QuantumBlockStmt = std::variant<ptr<QuantumStmt>, ptr<QuantumLoop>>;
+class QuantumBlock : public BlockBase<QuantumBlockStmt, QuantumBlock> {
+    using BlockBase<QuantumBlockStmt, QuantumBlock>::BlockBase;
   public:
     void accept(Visitor& visitor) override { visitor.visit(*this); }
   protected:
     QuantumBlock* clone() const override {
-        std::list<QuantumBlockType> tmp;
+        std::list<QuantumBlockStmt> tmp;
         for (auto& x : body_) {
             std::visit([&tmp](auto& stmt) {
                 tmp.emplace_back(object::clone(*stmt));
@@ -246,14 +246,14 @@ class QuantumBlock : public BlockBase<QuantumBlockType, QuantumBlock> {
  * \class qasmtools::ast::QuantumLoopBlock
  * \brief Class for quantum loop blocks
  */
-using QuantumLoopType = std::variant<ptr<QuantumStmt>>;
-class QuantumLoopBlock : public BlockBase<QuantumLoopType, QuantumLoopBlock> {
-    using BlockBase<QuantumLoopType, QuantumLoopBlock>::BlockBase;
+using QuantumLoopStmt = std::variant<ptr<QuantumStmt>>;
+class QuantumLoopBlock : public BlockBase<QuantumLoopStmt, QuantumLoopBlock> {
+    using BlockBase<QuantumLoopStmt, QuantumLoopBlock>::BlockBase;
   public:
     void accept(Visitor& visitor) override { visitor.visit(*this); }
   protected:
     QuantumLoopBlock* clone() const override {
-        std::list<QuantumLoopType> tmp;
+        std::list<QuantumLoopStmt> tmp;
         for (auto& x : body_) {
             std::visit([&tmp](auto& stmt) {
                 tmp.emplace_back(object::clone(*stmt));

@@ -92,8 +92,8 @@ class Program : public ASTNode {
         if (std_include_)
             os << "include \"stdgates.inc\";\n";
         os << "\n";
-        for (auto &x: body_) {
-            std::visit([&os, this](auto &stmt) {
+        for (auto& x: body_) {
+            std::visit([&os, this](auto& stmt) {
                 stmt->pretty_print(os, std_include_);
             }, x);
         }
