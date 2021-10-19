@@ -173,9 +173,10 @@ class GateDecl final : public GlobalStmt, public Decl {
         os << *body_;
         return os;
     }
+  protected:
     GateDecl* clone() const override {
         return new GateDecl(pos_, id_, c_params_, q_params_,
-                            ptr<QuantumBlock>(body_->clone()));
+                            object::clone(*body_));
     }
 };
 
@@ -218,6 +219,7 @@ class QuantumRegisterDecl final : public GlobalStmt, public Decl {
         os << "qubit[" << size_ << "] " << id_ << ";\n";
         return os;
     }
+  protected:
     QuantumRegisterDecl* clone() const override {
         return new QuantumRegisterDecl(pos_, id_, size_);
     }
@@ -262,6 +264,7 @@ class ClassicalRegisterDecl final : public Stmt, public Decl {
         os << "bit[" << size_ << "] " << id_ << ";\n";
         return os;
     }
+  protected:
     ClassicalRegisterDecl* clone() const override {
         return new ClassicalRegisterDecl(pos_, id_, size_);
     }

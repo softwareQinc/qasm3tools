@@ -92,26 +92,21 @@ class Program : public ASTNode {
         if (std_include_)
             os << "include \"stdgates.inc\";\n";
         os << "\n";
-        for (auto& x : body_) {
-            std::visit([&os, this](auto& stmt) {
+        for (auto &x: body_) {
+            std::visit([&os, this](auto &stmt) {
                 stmt->pretty_print(os, std_include_);
             }, x);
         }
 
         return os;
     }
+  protected:
     Program* clone() const override {
         std::list<ProgramStmt> tmp;
-        for (const auto& x : body_) {
-            std::visit(
-                utils::overloaded{
-                    [&tmp](const ptr<GlobalStmt>& gs) {
-                        tmp.emplace_back(ptr<GlobalStmt>(gs->clone()));
-                    },
-                    [&tmp](const ptr<Stmt>& ls) {
-                        tmp.emplace_back(ptr<Stmt>(ls->clone()));
-                    }},
-                x);
+        for (auto& x : body_) {
+            std::visit([&tmp](auto& stmt) {
+                tmp.emplace_back(object::clone(*stmt));
+            }, x);
         }
         return new Program(pos_, std_include_, std::move(tmp));
     }

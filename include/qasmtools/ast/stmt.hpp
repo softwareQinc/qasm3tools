@@ -53,7 +53,6 @@ class StmtBase : public ASTNode {
   public:
     StmtBase(parser::Position pos) : ASTNode(pos) {}
     virtual ~StmtBase() = default;
-    virtual StmtBase* clone() const override = 0;
 
     /**
      * \brief Internal pretty-printer which can suppress the output of the
@@ -67,6 +66,8 @@ class StmtBase : public ASTNode {
     std::ostream& pretty_print(std::ostream& os) const override {
         return pretty_print(os, false);
     }
+  protected:
+    virtual StmtBase* clone() const override = 0;
 };
 /**
  * \class qasmtools::ast::GlobalStmt
@@ -76,6 +77,7 @@ class GlobalStmt : public StmtBase {
   public:
     GlobalStmt(parser::Position pos) : StmtBase(pos) {}
     virtual ~GlobalStmt() = default;
+  protected:
     virtual GlobalStmt* clone() const = 0;
 };
 /**
@@ -86,6 +88,7 @@ class Stmt : public StmtBase {
   public:
     Stmt(parser::Position pos) : StmtBase(pos) {}
     virtual ~Stmt() = default;
+  protected:
     virtual Stmt* clone() const = 0;
 };
 /**
@@ -96,6 +99,7 @@ class QuantumStmt : public Stmt {
   public:
     QuantumStmt(parser::Position pos) : Stmt(pos) {}
     virtual ~QuantumStmt() = default;
+  protected:
     virtual QuantumStmt* clone() const = 0;
 };
 /**
@@ -106,6 +110,7 @@ class TimingStmt : public QuantumStmt {
   public:
     TimingStmt(parser::Position pos) : QuantumStmt(pos) {}
     virtual ~TimingStmt() = default;
+  protected:
     virtual TimingStmt* clone() const = 0;
 };
 /**
@@ -116,6 +121,7 @@ class ControlStmt : public StmtBase {
   public:
     ControlStmt(parser::Position pos) : StmtBase(pos) {}
     virtual ~ControlStmt() = default;
+  protected:
     virtual ControlStmt* clone() const = 0;
 };
 /**
@@ -126,7 +132,135 @@ class QuantumLoop : public StmtBase {
   public:
     QuantumLoop(parser::Position pos) : StmtBase(pos) {}
     virtual ~QuantumLoop() = default;
+  protected:
     virtual QuantumLoop* clone() const = 0;
+};
+
+
+
+/**
+ * \class qasmtools::ast::BlockBase
+ * \brief Base class for program blocks
+ * T is std::variant of allowed statement types
+ * D is derived class
+ */
+template <typename T, typename D>
+class BlockBase : public ASTNode {
+  public:
+    /**
+     * \brief Constructs a program block
+     *
+     * \param pos The source position
+     * \param body The block body
+     */
+    BlockBase(parser::Position pos, std::list<T>&& body)
+        : ASTNode(pos), body_(std::move(body)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<D> create(parser::Position pos, std::list<T>&& body) {
+        return std::make_unique<D>(pos, std::move(body));
+    }
+
+    /**
+     * \brief Get the block body
+     *
+     * \return Reference to the body as a list of statements
+     */
+    typename std::list<T>& body() { return body_; }
+
+    /**
+     * \brief Get an iterator to the beginning of the body
+     *
+     * \return std::list iterator
+     */
+    typename std::list<T>::iterator begin() { return body_.begin(); }
+
+    /**
+     * \brief Get an iterator to the end of the body
+     *
+     * \return std::list iterator
+     */
+    typename std::list<T>::iterator end() { return body_.end(); }
+
+    std::ostream& pretty_print(std::ostream& os) const override {
+        os << "{\n";
+        for (auto& x : body_) {
+            std::visit([&os](auto& stmt) {
+                stmt->pretty_print(os);
+            }, x);
+        }
+        os << "}\n";
+
+        return os;
+    }
+  protected:
+    std::list<T> body_; ///< the body of the block
+    virtual BlockBase<T, D>* clone() const override = 0;
+};
+
+/**
+ * \class qasmtools::ast::ProgramBlock
+ * \brief Class for program blocks
+ */
+using ProgramBlockType = std::variant<ptr<Stmt>, ptr<ControlStmt>>;
+class ProgramBlock : public BlockBase<ProgramBlockType, ProgramBlock> {
+    using BlockBase<ProgramBlockType, ProgramBlock>::BlockBase;
+  public:
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+  protected:
+    ProgramBlock* clone() const override {
+        std::list<ProgramBlockType> tmp;
+        for (auto& x : body_) {
+            std::visit([&tmp](auto& stmt) {
+                tmp.emplace_back(object::clone(*stmt));
+            }, x);
+        }
+        return new ProgramBlock(pos_, std::move(tmp));
+    }
+};
+
+/**
+ * \class qasmtools::ast::QuantumBlock
+ * \brief Class for quantum program blocks
+ */
+using QuantumBlockType = std::variant<ptr<QuantumStmt>, ptr<QuantumLoop>>;
+class QuantumBlock : public BlockBase<QuantumBlockType, QuantumBlock> {
+    using BlockBase<QuantumBlockType, QuantumBlock>::BlockBase;
+  public:
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+  protected:
+    QuantumBlock* clone() const override {
+        std::list<QuantumBlockType> tmp;
+        for (auto& x : body_) {
+            std::visit([&tmp](auto& stmt) {
+                tmp.emplace_back(object::clone(*stmt));
+            }, x);
+        }
+        return new QuantumBlock(pos_, std::move(tmp));
+    }
+};
+
+/**
+ * \class qasmtools::ast::QuantumLoopBlock
+ * \brief Class for quantum loop blocks
+ */
+using QuantumLoopType = std::variant<ptr<QuantumStmt>>;
+class QuantumLoopBlock : public BlockBase<QuantumLoopType, QuantumLoopBlock> {
+    using BlockBase<QuantumLoopType, QuantumLoopBlock>::BlockBase;
+  public:
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+  protected:
+    QuantumLoopBlock* clone() const override {
+        std::list<QuantumLoopType> tmp;
+        for (auto& x : body_) {
+            std::visit([&tmp](auto& stmt) {
+                tmp.emplace_back(object::clone(*stmt));
+            }, x);
+        }
+        return new QuantumLoopBlock(pos_, std::move(tmp));
+    }
 };
 
 
@@ -138,7 +272,7 @@ class QuantumLoop : public StmtBase {
 class QuantumMeasurement final : public ASTNode {
     VarAccess q_arg_; ///< the quantum bit|register
 
-  public:
+public:
     /**
      * \brief Constructs a quantum measurement
      *
@@ -174,225 +308,9 @@ class QuantumMeasurement final : public ASTNode {
         os << "measure " << q_arg_;
         return os;
     }
+  protected:
     QuantumMeasurement* clone() const override {
         return new QuantumMeasurement(pos_, VarAccess(q_arg_));
-    }
-};
-
-/**
- * \class qasmtools::ast::ProgramBlock
- * \brief Class for program blocks
- */
-class ProgramBlock : public ASTNode {
-    using ProgramBlockStmt = std::variant<ptr<Stmt>, ptr<ControlStmt>>;
-    std::list<ProgramBlockStmt> body_; ///< the body of the block
-
-  public:
-    /**
-     * \brief Constructs a program block
-     *
-     * \param pos The source position
-     * \param body The block body
-     */
-    ProgramBlock(parser::Position pos, std::list<ProgramBlockStmt>&& body)
-        : ASTNode(pos), body_(std::move(body)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<ProgramBlock> create(parser::Position pos,
-                                    std::list<ProgramBlockStmt>&& body) {
-        return std::make_unique<ProgramBlock>(pos, std::move(body));
-    }
-
-    /**
-     * \brief Get the block body
-     *
-     * \return Reference to the body as a list of statements
-     */
-    std::list<ProgramBlockStmt>& body() { return body_; }
-
-    /**
-     * \brief Get an iterator to the beginning of the body
-     *
-     * \return std::list iterator
-     */
-    std::list<ProgramBlockStmt>::iterator begin() { return body_.begin(); }
-
-    /**
-     * \brief Get an iterator to the end of the body
-     *
-     * \return std::list iterator
-     */
-    std::list<ProgramBlockStmt>::iterator end() { return body_.end(); }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os) const override {
-        os << "{\n";
-        for (auto& x : body_) {
-            std::visit([&os](auto& stmt) {
-                stmt->pretty_print(os);
-            }, x);
-        }
-        os << "}\n";
-
-        return os;
-    }
-    ProgramBlock* clone() const override {
-        std::list<ProgramBlockStmt> tmp;
-        for (const auto& x : body_) {
-            std::visit(
-                utils::overloaded{
-                    [&tmp](const ptr<Stmt>& ls) {
-                        tmp.emplace_back(ptr<Stmt>(ls->clone()));
-                    },
-                    [&tmp](const ptr<ControlStmt>& cs) {
-                        tmp.emplace_back(ptr<ControlStmt>(cs->clone()));
-                    }},
-                x);
-        }
-        return new ProgramBlock(pos_, std::move(tmp));
-    }
-};
-
-/**
- * \class qasmtools::ast::QuantumBlock
- * \brief Class for quantum program blocks
- */
-class QuantumBlock : public ASTNode {
-    using QuantumBlockStmt = std::variant<ptr<QuantumStmt>, ptr<QuantumLoop>>;
-    std::list<QuantumBlockStmt> body_; ///< the body of the block
-
-  public:
-    /**
-     * \brief Constructs a quantum program block
-     *
-     * \param pos The source position
-     * \param body The block body
-     */
-    QuantumBlock(parser::Position pos, std::list<QuantumBlockStmt>&& body)
-        : ASTNode(pos), body_(std::move(body)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<QuantumBlock> create(parser::Position pos,
-                                    std::list<QuantumBlockStmt>&& body) {
-        return std::make_unique<QuantumBlock>(pos, std::move(body));
-    }
-
-    /**
-     * \brief Get the block body
-     *
-     * \return Reference to the body as a list of statements
-     */
-    std::list<QuantumBlockStmt>& body() { return body_; }
-
-    /**
-     * \brief Get an iterator to the beginning of the body
-     *
-     * \return std::list iterator
-     */
-    std::list<QuantumBlockStmt>::iterator begin() { return body_.begin(); }
-
-    /**
-     * \brief Get an iterator to the end of the body
-     *
-     * \return std::list iterator
-     */
-    std::list<QuantumBlockStmt>::iterator end() { return body_.end(); }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os) const override {
-        os << "{\n";
-        for (auto& x : body_) {
-            std::visit([&os](auto& stmt) {
-                stmt->pretty_print(os);
-            }, x);
-        }
-        os << "}\n";
-
-        return os;
-    }
-    QuantumBlock* clone() const override {
-        std::list<QuantumBlockStmt> tmp;
-        for (const auto& x : body_) {
-            std::visit(
-                utils::overloaded{
-                    [&tmp](const ptr<QuantumStmt>& qs) {
-                        tmp.emplace_back(ptr<QuantumStmt>(qs->clone()));
-                    },
-                    [&tmp](const ptr<QuantumLoop>& ql) {
-                        tmp.emplace_back(ptr<QuantumLoop>(ql->clone()));
-                    }},
-                x);
-        }
-        return new QuantumBlock(pos_, std::move(tmp));
-    }
-};
-
-/**
- * \class qasmtools::ast::QuantumLoopBlock
- * \brief Class for quantum loop blocks
- */
-class QuantumLoopBlock : public ASTNode {
-    std::list<ptr<QuantumStmt>> body_; ///< the body of the block
-
-  public:
-    /**
-     * \brief Constructs a quantum loop block
-     *
-     * \param pos The source position
-     * \param body The block body
-     */
-    QuantumLoopBlock(parser::Position pos, std::list<ptr<QuantumStmt>>&& body)
-        : ASTNode(pos), body_(std::move(body)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<QuantumLoopBlock> create(parser::Position pos,
-                                        std::list<ptr<QuantumStmt>>&& body) {
-        return std::make_unique<QuantumLoopBlock>(pos, std::move(body));
-    }
-
-    /**
-     * \brief Get the block body
-     *
-     * \return Reference to the body as a list of statements
-     */
-    std::list<ptr<QuantumStmt>>& body() { return body_; }
-
-    /**
-     * \brief Get an iterator to the beginning of the body
-     *
-     * \return std::list iterator
-     */
-    std::list<ptr<QuantumStmt>>::iterator begin() { return body_.begin(); }
-
-    /**
-     * \brief Get an iterator to the end of the body
-     *
-     * \return std::list iterator
-     */
-    std::list<ptr<QuantumStmt>>::iterator end() { return body_.end(); }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os) const override {
-        os << "{\n";
-        for (const auto& x : body_) {
-            os << *x;
-        }
-        os << "}\n";
-
-        return os;
-    }
-    QuantumLoopBlock* clone() const override {
-        std::list<ptr<QuantumStmt>> tmp;
-        for (auto it = body_.begin(); it != body_.end(); it++) {
-            tmp.emplace_back(ptr<QuantumStmt>((*it)->clone()));
-        }
-        return new QuantumLoopBlock(pos_, std::move(tmp));
     }
 };
 
@@ -443,6 +361,7 @@ class MeasureStmt final : public QuantumStmt {
         os << measurement_ << ";\n";
         return os;
     }
+  protected:
     MeasureStmt* clone() const override {
         return new MeasureStmt(pos_, QuantumMeasurement(measurement_));
     }
@@ -492,8 +411,9 @@ class ExprStmt final : public Stmt {
         os << exp_ << ";\n";
         return os;
     }
+  protected:
     ExprStmt* clone() const override {
-        return new ExprStmt(pos_, ptr<Expr>(exp_->clone()));
+        return new ExprStmt(pos_, object::clone(*exp_));
     }
 };
 
@@ -562,6 +482,7 @@ class MeasureAsgnStmt final : public Stmt {
         os << c_arg_ << " = " << measurement_ << ";\n";
         return os;
     }
+  protected:
     MeasureAsgnStmt* clone() const override {
         return new MeasureAsgnStmt(pos_, QuantumMeasurement(measurement_),
                                    VarAccess(c_arg_));
@@ -622,8 +543,8 @@ class ResetStmt final : public QuantumStmt {
      * \param f Void function accepting a reference to the argument
      */
     void foreach_arg(std::function<void(VarAccess&)> f) {
-        for (auto it = args_.begin(); it != args_.end(); it++)
-            f(*it);
+        for (auto& x: args_)
+            f(x);
     }
 
     /**
@@ -636,12 +557,12 @@ class ResetStmt final : public QuantumStmt {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
         os << "reset";
-        for (auto it = args_.begin(); it != args_.end(); it++) {
+        for (auto it = args_.begin(); it != args_.end(); it++)
             os << (it == args_.begin() ? " " : ", ") << *it;
-        }
         os << ";\n";
         return os;
     }
+  protected:
     ResetStmt* clone() const override {
         return new ResetStmt(pos_, std::vector<VarAccess>(args_));
     }
@@ -701,8 +622,8 @@ class BarrierStmt final : public QuantumStmt {
      * \param f Void function accepting a reference to the argument
      */
     void foreach_arg(std::function<void(VarAccess&)> f) {
-        for (auto it = args_.begin(); it != args_.end(); it++)
-            f(*it);
+        for (auto& x: args_)
+            f(x);
     }
 
     /**
@@ -716,12 +637,12 @@ class BarrierStmt final : public QuantumStmt {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
         os << "barrier";
-        for (auto it = args_.begin(); it != args_.end(); it++) {
+        for (auto it = args_.begin(); it != args_.end(); it++)
             os << (it == args_.begin() ? " " : ",") << *it;
-        }
         os << ";\n";
         return os;
     }
+  protected:
     BarrierStmt* clone() const override {
         return new BarrierStmt(pos_, std::vector<VarAccess>(args_));
     }
@@ -788,10 +709,10 @@ class IfStmt final : public Stmt {
             os << "else " << *else_;
         return os;
     }
+  protected:
     IfStmt* clone() const override {
-        return new IfStmt(pos_, ptr<Expr>(cond_->clone()),
-                          ptr<ProgramBlock>(then_->clone()),
-                          ptr<ProgramBlock>(else_->clone()));
+        return new IfStmt(pos_, object::clone(*cond_), object::clone(*then_),
+                          object::clone(*else_));
     }
 };
 
@@ -822,6 +743,7 @@ class BreakStmt final : public ControlStmt {
         os << "break;\n";
         return os;
     }
+  protected:
     BreakStmt* clone() const override { return new BreakStmt(pos_); }
 };
 
@@ -852,6 +774,7 @@ class ContinueStmt final : public ControlStmt {
         os << "continue;\n";
         return os;
     }
+  protected:
     ContinueStmt* clone() const override { return new ContinueStmt(pos_); }
 };
 
@@ -882,22 +805,33 @@ class ReturnStmt final : public ControlStmt {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
-        if (std::holds_alternative<QuantumMeasurement>(value_)) {
-            os << "return " << std::get<QuantumMeasurement>(value_) << ";\n";
-        } else if (std::holds_alternative<ptr<Expr>>(value_)) {
-            os << "return " << *std::get<ptr<Expr>>(value_) << ";\n";
-        } else {
-            os << "return;\n";
-        }
+        std::visit(
+            utils::overloaded{
+                [&os](QuantumMeasurement& qm) {
+                    os << "return " << qm << ";\n";
+                },
+                [&os](const ptr<Expr>& exp) {
+                    os << "return " << *exp << ";\n";
+                },
+                [&os](auto) {
+                    os << "return;\n";
+                }},
+            value_);
         return os;
     }
+  protected:
     ReturnStmt* clone() const override {
         RetType value_copy = std::monostate();
-        if (std::holds_alternative<QuantumMeasurement>(value_)) {
-            value_copy = std::get<QuantumMeasurement>(value_);
-        } else if (std::holds_alternative<ptr<Expr>>(value_)) {
-            value_copy = ptr<Expr>(std::get<ptr<Expr>>(value_)->clone());
-        }
+        std::visit(
+            utils::overloaded{
+                [&value_copy](QuantumMeasurement& qm) {
+                    value_copy = qm;
+                },
+                [&value_copy](const ptr<Expr>& exp) {
+                    value_copy = object::clone(*exp);
+                },
+                [](auto) {}},
+            value_);
         return new ReturnStmt(pos_, std::move(value_copy));
     }
 };
@@ -929,6 +863,7 @@ class EndStmt final : public Stmt {
         os << "end;\n";
         return os;
     }
+  protected:
     EndStmt* clone() const override { return new EndStmt(pos_); }
 };
 
@@ -1032,10 +967,10 @@ class UGate final : public QuantumStmt {
            << ";\n";
         return os;
     }
+  protected:
     UGate* clone() const override {
-        return new UGate(pos_, ptr<Expr>(theta_->clone()),
-                         ptr<Expr>(phi_->clone()), ptr<Expr>(lambda_->clone()),
-                         VarAccess(arg_));
+        return new UGate(pos_, object::clone(*theta_), object::clone(*phi_),
+                         object::clone(*lambda_), VarAccess(arg_));
     }
 };
 
@@ -1124,8 +1059,8 @@ class DeclaredGate final : public QuantumStmt {
      * \param f Void function accepting an expression reference
      */
     void foreach_carg(std::function<void(Expr&)> f) {
-        for (auto it = c_args_.begin(); it != c_args_.end(); it++)
-            f(**it);
+        for (auto& x: c_args_)
+            f(*x);
     }
 
     /**
@@ -1134,8 +1069,8 @@ class DeclaredGate final : public QuantumStmt {
      * \param f Void function accepting a reference to an argument
      */
     void foreach_qarg(std::function<void(VarAccess&)> f) {
-        for (auto it = q_args_.begin(); it != q_args_.end(); it++)
-            f(*it);
+        for (auto& x: q_args_)
+            f(x);
     }
 
     /**
@@ -1159,23 +1094,21 @@ class DeclaredGate final : public QuantumStmt {
         os << name_;
         if (c_args_.size() > 0) {
             os << "(";
-            for (auto it = c_args_.begin(); it != c_args_.end(); it++) {
+            for (auto it = c_args_.begin(); it != c_args_.end(); it++)
                 os << (it == c_args_.begin() ? "" : ",") << **it;
-            }
             os << ")";
         }
         os << " ";
-        for (auto it = q_args_.begin(); it != q_args_.end(); it++) {
+        for (auto it = q_args_.begin(); it != q_args_.end(); it++)
             os << (it == q_args_.begin() ? "" : ",") << *it;
-        }
         os << ";\n";
         return os;
     }
+  protected:
     DeclaredGate* clone() const override {
         std::vector<ptr<Expr>> c_tmp;
-        for (auto it = c_args_.begin(); it != c_args_.end(); it++) {
-            c_tmp.emplace_back(ptr<Expr>((*it)->clone()));
-        }
+        for (auto& x: c_args_)
+            c_tmp.emplace_back(object::clone(*x));
 
         return new DeclaredGate(pos_, name_, std::move(c_tmp),
                                 std::vector<VarAccess>(q_args_));
