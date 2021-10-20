@@ -33,7 +33,7 @@
 
 #include "base.hpp"
 #include "expr.hpp"
-#include "var.hpp"
+#include "indexid.hpp"
 #include "../utils/templates.hpp"
 
 #include <functional>
@@ -270,47 +270,41 @@ class QuantumLoopBlock : public BlockBase<QuantumLoopStmt, QuantumLoopBlock> {
  * \brief Class for quantum measurements
  */
 class QuantumMeasurement final : public ASTNode {
-    VarAccess q_arg_; ///< the quantum bit|register
+    ptr<IndexId> q_arg_; ///< the quantum bit|register
 
-public:
+  public:
     /**
      * \brief Constructs a quantum measurement
      *
      * \param pos The source position
      * \param q_arg Rvalue reference to the quantum argument
      */
-    QuantumMeasurement(parser::Position pos, VarAccess&& q_arg)
+    QuantumMeasurement(parser::Position pos, ptr<IndexId> q_arg)
         : ASTNode(pos), q_arg_(std::move(q_arg)) {}
 
     /**
-     * \brief Copy constructor
+     * \brief Protected heap-allocated construction
      */
-    QuantumMeasurement(const QuantumMeasurement& qm)
-        : ASTNode(qm.pos_), q_arg_(qm.q_arg_) {}
+    static ptr<QuantumMeasurement> create(parser::Position pos,
+                                          ptr<IndexId> q_arg) {
+        return std::make_unique<QuantumMeasurement>(pos, std::move(q_arg));
+    }
 
     /**
      * \brief Get the quantum argument
      *
      * \return Const reference to the quantum argument
      */
-    const VarAccess& q_arg() const { return q_arg_; }
-
-    /**
-     * \brief Copy assignment overload
-     */
-    QuantumMeasurement& operator=(const QuantumMeasurement& q) {
-        q_arg_ = q.q_arg_;
-        return *this;
-    }
+    const IndexId& q_arg() const { return *q_arg_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << "measure " << q_arg_;
+        os << "measure " << *q_arg_;
         return os;
     }
   protected:
     QuantumMeasurement* clone() const override {
-        return new QuantumMeasurement(pos_, VarAccess(q_arg_));
+        return new QuantumMeasurement(pos_, object::clone(*q_arg_));
     }
 };
 
@@ -322,7 +316,7 @@ public:
  * \see qasmtools::ast::StmtBase
  */
 class MeasureStmt final : public QuantumStmt {
-    QuantumMeasurement measurement_; ///< the quantum measurement
+    ptr<QuantumMeasurement> measurement_; ///< the quantum measurement
 
   public:
     /**
@@ -331,14 +325,14 @@ class MeasureStmt final : public QuantumStmt {
      * \param pos The source position
      * \param q_arg Rvalue reference to the quantum argument
      */
-    MeasureStmt(parser::Position pos, QuantumMeasurement&& qm)
+    MeasureStmt(parser::Position pos, ptr<QuantumMeasurement> qm)
         : QuantumStmt(pos), measurement_(std::move(qm)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<MeasureStmt> create(parser::Position pos,
-                                   QuantumMeasurement&& qm) {
+                                   ptr<QuantumMeasurement> qm) {
         return std::make_unique<MeasureStmt>(pos, std::move(qm));
     }
 
@@ -347,23 +341,25 @@ class MeasureStmt final : public QuantumStmt {
      *
      * \return Reference to the quantum measurement
      */
-    QuantumMeasurement& measurement() { return measurement_; }
+    QuantumMeasurement& measurement() { return *measurement_; }
 
     /**
      * \brief Set the quantum argument
      *
      * \param arg Const reference to a new argument
      */
-    void set_measurement(const QuantumMeasurement& qm) { measurement_ = qm; }
+    void set_measurement(ptr<QuantumMeasurement> qm) {
+        measurement_ = std::move(qm);
+    }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
-        os << measurement_ << ";\n";
+        os << *measurement_ << ";\n";
         return os;
     }
   protected:
     MeasureStmt* clone() const override {
-        return new MeasureStmt(pos_, QuantumMeasurement(measurement_));
+        return new MeasureStmt(pos_, object::clone(*measurement_));
     }
 };
 
@@ -423,8 +419,8 @@ class ExprStmt final : public Stmt {
  * \see qasmtools::ast::StmtBase
  */
 class MeasureAsgnStmt final : public Stmt {
-    QuantumMeasurement measurement_; ///< the quantum measurement
-    VarAccess c_arg_;                ///< the classical bit|register
+    ptr<QuantumMeasurement> measurement_; ///< the quantum measurement
+    ptr<IndexId> c_arg_;                  ///< the classical bit|register
 
   public:
     /**
@@ -434,8 +430,8 @@ class MeasureAsgnStmt final : public Stmt {
      * \param q_arg Rvalue reference to the quantum argument
      * \param c_arg Rvalue reference to the classical argument
      */
-    MeasureAsgnStmt(parser::Position pos, QuantumMeasurement&& qm,
-                    VarAccess&& c_arg)
+    MeasureAsgnStmt(parser::Position pos, ptr<QuantumMeasurement> qm,
+                    ptr<IndexId> c_arg)
         : Stmt(pos), measurement_(std::move(qm)), c_arg_(std::move(c_arg))
     {}
 
@@ -443,8 +439,8 @@ class MeasureAsgnStmt final : public Stmt {
      * \brief Protected heap-allocated construction
      */
     static ptr<MeasureAsgnStmt> create(parser::Position pos,
-                                       QuantumMeasurement&& qm,
-                                       VarAccess&& c_arg) {
+                                       ptr<QuantumMeasurement> qm,
+                                       ptr<IndexId> c_arg) {
         return std::make_unique<MeasureAsgnStmt>(pos, std::move(qm),
                                                  std::move(c_arg));
     }
@@ -454,38 +450,40 @@ class MeasureAsgnStmt final : public Stmt {
      *
      * \return Reference to the quantum measurement
      */
-    QuantumMeasurement& measurement() { return measurement_; }
+    QuantumMeasurement& measurement() { return *measurement_; }
 
     /**
      * \brief Get the classical argument
      *
      * \return Reference to the classical argument
      */
-    VarAccess& c_arg() { return c_arg_; }
+    IndexId& c_arg() { return *c_arg_; }
 
     /**
      * \brief Set the quantum measurement
      *
      * \param arg Const reference to a new measurement
      */
-    void set_qarg(const QuantumMeasurement& qm) { measurement_ = qm; }
+    void set_measurement(ptr<QuantumMeasurement> qm) {
+        measurement_ = std::move(qm);
+    }
 
     /**
      * \brief Set the classical argument
      *
      * \param arg Const reference to a new argument
      */
-    void set_carg(const VarAccess& arg) { c_arg_ = arg; }
+    void set_carg(ptr<IndexId> arg) { c_arg_ = std::move(arg); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
-        os << c_arg_ << " = " << measurement_ << ";\n";
+        os << *c_arg_ << " = " << *measurement_ << ";\n";
         return os;
     }
   protected:
     MeasureAsgnStmt* clone() const override {
-        return new MeasureAsgnStmt(pos_, QuantumMeasurement(measurement_),
-                                   VarAccess(c_arg_));
+        return new MeasureAsgnStmt(pos_, object::clone(*measurement_),
+                                   object::clone(*c_arg_));
     }
 };
 
@@ -495,7 +493,7 @@ class MeasureAsgnStmt final : public Stmt {
  * \see qasmtools::ast::StmtBase
  */
 class ResetStmt final : public QuantumStmt {
-    std::vector<VarAccess> args_; ///< list of quantum bits|registers
+    std::vector<ptr<IndexId>> args_; ///< list of quantum bits|registers
 
   public:
     /**
@@ -504,14 +502,14 @@ class ResetStmt final : public QuantumStmt {
      * \param pos The source position
      * \param arg Rvalue reference to the list of arguments
      */
-    ResetStmt(parser::Position pos, std::vector<VarAccess>&& args)
+    ResetStmt(parser::Position pos, std::vector<ptr<IndexId>>&& args)
         : QuantumStmt(pos), args_(std::move(args)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<ResetStmt> create(parser::Position pos,
-                                 std::vector<VarAccess>&& args) {
+                                 std::vector<ptr<IndexId>>&& args) {
         return std::make_unique<ResetStmt>(pos, std::move(args));
     }
 
@@ -527,7 +525,7 @@ class ResetStmt final : public QuantumStmt {
      *
      * \return Reference to the list of arguments
      */
-    std::vector<VarAccess>& args() { return args_; }
+    std::vector<ptr<IndexId>>& args() { return args_; }
 
     /**
      * \brief Get the ith argument
@@ -535,16 +533,16 @@ class ResetStmt final : public QuantumStmt {
      * \param i The index
      * \return Reference to the argument
      */
-    VarAccess& arg(int i) { return args_[i]; }
+    IndexId& arg(int i) { return *args_[i]; }
 
     /**
      * \brief Apply a function to each argument
      *
      * \param f Void function accepting a reference to the argument
      */
-    void foreach_arg(std::function<void(VarAccess&)> f) {
+    void foreach_arg(std::function<void(IndexId&)> f) {
         for (auto& x: args_)
-            f(x);
+            f(*x);
     }
 
     /**
@@ -552,19 +550,22 @@ class ResetStmt final : public QuantumStmt {
      *
      * \param arg Const reference to a new argument
      */
-    void set_arg(int i, const VarAccess& arg) { args_[i] = arg; }
+    void set_arg(int i, ptr<IndexId> arg) { args_[i] = std::move(arg); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
         os << "reset";
         for (auto it = args_.begin(); it != args_.end(); it++)
-            os << (it == args_.begin() ? " " : ", ") << *it;
+            os << (it == args_.begin() ? " " : ", ") << **it;
         os << ";\n";
         return os;
     }
   protected:
     ResetStmt* clone() const override {
-        return new ResetStmt(pos_, std::vector<VarAccess>(args_));
+        std::vector<ptr<IndexId>> tmp;
+        for (auto& x : args_)
+            tmp.emplace_back(object::clone(*x));
+        return new ResetStmt(pos_, std::move(tmp));
     }
 };
 
@@ -574,7 +575,7 @@ class ResetStmt final : public QuantumStmt {
  * \see qasmtools::ast::StmtBase
  */
 class BarrierStmt final : public QuantumStmt {
-    std::vector<VarAccess> args_; ///< list of quantum bits|registers
+    std::vector<ptr<IndexId>> args_; ///< list of quantum bits|registers
 
   public:
     /**
@@ -583,14 +584,14 @@ class BarrierStmt final : public QuantumStmt {
      * \param pos The source position
      * \param args Rvalue reference to a list of arguments
      */
-    BarrierStmt(parser::Position pos, std::vector<VarAccess>&& args)
+    BarrierStmt(parser::Position pos, std::vector<ptr<IndexId>>&& args)
         : QuantumStmt(pos), args_(std::move(args)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<BarrierStmt> create(parser::Position pos,
-                                   std::vector<VarAccess>&& args) {
+                                   std::vector<ptr<IndexId>>&& args) {
         return std::make_unique<BarrierStmt>(pos, std::move(args));
     }
 
@@ -606,7 +607,7 @@ class BarrierStmt final : public QuantumStmt {
      *
      * \return Reference to the list of arguments
      */
-    std::vector<VarAccess>& args() { return args_; }
+    std::vector<ptr<IndexId>>& args() { return args_; }
 
     /**
      * \brief Get the ith argument
@@ -614,16 +615,16 @@ class BarrierStmt final : public QuantumStmt {
      * \param i The number of the argument (0 indexed)
      * \return Reference to the ith argument
      */
-    VarAccess& arg(int i) { return args_[i]; }
+    IndexId& arg(int i) { return *args_[i]; }
 
     /**
      * \brief Apply a function to each argument
      *
      * \param f Void function accepting a reference to the argument
      */
-    void foreach_arg(std::function<void(VarAccess&)> f) {
+    void foreach_arg(std::function<void(IndexId&)> f) {
         for (auto& x: args_)
-            f(x);
+            f(*x);
     }
 
     /**
@@ -632,7 +633,7 @@ class BarrierStmt final : public QuantumStmt {
      * \param i The number of the argument (0 indexed)
      * \param arg The new argument
      */
-    void set_arg(int i, const VarAccess& arg) { args_[i] = arg; }
+    void set_arg(int i, ptr<IndexId> arg) { args_[i] = std::move(arg); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
@@ -644,7 +645,10 @@ class BarrierStmt final : public QuantumStmt {
     }
   protected:
     BarrierStmt* clone() const override {
-        return new BarrierStmt(pos_, std::vector<VarAccess>(args_));
+        std::vector<ptr<IndexId>> tmp;
+        for (auto& x : args_)
+            tmp.emplace_back(object::clone(*x));
+        return new BarrierStmt(pos_, std::move(tmp));
     }
 };
 
@@ -784,7 +788,9 @@ class ContinueStmt final : public ControlStmt {
  * \see qasmtools::ast::StmtBase
  */
 class ReturnStmt final : public ControlStmt {
-    using RetType = std::variant<std::monostate, QuantumMeasurement, ptr<Expr>>;
+    using RetType = std::variant<std::monostate,
+                                 ptr<QuantumMeasurement>,
+                                 ptr<Expr>>;
     RetType value_;
 
   public:
@@ -807,8 +813,8 @@ class ReturnStmt final : public ControlStmt {
     std::ostream& pretty_print(std::ostream& os, bool) const override {
         std::visit(
             utils::overloaded{
-                [&os](QuantumMeasurement& qm) {
-                    os << "return " << qm << ";\n";
+                [&os](const ptr<QuantumMeasurement>& qm) {
+                    os << "return " << *qm << ";\n";
                 },
                 [&os](const ptr<Expr>& exp) {
                     os << "return " << *exp << ";\n";
@@ -824,8 +830,8 @@ class ReturnStmt final : public ControlStmt {
         RetType value_copy = std::monostate();
         std::visit(
             utils::overloaded{
-                [&value_copy](QuantumMeasurement& qm) {
-                    value_copy = qm;
+                [&value_copy](const ptr<QuantumMeasurement>& qm) {
+                    value_copy = object::clone(*qm);
                 },
                 [&value_copy](const ptr<Expr>& exp) {
                     value_copy = object::clone(*exp);

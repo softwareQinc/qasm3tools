@@ -35,7 +35,6 @@ namespace qasmtools {
 namespace ast {
 
 /* Forward declarations */
-class VarAccess;
 class BExpr;
 class UExpr;
 class PiExpr;
@@ -68,6 +67,10 @@ class PowModifier;
 class UGate;
 class GPhase;
 class DeclaredGate;
+class RangeSlice;
+class ListSlice;
+class VarAccess;
+class Concat;
 
 /**
  * \class qasmtools::ast::Visitor
@@ -85,7 +88,10 @@ class DeclaredGate;
 class Visitor {
   public:
     // Variables
+    virtual void visit(RangeSlice&) = 0;
+    virtual void visit(ListSlice&) = 0;
     virtual void visit(VarAccess&) = 0;
+    virtual void visit(Concat&) = 0;
     // Expressions
     virtual void visit(BExpr&) = 0;
     virtual void visit(UExpr&) = 0;
