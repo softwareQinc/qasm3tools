@@ -87,7 +87,7 @@ class Concat;
  */
 class Visitor {
   public:
-    // Variables
+    // Index identifiers
     virtual void visit(RangeSlice&) = 0;
     virtual void visit(ListSlice&) = 0;
     virtual void visit(VarAccess&) = 0;

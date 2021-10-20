@@ -41,7 +41,7 @@ namespace ast {
 
 /**
  * \class qasmtools::ast::Slice
- * \brief Class for range slicing
+ * \brief Class for register slices
  */
 class Slice : public ASTNode {
   public:

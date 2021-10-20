@@ -61,8 +61,8 @@ TEST(ASTNodes, Construction) {
         ast::ExprStmt({}, {});
         ast::MeasureAsgnStmt({}, ast::object::clone(qm),
                              ast::object::clone(va));
-        ast::ResetStmt({}, {make_va_list()});
-        ast::BarrierStmt({}, {make_va_list()});
+        ast::ResetStmt({}, make_va_list());
+        ast::BarrierStmt({}, make_va_list());
         ast::IfStmt({}, {}, {}, {});
         ast::BreakStmt({});
         ast::ContinueStmt({});
@@ -75,8 +75,8 @@ TEST(ASTNodes, Construction) {
         //gates
         ast::UGate({}, {}, ast::object::clone(expr1), ast::object::clone(expr1),
                    ast::object::clone(expr1), ast::object::clone(va));
-        ast::GPhase({}, {}, ast::object::clone(expr2), {make_va_list()});
-        ast::DeclaredGate({}, {}, "mygate", {}, {make_va_list()});
+        ast::GPhase({}, {}, ast::object::clone(expr2), make_va_list());
+        ast::DeclaredGate({}, {}, "mygate", {}, make_va_list());
     });
 }
 /******************************************************************************/
