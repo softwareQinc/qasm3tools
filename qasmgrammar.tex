@@ -112,9 +112,9 @@
 	    & $\mid$ & \texttt{creg <id> <equalsexp>?;} $\mid$ \texttt{creg <id>[<exp>] <equalsexp>?;} \\ 
 	    & $\mid$ & \texttt{bit <id> <equalsexp>?;} $\mid$ \texttt{bit[<exp>] <id> <equalsexp>?;} \\
 	    & $\mid$ & \texttt{complex[<singledesignatortype>[<exp>]] <id> <equalsexp>?;} \\
-	    & $\mid$ & \texttt{const <id> <equalsexp>;} \\ \\
+	    & $\mid$ & \texttt{const <ctype> <id> <equalsexp>;} \\ \\
 	\texttt{<exp>} & $::=$ & \texttt{<constant>} $\mid$ \texttt{<int>} $\mid$ \texttt{<real>} $\mid$ \texttt{<imag>} \\
-	    & $\mid$ & \texttt{true} $\mid$ \texttt{false} $\mid$ \texttt{<id>} $\mid$ \texttt{<string>} \\
+	    & $\mid$ & \texttt{<bool>} $\mid$ \texttt{<id>} $\mid$ \texttt{<string>} \\
 	    & $\mid$ & \texttt{<math>(<exp...>)} \\
 	    & $\mid$ & \texttt{<ctype>(<exp...>)} \\
 	    & $\mid$ & \texttt{<id>(<exp...>?)} \\
@@ -125,7 +125,8 @@
 	    & $\mid$ & \texttt{<exp> <b-op> <exp>} \\
 	    & $\mid$ & \texttt{<u-op> <exp>} \\
 	    \\
-	\texttt{<math>} & $::=$ & \texttt{sin} $\mid$ \texttt{cos} $\mid$ \texttt{tan} $\mid$ \texttt{exp} $\mid$ \texttt{ln}  $\mid$ \texttt{sqrt} $\mid$ \texttt{rotl} $\mid$ \texttt{rotr} $\mid$ \texttt{popcount} \\
+	\texttt{<math>} & $::=$ & \texttt{arcsin} $\mid$ \texttt{sin} $\mid$ \texttt{arccos} $\mid$ \texttt{cos} $\mid$ \texttt{arctan} $\mid$ \texttt{tan} \\
+	& $\mid$ & \texttt{exp} $\mid$ \texttt{ln}  $\mid$ \texttt{sqrt} $\mid$ \texttt{rotl} $\mid$ \texttt{rotr} $\mid$ \texttt{popcount} \\
 	\texttt{<b-op>} & $::=$ & \texttt{||} $\mid$ \texttt{\&\&} $\mid$ \texttt{|} $\mid$ \texttt{\string^} $\mid$ \texttt{\&}  $\mid$ \texttt{==} $\mid$ \texttt{!=} $\mid$ \texttt{>} $\mid$ \texttt{<} $\mid$ \texttt{>=} $\mid$ \texttt{<=} \\
 	& $\mid$ & \texttt{<{}<} $\mid$ \texttt{>{}>} $\mid$ \texttt{+} $\mid$ \texttt{-} $\mid$ \texttt{*} $\mid$ \texttt{/} $\mid$ \texttt{\%} $\mid$ \texttt{**} \\
 	\texttt{<u-op>} & $::=$ & \texttt{\string~} $\mid$ \texttt{!} $\mid$ \texttt{-} \\ \\
@@ -138,6 +139,7 @@
 	\texttt{<int>} & $::=$ & \texttt{[0-9]+} \\
 	\texttt{<real>} & $::=$ & \texttt{([0-9]+$\mid$[0-9]+.[0-9]*)([eE][+-]?[0-9]+)?} \\
 	\texttt{<imag>} & $::=$ & \texttt{(<int>|<real>)im} \\
+	\texttt{<bool>} & $::=$ & \texttt{true|false} \\
 	\texttt{<time>} & $::=$ & \texttt{(<int>|<real>)(dt|ns|us|{\textmu}s|ms|s)} \\
 	\texttt{<string>} & $::=$ & \texttt{"[\string^"{\textbackslash}r{\textbackslash}t{\textbackslash}n]*"} $\mid$ \texttt{'[\string^'{\textbackslash}r{\textbackslash}t{\textbackslash}n]*'} \\
 	\texttt{<constant>} & $::=$ & \texttt{pi} $\mid$ \texttt{\textpi} $\mid$ \texttt{tau} $\mid$ \texttt{\texttau} $\mid$ \texttt{euler} $\mid$ \texttt{\textepsilon} \\ \\
