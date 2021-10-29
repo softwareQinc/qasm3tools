@@ -186,7 +186,7 @@ class GateDecl final : public GlobalStmt, public Decl {
  * \see qasmtools::ast::Decl
  */
 class QuantumRegisterDecl final : public GlobalStmt, public Decl {
-    int size_;     ///< the size of the register
+    std::optional<int> size_; ///< the size of the register
 
   public:
     /**
@@ -196,27 +196,31 @@ class QuantumRegisterDecl final : public GlobalStmt, public Decl {
      * \param id The register identifier
      * \param size the size of the register
      */
-    QuantumRegisterDecl(parser::Position pos, symbol id, int size)
+    QuantumRegisterDecl(parser::Position pos, symbol id,
+                        std::optional<int> size = std::nullopt)
         : GlobalStmt(pos), Decl(id), size_(size) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<QuantumRegisterDecl> create(parser::Position pos, symbol id,
-                                           int size) {
+            std::optional<int> size = std::nullopt) {
         return std::make_unique<QuantumRegisterDecl>(pos, id, size);
     }
 
     /**
      * \brief Get the size of the register
      *
-     * \return The size of the register
+     * \return Optional int size of the register
      */
-    int size() { return size_; }
+    std::optional<int> size() { return size_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
-        os << "qubit[" << size_ << "] " << id_ << ";\n";
+        os << "qubit";
+        if (size_)
+            os << "[" << *size_ << "]";
+        os << " " << id_ << ";\n";
         return os;
     }
   protected:
@@ -226,47 +230,66 @@ class QuantumRegisterDecl final : public GlobalStmt, public Decl {
 };
 
 /**
- * \class qasmtools::ast::ClassicalRegisterDecl
- * \brief Class for classical register declarations
+ * \class qasmtools::ast::ClassicalDecl
+ * \brief Class for classical type declarations
  * \see qasmtools::ast::Decl
  */
-class ClassicalRegisterDecl final : public Stmt, public Decl {
-    int size_;     ///< the size of the register
+class ClassicalDecl final : public Stmt, public Decl {
+    ptr<ClassicalType> type_;            ///< the type
+    std::optional<ptr<Expr>> equalsexp_; ///< initialized value
+    bool is_const_;                      ///< whether the declaration is const
 
   public:
     /**
-     * \brief Constructs a register declaration
+     * \brief Constructs a classical declaration
      *
      * \param pos The source position
-     * \param id The register identifier
-     * \param size the size of the register
+     * \param id The identifier
+     * \param type The type
+     * \param equalsexp The initialized value
+     * \param is_const Whether the declaration is const
      */
-    ClassicalRegisterDecl(parser::Position pos, symbol id, int size)
-        : Stmt(pos), Decl(id), size_(size) {}
+    ClassicalDecl(parser::Position pos, symbol id, ptr<ClassicalType> type,
+                  std::optional<ptr<Expr>>&& equalsexp = std::nullopt,
+                  bool is_const = false)
+        : Stmt(pos), Decl(id), type_(std::move(type)),
+          equalsexp_(std::move(equalsexp)), is_const_(is_const) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<ClassicalRegisterDecl> create(parser::Position pos, symbol id,
-                                             int size) {
-        return std::make_unique<ClassicalRegisterDecl>(pos, id, size);
+    static ptr<ClassicalDecl> create(parser::Position pos, symbol id,
+            ptr<ClassicalType> type,
+            std::optional<ptr<Expr>>&& equalsexp = std::nullopt,
+            bool is_const = false) {
+        return std::make_unique<ClassicalDecl>(pos, id, std::move(type),
+                                               std::move(equalsexp), is_const);
     }
 
     /**
-     * \brief Get the size of the register
+     * \brief Get whether the declaration is const
      *
-     * \return The size of the register
+     * \return Whether the declaration is const
      */
-    int size() { return size_; }
+    bool is_const() { return is_const_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
-        os << "bit[" << size_ << "] " << id_ << ";\n";
+        if (is_const_)
+            os << "const ";
+        os << *type_ << " " << id_;
+        if (equalsexp_)
+            os << " = " << **equalsexp_;
+        os << ";\n";
         return os;
     }
   protected:
-    ClassicalRegisterDecl* clone() const override {
-        return new ClassicalRegisterDecl(pos_, id_, size_);
+    ClassicalDecl* clone() const override {
+        std::optional<ptr<Expr>> tmp = std::nullopt;
+        if (equalsexp_)
+            tmp = object::clone(**equalsexp_);
+        return new ClassicalDecl(pos_, id_, object::clone(*type_),
+                                 std::move(tmp), is_const_);
     }
 };
 

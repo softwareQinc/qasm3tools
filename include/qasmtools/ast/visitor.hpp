@@ -43,6 +43,10 @@ class RealExpr;
 class VarExpr;
 
 /* Completed OpenQASM 3 AST nodes */
+class SingleDesignatorType;
+class NoDesignatorType;
+class BitType;
+class ComplexType;
 class Program;
 class QuantumMeasurement;
 class ProgramBlock;
@@ -60,7 +64,7 @@ class ReturnStmt;
 class EndStmt;
 class GateDecl;
 class QuantumRegisterDecl;
-class ClassicalRegisterDecl;
+class ClassicalDecl;
 class CtrlModifier;
 class InvModifier;
 class PowModifier;
@@ -92,6 +96,11 @@ class Visitor {
     virtual void visit(ListSlice&) = 0;
     virtual void visit(VarAccess&) = 0;
     virtual void visit(Concat&) = 0;
+    // Types
+    virtual void visit(SingleDesignatorType&) = 0;
+    virtual void visit(NoDesignatorType&) = 0;
+    virtual void visit(BitType&) = 0;
+    virtual void visit(ComplexType&) = 0;
     // Expressions
     virtual void visit(BExpr&) = 0;
     virtual void visit(UExpr&) = 0;
@@ -125,7 +134,7 @@ class Visitor {
     // Declarations
     virtual void visit(GateDecl&) = 0;
     virtual void visit(QuantumRegisterDecl&) = 0;
-    virtual void visit(ClassicalRegisterDecl&) = 0;
+    virtual void visit(ClassicalDecl&) = 0;
     // Program
     virtual void visit(Program&) = 0;
     // Destructor

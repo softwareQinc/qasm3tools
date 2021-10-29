@@ -33,6 +33,7 @@
 
 #include "../utils/angle.hpp"
 #include "base.hpp"
+#include "type.hpp"
 
 #include <cmath>
 #include <iomanip>

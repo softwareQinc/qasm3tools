@@ -32,6 +32,7 @@
 #pragma once
 
 #include "../parser/position.hpp"
+#include "cloneable.hpp"
 #include "visitor.hpp"
 
 #include <memory>
@@ -44,30 +45,6 @@ template <typename T>
 using ptr = std::unique_ptr<T>;
 
 using symbol = std::string;
-
-namespace object {
-template <typename T>
-ptr<T> clone(const T& object) {
-    using base_type = typename T::base_type;
-    static_assert(std::is_base_of<base_type, T>::value,
-                  "T object has to derived from T::base_type");
-    auto ptrr = static_cast<const base_type&>(object).clone();
-    return ptr<T>(static_cast<T*>(ptrr));
-}
-
-template <typename T>
-struct cloneable {
-    using base_type = T;
-
-    virtual ~cloneable() = default;
-
-protected:
-    virtual T* clone() const = 0;
-
-    template <typename X>
-    friend ptr<X> object::clone(const X&);
-};
-} // namespace object
 
 /**
  * \class qasmtools::ast::ASTNode
