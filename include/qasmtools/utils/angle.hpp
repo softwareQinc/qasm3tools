@@ -48,6 +48,8 @@ namespace utils {
  * \brief \f$ \pi \f$
  */
 constexpr double pi = 3.141592653589793238462643383279502884;
+constexpr double tau = 2 * pi;
+constexpr double euler = 2.718281828459045235360287471352662498;
 
 /**
  * \brief Simple class to represent rotation angles

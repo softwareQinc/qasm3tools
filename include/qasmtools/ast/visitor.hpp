@@ -34,19 +34,24 @@
 namespace qasmtools {
 namespace ast {
 
-/* Forward declarations */
-class BExpr;
-class UExpr;
-class PiExpr;
-class IntExpr;
-class RealExpr;
-class VarExpr;
-
-/* Completed OpenQASM 3 AST nodes */
 class SingleDesignatorType;
 class NoDesignatorType;
 class BitType;
 class ComplexType;
+class BExpr;
+class UExpr;
+class MathExpr;
+class CastExpr;
+class FunctionCall;
+class ConstantExpr;
+class IntExpr;
+class RealExpr;
+class ImagExpr;
+class BoolExpr;
+class VarExpr;
+class StringExpr;
+class TimeExpr;
+class DurationExpr;
 class Program;
 class QuantumMeasurement;
 class ProgramBlock;
@@ -104,10 +109,18 @@ class Visitor {
     // Expressions
     virtual void visit(BExpr&) = 0;
     virtual void visit(UExpr&) = 0;
-    virtual void visit(PiExpr&) = 0;
+    virtual void visit(MathExpr&) = 0;
+    virtual void visit(CastExpr&) = 0;
+    virtual void visit(FunctionCall&) = 0;
+    virtual void visit(ConstantExpr&) = 0;
     virtual void visit(IntExpr&) = 0;
     virtual void visit(RealExpr&) = 0;
+    virtual void visit(ImagExpr&) = 0;
+    virtual void visit(BoolExpr&) = 0;
     virtual void visit(VarExpr&) = 0;
+    virtual void visit(StringExpr&) = 0;
+    virtual void visit(TimeExpr&) = 0;
+    virtual void visit(DurationExpr&) = 0;
     // Statement components
     virtual void visit(QuantumMeasurement&) = 0;
     virtual void visit(ProgramBlock&) = 0;

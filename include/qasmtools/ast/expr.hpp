@@ -36,17 +36,78 @@
 #include "type.hpp"
 
 #include <cmath>
+#include <complex>
 #include <iomanip>
 
 namespace qasmtools {
 namespace ast {
 
 /**
+ * \brief Enum of constants
+ */
+enum class Constant { Pi, Tau, Euler };
+inline std::ostream& operator<<(std::ostream& os, const Constant& c) {
+    switch (c) {
+        case Constant::Pi:
+            os << "\u03C0";
+            break;
+        case Constant::Tau:
+            os << "\u03C4";
+            break;
+        case Constant::Euler:
+            os << "\u03B5";
+            break;
+    }
+    return os;
+}
+
+/**
  * \brief Enum of binary operators
  */
-enum class BinaryOp { Plus, Minus, Times, Divide, Pow };
+enum class BinaryOp { LogicalOr, LogicalAnd, BitOr, XOr, BitAnd, EQ, NEQ,
+        GT, LT, GTE, LTE, LeftBitShift, RightBitShift, Plus, Minus, Times,
+        Divide, Mod, Pow };
 inline std::ostream& operator<<(std::ostream& os, const BinaryOp& bop) {
     switch (bop) {
+        case BinaryOp::LogicalOr:
+            os << "||";
+            break;
+        case BinaryOp::LogicalAnd:
+            os << "&&";
+            break;
+        case BinaryOp::BitOr:
+            os << "|";
+            break;
+        case BinaryOp::XOr:
+            os << "^";
+            break;
+        case BinaryOp::BitAnd:
+            os << "&";
+            break;
+        case BinaryOp::EQ:
+            os << "==";
+            break;
+        case BinaryOp::NEQ:
+            os << "!=";
+            break;
+        case BinaryOp::GT:
+            os << ">";
+            break;
+        case BinaryOp::LT:
+            os << "<";
+            break;
+        case BinaryOp::GTE:
+            os << ">=";
+            break;
+        case BinaryOp::LTE:
+            os << "<=";
+            break;
+        case BinaryOp::LeftBitShift:
+            os << "<<";
+            break;
+        case BinaryOp::RightBitShift:
+            os << ">>";
+            break;
         case BinaryOp::Plus:
             os << "+";
             break;
@@ -59,8 +120,11 @@ inline std::ostream& operator<<(std::ostream& os, const BinaryOp& bop) {
         case BinaryOp::Divide:
             os << "/";
             break;
+        case BinaryOp::Mod:
+            os << "%";
+            break;
         case BinaryOp::Pow:
-            os << "^";
+            os << "**";
             break;
     }
     return os;
@@ -69,29 +133,64 @@ inline std::ostream& operator<<(std::ostream& os, const BinaryOp& bop) {
 /**
  * \brief Enum of unary operators
  */
-enum class UnaryOp { Neg, Sin, Cos, Tan, Ln, Sqrt, Exp };
+enum class UnaryOp { BitNot, LogicalNot, Neg };
 inline std::ostream& operator<<(std::ostream& os, const UnaryOp& uop) {
     switch (uop) {
+        case UnaryOp::BitNot:
+            os << "~";
+            break;
+        case UnaryOp::LogicalNot:
+            os << "!";
+            break;
         case UnaryOp::Neg:
             os << "-";
             break;
-        case UnaryOp::Sin:
+    }
+    return os;
+}
+
+/**
+ * \brief Enum of math operators
+ */
+enum class MathOp { Arcsin, Sin, Arccos, Cos, Arctan, Tan, Exp, Ln, Sqrt,
+        Rotl, Rotr, Popcount };
+inline std::ostream& operator<<(std::ostream& os, const MathOp& uop) {
+    switch (uop) {
+        case MathOp::Arcsin:
+            os << "arcsin";
+            break;
+        case MathOp::Sin:
             os << "sin";
             break;
-        case UnaryOp::Cos:
+        case MathOp::Arccos:
+            os << "arccos";
+            break;
+        case MathOp::Cos:
             os << "cos";
             break;
-        case UnaryOp::Tan:
+        case MathOp::Arctan:
+            os << "arctan";
+            break;
+        case MathOp::Tan:
             os << "tan";
             break;
-        case UnaryOp::Ln:
+        case MathOp::Exp:
+            os << "exp";
+            break;
+        case MathOp::Ln:
             os << "ln";
             break;
-        case UnaryOp::Sqrt:
+        case MathOp::Sqrt:
             os << "sqrt";
             break;
-        case UnaryOp::Exp:
-            os << "exp";
+        case MathOp::Rotl:
+            os << "rotl";
+            break;
+        case MathOp::Rotr:
+            os << "rotr";
+            break;
+        case MathOp::Popcount:
+            os << "popcount";
             break;
     }
     return os;
@@ -114,7 +213,7 @@ class Expr : public ASTNode {
      * \return Returns the value of the expression if it
      *         is constant, or nullopt otherwise
      */
-    virtual std::optional<double> constant_eval() const = 0;
+    virtual std::optional<std::complex<double>> constant_eval() const = 0;
 
     /**
      * \brief Internal pretty-printer with associative context
@@ -195,7 +294,7 @@ class BExpr final : public Expr {
      */
     void set_rexp(ptr<Expr> exp) { rexp_ = std::move(exp); }
 
-    std::optional<double> constant_eval() const override {
+    std::optional<std::complex<double>> constant_eval() const override {
         auto lexp = lexp_->constant_eval();
         auto rexp = rexp_->constant_eval();
 
@@ -203,6 +302,10 @@ class BExpr final : public Expr {
             return std::nullopt;
 
         switch (op_) {
+            case BinaryOp::EQ:
+                return *lexp == *rexp;
+            case BinaryOp::NEQ:
+                return *lexp != *rexp;
             case BinaryOp::Plus:
                 return *lexp + *rexp;
             case BinaryOp::Minus:
@@ -214,7 +317,7 @@ class BExpr final : public Expr {
             case BinaryOp::Pow:
                 return pow(*lexp, *rexp);
             default:
-                return 0; // inaccessible
+                return std::nullopt; // can't evaluate other ops
         }
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -288,7 +391,7 @@ class UExpr final : public Expr {
      */
     void set_subexp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
-    std::optional<double> constant_eval() const override {
+    std::optional<std::complex<double>> constant_eval() const override {
         auto expr = exp_->constant_eval();
 
         if (!expr)
@@ -297,20 +400,8 @@ class UExpr final : public Expr {
         switch (op_) {
             case UnaryOp::Neg:
                 return -(*expr);
-            case UnaryOp::Sin:
-                return sin(*expr);
-            case UnaryOp::Cos:
-                return cos(*expr);
-            case UnaryOp::Tan:
-                return tan(*expr);
-            case UnaryOp::Sqrt:
-                return sqrt(*expr);
-            case UnaryOp::Ln:
-                return log(*expr);
-            case UnaryOp::Exp:
-                return exp(*expr);
             default:
-                return 0; // inaccessible
+                return std::nullopt; // can't evaluate other ops
         }
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -318,13 +409,7 @@ class UExpr final : public Expr {
         (void) ctx;
 
         os << op_;
-        if (op_ == UnaryOp::Neg)
-            exp_->pretty_print(os, true);
-        else {
-            os << "(";
-            exp_->pretty_print(os, false);
-            os << ")";
-        }
+        exp_->pretty_print(os, true);
 
         return os;
     }
@@ -335,37 +420,279 @@ class UExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::PiExpr
- * \brief Class for pi constants
+ * \class qasmtools::ast::MathExpr
+ * \brief Class for math operator expressions
  * \see qasmtools::ast::Expr
  */
-class PiExpr final : public Expr {
+class MathExpr final : public Expr {
+    MathOp op_;                   ///< the math operator
+    std::vector<ptr<Expr>> args_; ///< the arguments
 
   public:
     /**
-     * \brief Construct a Pi expression
+     * \brief Constructs a Math expression
      *
      * \param pos The source position
+     * \param op The math operator
+     * \param args The arguments
      */
-    PiExpr(parser::Position pos) : Expr(pos) {}
+    MathExpr(parser::Position pos, MathOp op, std::vector<ptr<Expr>>&& args)
+        : Expr(pos), op_(op), args_(std::move(args)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<PiExpr> create(parser::Position pos) {
-        return std::make_unique<PiExpr>(pos);
+    static ptr<MathExpr> create(parser::Position pos, MathOp op,
+                                std::vector<ptr<Expr>>&& args) {
+        return std::make_unique<MathExpr>(pos, op, std::move(args));
     }
 
-    std::optional<double> constant_eval() const override { return utils::pi; }
+    /**
+     * \brief Get the operator
+     *
+     * \return A unary operator enum
+     */
+    MathOp op() const { return op_; }
+
+    /**
+     * \brief Get the arguments
+     *
+     * \return A reference to the argumants
+     */
+    std::vector<ptr<Expr>>& args() { return args_; }
+
+    std::optional<std::complex<double>> constant_eval() const override {
+        if (args_.size() != 1)
+            return std::nullopt;
+
+        auto expr = args_[0]->constant_eval();
+
+        if (!expr)
+            return std::nullopt;
+
+        switch (op_) {
+            case MathOp::Arcsin:
+                return asin(*expr);
+            case MathOp::Sin:
+                return sin(*expr);
+            case MathOp::Arccos:
+                return acos(*expr);
+            case MathOp::Cos:
+                return cos(*expr);
+            case MathOp::Arctan:
+                return atan(*expr);
+            case MathOp::Tan:
+                return tan(*expr);
+            case MathOp::Exp:
+                return exp(*expr);
+            case MathOp::Ln:
+                return log(*expr);
+            case MathOp::Sqrt:
+                return sqrt(*expr);
+            default:
+                return std::nullopt; // can't evaluate other ops
+        }
+    }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
         (void) ctx;
 
-        os << "pi";
+        os << op_ << "(";
+        for (auto it = args_.begin(); it != args_.end(); it++)
+            os << (it == args_.begin() ? "" : ",") << **it;
+        os << ")";
+
         return os;
     }
   protected:
-    PiExpr* clone() const override { return new PiExpr(pos_); }
+    MathExpr* clone() const override {
+        std::vector<ptr<Expr>> tmp;
+        for (auto& x : args_)
+            tmp.emplace_back(object::clone(*x));
+        return new MathExpr(pos_, op_, std::move(tmp));
+    }
+};
+
+/**
+ * \class qasmtools::ast::CastExpr
+ * \brief Class for typecast expressions
+ * \see qasmtools::ast::Expr
+ */
+class CastExpr final : public Expr {
+    ptr<ClassicalType> type_; ///< the type specifier
+    ptr<Expr> exp_;           ///< the sub-expression
+
+  public:
+    /**
+     * \brief Constructs a Cast expression
+     *
+     * \param pos The source position
+     * \param type The type specifier
+     * \param exp The sub-expression
+     */
+    CastExpr(parser::Position pos, ptr<ClassicalType> type, ptr<Expr> exp)
+        : Expr(pos), type_(std::move(type)), exp_(std::move(exp)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<CastExpr> create(parser::Position pos, ptr<ClassicalType> type,
+                                ptr<Expr> exp) {
+        return std::make_unique<CastExpr>(pos, std::move(type), std::move(exp));
+    }
+
+    /**
+     * \brief Get the type
+     *
+     * \return A reference to the type
+     */
+    const ClassicalType& type() const { return *type_; }
+
+    /**
+     * \brief Get the sub-expression
+     *
+     * \return A reference to the sub-expression
+     */
+    Expr& subexp() { return *exp_; }
+
+    /**
+     * \brief Set the sub-expression
+     *
+     * \param exp The new sub-expression
+     */
+    void set_subexp(ptr<Expr> exp) { exp_ = std::move(exp); }
+
+    std::optional<std::complex<double>> constant_eval() const override {
+        return exp_->constant_eval(); // return without casting
+    }
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
+        (void) ctx;
+
+        os << *type_ << "(" << *exp_ << ")";
+
+        return os;
+    }
+  protected:
+    CastExpr* clone() const override {
+        return new CastExpr(pos_, object::clone(*type_), object::clone(*exp_));
+    }
+};
+
+/**
+ * \class qasmtools::ast::FunctionCall
+ * \brief Class for subroutine-call expressions
+ * \see qasmtools::ast::Expr
+ */
+class FunctionCall final : public Expr {
+    symbol name_;                 ///< the subroutine identifier
+    std::vector<ptr<Expr>> args_; ///< the arguments
+
+  public:
+    /**
+     * \brief Constructs a subroutine-call expression
+     *
+     * \param pos The source position
+     * \param name The subroutine name
+     * \param args The arguments
+     */
+    FunctionCall(parser::Position pos, symbol name,
+                 std::vector<ptr<Expr>>&& args)
+        : Expr(pos), name_(name), args_(std::move(args)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<FunctionCall> create(parser::Position pos, symbol name,
+                                    std::vector<ptr<Expr>>&& args) {
+        return std::make_unique<FunctionCall>(pos, name, std::move(args));
+    }
+
+    /**
+     * \brief Get the subroutine name
+     *
+     * \return Const reference to the subroutine name
+     */
+    const symbol& name() const { return name_; }
+
+    /**
+     * \brief Get the arguments
+     *
+     * \return A reference to the argumants
+     */
+    std::vector<ptr<Expr>>& args() { return args_; }
+
+    std::optional<std::complex<double>> constant_eval() const override {
+        return std::nullopt;
+    }
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
+        (void) ctx;
+
+        os << name_ << "(";
+        for (auto it = args_.begin(); it != args_.end(); it++)
+            os << (it == args_.begin() ? "" : ",") << **it;
+        os << ")";
+
+        return os;
+    }
+  protected:
+    FunctionCall* clone() const override {
+        std::vector<ptr<Expr>> tmp;
+        for (auto& x : args_)
+            tmp.emplace_back(object::clone(*x));
+        return new FunctionCall(pos_, name_, std::move(tmp));
+    }
+};
+
+/**
+ * \class qasmtools::ast::ConstantExpr
+ * \brief Class for defined constant expressions
+ * \see qasmtools::ast::Expr
+ */
+class ConstantExpr final : public Expr {
+    Constant constant_;
+
+  public:
+    /**
+     * \brief Construct a contant expression
+     *
+     * \param pos The source position
+     * \param constant The constant
+     */
+    ConstantExpr(parser::Position pos, Constant constant)
+        : Expr(pos), constant_(constant) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<ConstantExpr> create(parser::Position pos, Constant constant) {
+        return std::make_unique<ConstantExpr>(pos, constant);
+    }
+
+    std::optional<std::complex<double>> constant_eval() const override {
+        switch (constant_) {
+            case Constant::Pi:
+                return utils::pi;
+            case Constant::Tau:
+                return utils::tau;
+            case Constant::Euler:
+                return utils::euler;
+            default:
+                return 0; // inaccessible
+        }
+    }
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
+        (void) ctx;
+
+        os << constant_;
+        return os;
+    }
+  protected:
+    ConstantExpr* clone() const override {
+        return new ConstantExpr(pos_, constant_);
+    }
 };
 
 /**
@@ -399,8 +726,8 @@ class IntExpr final : public Expr {
      */
     int value() const { return value_; }
 
-    std::optional<double> constant_eval() const override {
-        return (double) value_;
+    std::optional<std::complex<double>> constant_eval() const override {
+        return value_;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
@@ -444,7 +771,9 @@ class RealExpr final : public Expr {
      */
     double value() const { return value_; }
 
-    std::optional<double> constant_eval() const override { return value_; }
+    std::optional<std::complex<double>> constant_eval() const override {
+        return value_;
+    }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
         (void) ctx;
@@ -455,6 +784,98 @@ class RealExpr final : public Expr {
     }
   protected:
     RealExpr* clone() const override { return new RealExpr(pos_, value_); }
+};
+
+/**
+ * \class qasmtools::ast::ImagExpr
+ * \brief Class for imaginary literal expressions
+ * \see qasmtools::ast::Expr
+ */
+class ImagExpr final : public Expr {
+    double value_; ///< the floating point value (which is multiplied by i)
+
+  public:
+    /**
+     * \brief Construct an imaginary expression
+     *
+     * \param pos The source position
+     * \param val The floating point value
+     */
+    ImagExpr(parser::Position pos, double value) : Expr(pos), value_(value) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<ImagExpr> create(parser::Position pos, double value) {
+        return std::make_unique<ImagExpr>(pos, value);
+    }
+
+    /**
+     * \brief Get the real value
+     *
+     * \return The floating point value
+     */
+    double value() const { return value_; }
+
+    std::optional<std::complex<double>> constant_eval() const override {
+        return std::complex<double>(value_) * std::complex<double>(0, 1);
+    }
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
+        (void) ctx;
+
+        std::streamsize ss = os.precision();
+        os << std::setprecision(15) << value_ << std::setprecision(ss)
+           << "im";
+        return os;
+    }
+  protected:
+    ImagExpr* clone() const override { return new ImagExpr(pos_, value_); }
+};
+
+/**
+ * \class qasmtools::ast::BoolExpr
+ * \brief Class for boolean literal expressions
+ * \see qasmtools::ast::Expr
+ */
+class BoolExpr final : public Expr {
+    bool value_; ///< the boolean value
+
+  public:
+    /**
+     * \brief Construct a boolean expression
+     *
+     * \param pos The source position
+     * \param val The boolean value
+     */
+    BoolExpr(parser::Position pos, bool value) : Expr(pos), value_(value) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<BoolExpr> create(parser::Position pos, bool value) {
+        return std::make_unique<BoolExpr>(pos, value);
+    }
+
+    /**
+     * \brief Get the boolean value
+     *
+     * \return The boolean value
+     */
+    bool value() const { return value_; }
+
+    std::optional<std::complex<double>> constant_eval() const override {
+        return value_;
+    }
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
+        (void) ctx;
+
+        os << (value_ ? "true" : "false");
+        return os;
+    }
+  protected:
+    BoolExpr* clone() const override { return new BoolExpr(pos_, value_); }
 };
 
 /**
@@ -488,7 +909,7 @@ class VarExpr final : public Expr {
      */
     const symbol& var() const { return var_; }
 
-    std::optional<double> constant_eval() const override {
+    std::optional<std::complex<double>> constant_eval() const override {
         return std::nullopt;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -499,6 +920,51 @@ class VarExpr final : public Expr {
     }
   protected:
     VarExpr* clone() const override { return new VarExpr(pos_, var_); }
+};
+
+/**
+ * \class qasmtools::ast::StringExpr
+ * \brief Class for string expressions
+ * \see qasmtools::ast::Expr
+ */
+class StringExpr final : public Expr {
+    std::string text_; ///< the string
+
+  public:
+    /**
+     * \brief Construct a variable expression
+     *
+     * \param pos The source position
+     * \param text The string
+     */
+    StringExpr(parser::Position pos, std::string text)
+        : Expr(pos), text_(text) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<StringExpr> create(parser::Position pos, std::string text) {
+        return std::make_unique<StringExpr>(pos, text);
+    }
+
+    /**
+     * \brief Get the string text
+     *
+     * \return Constant reference to the text
+     */
+    const std::string& text() const { return text_; }
+
+    std::optional<std::complex<double>> constant_eval() const override {
+        return std::nullopt;
+    }
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
+        (void) ctx;
+        os << text_;
+        return os;
+    }
+  protected:
+    StringExpr* clone() const override { return new StringExpr(pos_, text_); }
 };
 
 /**
@@ -518,12 +984,12 @@ inline ptr<Expr> angle_to_expr(const utils::Angle& theta) {
             return std::make_unique<IntExpr>(IntExpr(pos, 0));
         } else if (a == 1) {
             return std::make_unique<BExpr>(
-                pos, std::make_unique<PiExpr>(PiExpr(pos)), BinaryOp::Divide,
-                std::make_unique<IntExpr>(IntExpr(pos, b)));
+                pos, std::make_unique<ConstantExpr>(pos, Constant::Pi),
+                BinaryOp::Divide, std::make_unique<IntExpr>(IntExpr(pos, b)));
         } else {
             auto subexpr = std::make_unique<BExpr>(
-                pos, std::make_unique<PiExpr>(PiExpr(pos)), BinaryOp::Times,
-                std::make_unique<IntExpr>(IntExpr(pos, a)));
+                pos, std::make_unique<ConstantExpr>(pos, Constant::Pi),
+                BinaryOp::Times, std::make_unique<IntExpr>(IntExpr(pos, a)));
 
             return std::make_unique<BExpr>(
                 pos, std::move(subexpr), BinaryOp::Divide,

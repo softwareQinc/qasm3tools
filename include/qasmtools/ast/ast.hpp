@@ -36,4 +36,5 @@
 #include "gate.hpp"
 #include "program.hpp"
 #include "stmt.hpp"
+#include "timing.hpp"
 #include "visitor.hpp"

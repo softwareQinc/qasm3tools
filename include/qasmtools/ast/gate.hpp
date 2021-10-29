@@ -52,7 +52,7 @@ class GateModifier : public ASTNode {
  */
 class CtrlModifier : public GateModifier {
     bool neg_;
-    ptr<Expr> n_;
+    std::optional<ptr<Expr>> n_;
   public:
     /**
      * \brief Constructs a control modifier
@@ -61,21 +61,32 @@ class CtrlModifier : public GateModifier {
      * \param neg True for negctrl, false for ctrl
      * \param n The number of control bits
      */
-    CtrlModifier(parser::Position pos, bool neg, ptr<Expr> n)
+    CtrlModifier(parser::Position pos, bool neg,
+                 std::optional<ptr<Expr>>&& n = std::nullopt)
         : GateModifier(pos), neg_(neg), n_(std::move(n)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<CtrlModifier> create(parser::Position pos, bool neg,
+            std::optional<ptr<Expr>>&& n = std::nullopt) {
+        return std::make_unique<CtrlModifier>(pos, neg, std::move(n));
+    }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << (neg_ ? "negctrl" : "ctrl");
-        auto n = n_->constant_eval();
-        if (!n || (*n != 1))
-            os << "(" << *n_ << ")";
+        if (n_)
+            os << "(" << **n_ << ")";
         os << " @ ";
         return os;
     }
   protected:
     CtrlModifier* clone() const override {
-        return new CtrlModifier(pos_, neg_, object::clone(*n_));
+        std::optional<ptr<Expr>> tmp = std::nullopt;
+        if (n_)
+            tmp = object::clone(**n_);
+        return new CtrlModifier(pos_, neg_, std::move(tmp));
     }
 };
 
@@ -91,6 +102,13 @@ class InvModifier : public GateModifier {
      * \param pos The source position
      */
     InvModifier(parser::Position pos) : GateModifier(pos) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<InvModifier> create(parser::Position pos) {
+        return std::make_unique<InvModifier>(pos);
+    }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
@@ -118,6 +136,13 @@ class PowModifier : public GateModifier {
      */
     PowModifier(parser::Position pos, ptr<Expr> r)
         : GateModifier(pos), r_(std::move(r)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<PowModifier> create(parser::Position pos, ptr<Expr> r) {
+        return std::make_unique<PowModifier>(pos, std::move(r));
+    }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
