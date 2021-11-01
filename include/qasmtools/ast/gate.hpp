@@ -29,7 +29,15 @@
  * \brief openQASM gates
  */
 
-#include "stmt.hpp"
+#pragma once
+
+#include "base.hpp"
+#include "exprbase.hpp"
+#include "indexid.hpp"
+#include "stmtbase.hpp"
+
+#include <list>
+#include <vector>
 
 namespace qasmtools {
 namespace ast {
@@ -172,7 +180,7 @@ class Gate : public QuantumStmt {
 
     virtual ~Gate() = default;
   protected:
-    std::list<ptr<GateModifier>> modifiers_;
+    std::list<ptr<GateModifier>> modifiers_; ///< gate modifiers
 
     void print_modifiers(std::ostream& os) const {
         for (auto& x : modifiers_)
@@ -536,7 +544,7 @@ class DeclaredGate final : public Gate {
         }
         os << " ";
         for (auto it = q_args_.begin(); it != q_args_.end(); it++)
-            os << (it == q_args_.begin() ? "" : ",") << *it;
+            os << (it == q_args_.begin() ? "" : ",") << **it;
         os << ";\n";
         return os;
     }

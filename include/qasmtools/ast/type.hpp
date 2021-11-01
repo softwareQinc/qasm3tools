@@ -32,6 +32,9 @@
 #pragma once
 
 #include "base.hpp"
+#include "exprbase.hpp"
+
+#include <optional>
 
 namespace qasmtools {
 namespace ast {
@@ -95,7 +98,7 @@ class ClassicalType : public ASTNode {
  */
 class SingleDesignatorType : public ClassicalType {
     SDType type_;
-    int size_;
+    ptr<Expr> size_;
   public:
     /**
      * \brief Constructs a single-designator type
@@ -104,22 +107,16 @@ class SingleDesignatorType : public ClassicalType {
      * \param type The type name
      * \param size The size
      */
-    SingleDesignatorType(parser::Position pos, SDType type, int size)
-        : ClassicalType(pos), type_(type), size_(size) {}
+    SingleDesignatorType(parser::Position pos, SDType type, ptr<Expr> size)
+        : ClassicalType(pos), type_(type), size_(std::move(size)) {}
 
     /**
-     * \brief Copy constructor
+     * \brief Protected heap-allocated construction
      */
-    SingleDesignatorType(const SingleDesignatorType& sdt)
-        : ClassicalType(sdt.pos_), type_(sdt.type_), size_(sdt.size_) {}
-
-    /**
-     * \brief Copy assignment overload
-     */
-    SingleDesignatorType& operator=(const SingleDesignatorType& sdt) {
-        type_ = sdt.type_;
-        size_ = sdt.size_;
-        return *this;
+    static ptr<SingleDesignatorType> create(parser::Position pos, SDType type,
+                                            ptr<Expr> size) {
+        return std::make_unique<SingleDesignatorType>(pos, type,
+                                                      std::move(size));
     }
 
     /**
@@ -132,18 +129,18 @@ class SingleDesignatorType : public ClassicalType {
     /**
      * \brief Get the size
      *
-     * \return integer size
+     * \return Reference to Expr size
      */
-    int size() { return size_; }
+    Expr& size() { return *size_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << type_ << "[" << size_ << "]";
+        os << type_ << "[" << *size_ << "]";
         return os;
     }
   protected:
     SingleDesignatorType* clone() const override {
-        return new SingleDesignatorType(pos_, type_, size_);
+        return new SingleDesignatorType(pos_, type_, object::clone(*size_));
     }
 };
 
@@ -164,17 +161,10 @@ class NoDesignatorType : public ClassicalType {
         : ClassicalType(pos), type_(type) {}
 
     /**
-     * \brief Copy constructor
+     * \brief Protected heap-allocated construction
      */
-    NoDesignatorType(const NoDesignatorType& ndt)
-        : ClassicalType(ndt.pos_), type_(ndt.type_) {}
-
-    /**
-     * \brief Copy assignment overload
-     */
-    NoDesignatorType& operator=(const NoDesignatorType& ndt) {
-        type_ = ndt.type_;
-        return *this;
+    static ptr<NoDesignatorType> create(parser::Position pos, NDType type) {
+        return std::make_unique<NoDesignatorType>(pos, type);
     }
 
     /**
@@ -200,7 +190,7 @@ class NoDesignatorType : public ClassicalType {
  * \brief Type sub-class for bit types
  */
 class BitType : public ClassicalType {
-    std::optional<int> size_;
+    std::optional<ptr<Expr>> size_;
   public:
     /**
      * \brief Constructs a bit type
@@ -208,40 +198,38 @@ class BitType : public ClassicalType {
      * \param pos The source position
      * \param size The size
      */
-    BitType(parser::Position pos, std::optional<int> size = std::nullopt)
-        : ClassicalType(pos), size_(size) {}
+    BitType(parser::Position pos,
+            std::optional<ptr<Expr>>&& size = std::nullopt)
+        : ClassicalType(pos), size_(std::move(size)) {}
 
     /**
-     * \brief Copy constructor
+     * \brief Protected heap-allocated construction
      */
-    BitType(const BitType& bt)
-        : ClassicalType(bt.pos_), size_(bt.size_) {}
-
-    /**
-     * \brief Copy assignment overload
-     */
-    BitType& operator=(const BitType& bt) {
-        size_ = bt.size_;
-        return *this;
+    static ptr<BitType> create(parser::Position pos,
+                               std::optional<ptr<Expr>>&& size = std::nullopt) {
+        return std::make_unique<BitType>(pos, std::move(size));
     }
 
     /**
      * \brief Get the size
      *
-     * \return Optional integer size
+     * \return Optional expr size
      */
-    std::optional<int> size() { return size_; }
+    std::optional<ptr<Expr>>& size() { return size_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "bit";
         if (size_)
-            os << "[" << *size_ << "]";
+            os << "[" << **size_ << "]";
         return os;
     }
   protected:
     BitType* clone() const override {
-        return new BitType(pos_, size_);
+        std::optional<ptr<Expr>> tmp = std::nullopt;
+        if (size_)
+            tmp = object::clone(**size_);
+        return new BitType(pos_, std::move(tmp));
     }
 };
 
@@ -250,7 +238,7 @@ class BitType : public ClassicalType {
  * \brief Type sub-class for complex types
  */
 class ComplexType : public ClassicalType {
-    SingleDesignatorType subtype_;
+    ptr<SingleDesignatorType> subtype_;
   public:
     /**
      * \brief Constructs a bit type
@@ -258,21 +246,15 @@ class ComplexType : public ClassicalType {
      * \param pos The source position
      * \param subtype The single-designator subtype
      */
-    ComplexType(parser::Position pos, SingleDesignatorType subtype)
-        : ClassicalType(pos), subtype_(subtype) {}
+    ComplexType(parser::Position pos, ptr<SingleDesignatorType> subtype)
+        : ClassicalType(pos), subtype_(std::move(subtype)) {}
 
     /**
-     * \brief Copy constructor
+     * \brief Protected heap-allocated construction
      */
-    ComplexType(const ComplexType& ct)
-        : ClassicalType(ct.pos_), subtype_(ct.subtype_) {}
-
-    /**
-     * \brief Copy assignment overload
-     */
-    ComplexType& operator=(const ComplexType& ct) {
-        subtype_ = ct.subtype_;
-        return *this;
+    static ptr<ComplexType> create(parser::Position pos,
+                                   ptr<SingleDesignatorType> subtype) {
+        return std::make_unique<ComplexType>(pos, std::move(subtype));
     }
 
     /**
@@ -280,16 +262,16 @@ class ComplexType : public ClassicalType {
      *
      * \return Reference to the single-designator subtype
      */
-    SingleDesignatorType& subtype() { return subtype_; }
+    SingleDesignatorType& subtype() { return *subtype_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << "complex[" << subtype_ << "]";
+        os << "complex[" << *subtype_ << "]";
         return os;
     }
   protected:
     ComplexType* clone() const override {
-        return new ComplexType(pos_, subtype_);
+        return new ComplexType(pos_, object::clone(*subtype_));
     }
 };
 

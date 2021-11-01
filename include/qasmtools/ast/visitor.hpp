@@ -43,6 +43,7 @@ class UExpr;
 class MathExpr;
 class CastExpr;
 class FunctionCall;
+class AccessExpr;
 class ConstantExpr;
 class IntExpr;
 class RealExpr;
@@ -51,7 +52,8 @@ class BoolExpr;
 class VarExpr;
 class StringExpr;
 class TimeExpr;
-class DurationExpr;
+class DurationGateExpr;
+class DurationBlockExpr;
 class Program;
 class QuantumMeasurement;
 class ProgramBlock;
@@ -67,6 +69,8 @@ class BreakStmt;
 class ContinueStmt;
 class ReturnStmt;
 class EndStmt;
+class AliasStmt;
+class AssignmentStmt;
 class GateDecl;
 class QuantumRegisterDecl;
 class ClassicalDecl;
@@ -80,6 +84,16 @@ class RangeSlice;
 class ListSlice;
 class VarAccess;
 class Concat;
+class RangeSet;
+class ListSet;
+class VarSet;
+class ForStmt;
+class WhileStmt;
+class QuantumForStmt;
+class QuantumWhileStmt;
+class DelayStmt;
+class RotaryStmt;
+class BoxStmt;
 
 /**
  * \class qasmtools::ast::Visitor
@@ -90,9 +104,7 @@ class Concat;
  * node type.
  *
  * Traversal to sub-nodes is handled by the particular visitor, not the
- * node class. For a visitor that automatically handles traversal and also
- * allows picking and choosing the particular visit overloads, see
- * qasmtools::ast::Traverse.
+ * node class.
  */
 class Visitor {
   public:
@@ -112,6 +124,7 @@ class Visitor {
     virtual void visit(MathExpr&) = 0;
     virtual void visit(CastExpr&) = 0;
     virtual void visit(FunctionCall&) = 0;
+    virtual void visit(AccessExpr&) = 0;
     virtual void visit(ConstantExpr&) = 0;
     virtual void visit(IntExpr&) = 0;
     virtual void visit(RealExpr&) = 0;
@@ -120,7 +133,8 @@ class Visitor {
     virtual void visit(VarExpr&) = 0;
     virtual void visit(StringExpr&) = 0;
     virtual void visit(TimeExpr&) = 0;
-    virtual void visit(DurationExpr&) = 0;
+    virtual void visit(DurationGateExpr&) = 0;
+    virtual void visit(DurationBlockExpr&) = 0;
     // Statement components
     virtual void visit(QuantumMeasurement&) = 0;
     virtual void visit(ProgramBlock&) = 0;
@@ -137,6 +151,8 @@ class Visitor {
     virtual void visit(ContinueStmt&) = 0;
     virtual void visit(ReturnStmt&) = 0;
     virtual void visit(EndStmt&) = 0;
+    virtual void visit(AliasStmt&) = 0;
+    virtual void visit(AssignmentStmt&) = 0;
     // Gates
     virtual void visit(CtrlModifier&) = 0;
     virtual void visit(InvModifier&) = 0;
@@ -144,6 +160,18 @@ class Visitor {
     virtual void visit(UGate&) = 0;
     virtual void visit(GPhase&) = 0;
     virtual void visit(DeclaredGate&) = 0;
+    // Loops
+    virtual void visit(RangeSet&) = 0;
+    virtual void visit(ListSet&) = 0;
+    virtual void visit(VarSet&) = 0;
+    virtual void visit(ForStmt&) = 0;
+    virtual void visit(WhileStmt&) = 0;
+    virtual void visit(QuantumForStmt&) = 0;
+    virtual void visit(QuantumWhileStmt&) = 0;
+    // Timing Statements
+    virtual void visit(DelayStmt&) = 0;
+    virtual void visit(RotaryStmt&) = 0;
+    virtual void visit(BoxStmt&) = 0;
     // Declarations
     virtual void visit(GateDecl&) = 0;
     virtual void visit(QuantumRegisterDecl&) = 0;

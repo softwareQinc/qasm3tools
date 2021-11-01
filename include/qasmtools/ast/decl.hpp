@@ -31,7 +31,12 @@
 
 #pragma once
 
-#include "stmt.hpp"
+#include "exprbase.hpp"
+#include "stmtblock.hpp"
+#include "type.hpp"
+
+#include <set>
+#include <vector>
 
 namespace qasmtools {
 namespace ast {
@@ -186,7 +191,7 @@ class GateDecl final : public GlobalStmt, public Decl {
  * \see qasmtools::ast::Decl
  */
 class QuantumRegisterDecl final : public GlobalStmt, public Decl {
-    std::optional<int> size_; ///< the size of the register
+    std::optional<ptr<Expr>> size_; ///< the size of the register
 
   public:
     /**
@@ -197,35 +202,38 @@ class QuantumRegisterDecl final : public GlobalStmt, public Decl {
      * \param size the size of the register
      */
     QuantumRegisterDecl(parser::Position pos, symbol id,
-                        std::optional<int> size = std::nullopt)
-        : GlobalStmt(pos), Decl(id), size_(size) {}
+                        std::optional<ptr<Expr>>&& size = std::nullopt)
+        : GlobalStmt(pos), Decl(id), size_(std::move(size)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<QuantumRegisterDecl> create(parser::Position pos, symbol id,
-            std::optional<int> size = std::nullopt) {
-        return std::make_unique<QuantumRegisterDecl>(pos, id, size);
+            std::optional<ptr<Expr>>&& size = std::nullopt) {
+        return std::make_unique<QuantumRegisterDecl>(pos, id, std::move(size));
     }
 
     /**
      * \brief Get the size of the register
      *
-     * \return Optional int size of the register
+     * \return Optional expr size of the register
      */
-    std::optional<int> size() { return size_; }
+    std::optional<ptr<Expr>>& size() { return size_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
         os << "qubit";
         if (size_)
-            os << "[" << *size_ << "]";
+            os << "[" << **size_ << "]";
         os << " " << id_ << ";\n";
         return os;
     }
   protected:
     QuantumRegisterDecl* clone() const override {
-        return new QuantumRegisterDecl(pos_, id_, size_);
+        std::optional<ptr<Expr>> tmp = std::nullopt;
+        if (size_)
+            tmp = object::clone(**size_);
+        return new QuantumRegisterDecl(pos_, id_, std::move(tmp));
     }
 };
 

@@ -35,8 +35,9 @@
 #include "cloneable.hpp"
 #include "visitor.hpp"
 
+#include <iostream>
 #include <memory>
-#include <set>
+#include <string>
 
 namespace qasmtools {
 namespace ast {

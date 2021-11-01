@@ -25,17 +25,52 @@
  */
 
 /**
- * \file qasmtools/ast/ast.hpp
+ * \file qasmtools/ast/exprbase.hpp
+ * \brief Base class for openQASM expressions
  */
 
 #pragma once
 
 #include "base.hpp"
-#include "decl.hpp"
-#include "expr.hpp"
-#include "gate.hpp"
-#include "loop.hpp"
-#include "program.hpp"
-#include "stmt.hpp"
-#include "timing.hpp"
-#include "visitor.hpp"
+
+#include <complex>
+#include <optional>
+
+namespace qasmtools {
+namespace ast {
+
+/**
+ * \class qasmtools::ast::Expr
+ * \brief Base class for openQASM expressions
+ */
+class Expr : public ASTNode {
+  public:
+    Expr(parser::Position pos) : ASTNode(pos) {}
+    virtual ~Expr() = default;
+
+    /**
+     * \brief Evaluate constant expressions
+     *
+     * All sub-classes must override this
+     *
+     * \return Returns the value of the expression if it
+     *         is constant, or nullopt otherwise
+     */
+    virtual std::optional<std::complex<double>> constant_eval() const = 0;
+
+    /**
+     * \brief Internal pretty-printer with associative context
+     *
+     * \param ctx Whether the current associative context is ambiguous
+     */
+    virtual std::ostream& pretty_print(std::ostream& os, bool ctx) const = 0;
+    std::ostream& pretty_print(std::ostream& os) const override {
+        return pretty_print(os, false);
+    }
+  protected:
+    virtual Expr* clone() const override = 0;
+};
+
+
+} // namespace ast
+} // namespace qasmtools

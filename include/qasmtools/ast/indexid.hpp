@@ -32,9 +32,10 @@
 #pragma once
 
 #include "base.hpp"
+#include "exprbase.hpp"
 
-#include <cstddef>
 #include <optional>
+#include <vector>
 
 namespace qasmtools {
 namespace ast {
@@ -56,9 +57,9 @@ class Slice : public ASTNode {
  * \brief Class for range slices
  */
 class RangeSlice : public Slice {
-    std::optional<int> start_;
-    std::optional<int> step_;
-    std::optional<int> stop_;
+    std::optional<ptr<Expr>> start_; ///< the start index
+    std::optional<ptr<Expr>> step_;  ///< the step size
+    std::optional<ptr<Expr>> stop_;  ///< the stop index
   public:
     /**
      * \brief Constructs a range slice
@@ -68,26 +69,31 @@ class RangeSlice : public Slice {
      * \param step Optional step size (default = std::nullopt)
      * \param stop Stop index
      */
-    RangeSlice(parser::Position pos, std::optional<int> start,
-               std::optional<int> stop)
-        : Slice(pos), start_(start), step_(std::nullopt), stop_(stop) {}
-    RangeSlice(parser::Position pos, std::optional<int> start,
-               std::optional<int> step, std::optional<int> stop)
-        : Slice(pos), start_(start), step_(step), stop_(stop) {}
+    RangeSlice(parser::Position pos, std::optional<ptr<Expr>>&& start,
+               std::optional<ptr<Expr>>&& stop)
+        : Slice(pos), start_(std::move(start)), step_(std::nullopt),
+          stop_(std::move(stop)) {}
+    RangeSlice(parser::Position pos, std::optional<ptr<Expr>>&& start,
+               std::optional<ptr<Expr>>&& step, std::optional<ptr<Expr>>&& stop)
+        : Slice(pos), start_(std::move(start)), step_(std::move(step)),
+          stop_(std::move(stop)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<RangeSlice> create(parser::Position pos,
-                                  std::optional<int> start,
-                                  std::optional<int> stop) {
-        return std::make_unique<RangeSlice>(pos, start, stop);
+                                  std::optional<ptr<Expr>>&& start,
+                                  std::optional<ptr<Expr>>&& stop) {
+        return std::make_unique<RangeSlice>(pos, std::move(start),
+                                            std::move(stop));
     }
     static ptr<RangeSlice> create(parser::Position pos,
-                                  std::optional<int> start,
-                                  std::optional<int> step,
-                                  std::optional<int> stop) {
-        return std::make_unique<RangeSlice>(pos, start, step, stop);
+                                  std::optional<ptr<Expr>>&& start,
+                                  std::optional<ptr<Expr>>&& step,
+                                  std::optional<ptr<Expr>>&& stop) {
+        return std::make_unique<RangeSlice>(pos, std::move(start),
+                                            std::move(step),
+                                            std::move(stop));
     }
 
     /**
@@ -95,21 +101,21 @@ class RangeSlice : public Slice {
      *
      * return const std::optional reference to start index
      */
-    const std::optional<int>& start() const { return start_; }
+    const std::optional<ptr<Expr>>& start() const { return start_; }
 
     /**
      * \brief Get the step size
      *
      * return const std::optional reference to step size
      */
-    const std::optional<int>& step() const { return step_; }
+    const std::optional<ptr<Expr>>& step() const { return step_; }
 
     /**
      * \brief Get the stop index
      *
      * return const std::optional reference to stop index
      */
-    const std::optional<int>& stop() const { return stop_; }
+    const std::optional<ptr<Expr>>& stop() const { return stop_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
@@ -126,7 +132,17 @@ class RangeSlice : public Slice {
     }
   protected:
     RangeSlice* clone() const override {
-        return new RangeSlice(pos_, start_, step_, stop_);
+        std::optional<ptr<Expr>> tmp_start = std::nullopt;
+        if (start_)
+            tmp_start = object::clone(**start_);
+        std::optional<ptr<Expr>> tmp_step = std::nullopt;
+        if (step_)
+            tmp_step = object::clone(**step_);
+        std::optional<ptr<Expr>> tmp_stop = std::nullopt;
+        if (stop_)
+            tmp_stop = object::clone(**stop_);
+        return new RangeSlice(pos_, std::move(tmp_start), std::move(tmp_step),
+                              std::move(tmp_stop));
     }
 };
 
@@ -135,7 +151,7 @@ class RangeSlice : public Slice {
  * \brief Class for list slices
  */
 class ListSlice : public Slice {
-    std::vector<int> indices_;
+    std::vector<ptr<Expr>> indices_;
   public:
     /**
      * \brief Construct a list slice
@@ -143,14 +159,14 @@ class ListSlice : public Slice {
      * \param pos The source position
      * \param indices The list of indices
      */
-    ListSlice(parser::Position pos, std::vector<int>&& indices)
+    ListSlice(parser::Position pos, std::vector<ptr<Expr>>&& indices)
         : Slice(pos), indices_(std::move(indices)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<ListSlice> create(parser::Position pos,
-                                 std::vector<int>&& indices) {
+                                 std::vector<ptr<Expr>>&& indices) {
         return std::make_unique<ListSlice>(pos, std::move(indices));
     }
 
@@ -159,19 +175,22 @@ class ListSlice : public Slice {
      *
      * \return Reference to the list of indices
      */
-    std::vector<int>& indices() { return indices_; }
+    std::vector<ptr<Expr>>& indices() { return indices_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "[";
         for (auto it = indices_.begin(); it != indices_.end(); it++)
-            os << (it == indices_.begin() ? "" : ",") << *it;
+            os << (it == indices_.begin() ? "" : ",") << **it;
         os << "]";
         return os;
     }
   protected:
     ListSlice* clone() const override {
-        return new ListSlice(pos_, std::vector<int>(indices_));
+        std::vector<ptr<Expr>> tmp;
+        for (auto& x: indices_)
+            tmp.emplace_back(object::clone(*x));
+        return new ListSlice(pos_, std::move(tmp));
     }
 };
 

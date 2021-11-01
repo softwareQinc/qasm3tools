@@ -32,238 +32,18 @@
 #pragma once
 
 #include "base.hpp"
-#include "expr.hpp"
+#include "exprbase.hpp"
 #include "indexid.hpp"
+#include "stmtbase.hpp"
+#include "stmtblock.hpp"
 #include "../utils/templates.hpp"
 
 #include <functional>
-#include <optional>
 #include <variant>
 #include <vector>
-#include <list>
 
 namespace qasmtools {
 namespace ast {
-
-/**
- * \class qasmtools::ast::StmtBase
- * \brief Base class for openQASM statements
- */
-class StmtBase : public ASTNode {
-  public:
-    StmtBase(parser::Position pos) : ASTNode(pos) {}
-    virtual ~StmtBase() = default;
-
-    /**
-     * \brief Internal pretty-printer which can suppress the output of the
-     * stdlib
-     *
-     * \param suppress_std Whether to suppress output of the standard library
-     */
-    virtual std::ostream& pretty_print(std::ostream& os,
-                                       bool suppress_std) const = 0;
-
-    std::ostream& pretty_print(std::ostream& os) const override {
-        return pretty_print(os, false);
-    }
-  protected:
-    virtual StmtBase* clone() const override = 0;
-};
-/**
- * \class qasmtools::ast::GlobalStmt
- * \brief Statement sub-class for global statements
- */
-class GlobalStmt : public StmtBase {
-  public:
-    GlobalStmt(parser::Position pos) : StmtBase(pos) {}
-    virtual ~GlobalStmt() = default;
-  protected:
-    virtual GlobalStmt* clone() const = 0;
-};
-/**
- * \class qasmtools::ast::Stmt
- * \brief Statement sub-class for local statements
- */
-class Stmt : public StmtBase {
-  public:
-    Stmt(parser::Position pos) : StmtBase(pos) {}
-    virtual ~Stmt() = default;
-  protected:
-    virtual Stmt* clone() const = 0;
-};
-/**
- * \class qasmtools::ast::QuantumStmt
- * \brief Statement sub-class for quantum statements
- */
-class QuantumStmt : public Stmt {
-  public:
-    QuantumStmt(parser::Position pos) : Stmt(pos) {}
-    virtual ~QuantumStmt() = default;
-  protected:
-    virtual QuantumStmt* clone() const = 0;
-};
-/**
- * \class qasmtools::ast::TimingStmt
- * \brief Statement sub-class for timing statements
- */
-class TimingStmt : public QuantumStmt {
-  public:
-    TimingStmt(parser::Position pos) : QuantumStmt(pos) {}
-    virtual ~TimingStmt() = default;
-  protected:
-    virtual TimingStmt* clone() const = 0;
-};
-/**
- * \class qasmtools::ast::ControlStmt
- * \brief Statement sub-class for control statements
- */
-class ControlStmt : public StmtBase {
-  public:
-    ControlStmt(parser::Position pos) : StmtBase(pos) {}
-    virtual ~ControlStmt() = default;
-  protected:
-    virtual ControlStmt* clone() const = 0;
-};
-/**
- * \class qasmtools::ast::QuantumLoop
- * \brief Statement sub-class for quantum loops
- */
-class QuantumLoop : public StmtBase {
-  public:
-    QuantumLoop(parser::Position pos) : StmtBase(pos) {}
-    virtual ~QuantumLoop() = default;
-  protected:
-    virtual QuantumLoop* clone() const = 0;
-};
-
-
-
-/**
- * \class qasmtools::ast::BlockBase
- * \brief Base class for program blocks
- * T is std::variant of allowed statement types
- * D is derived class
- */
-template <typename T, typename D>
-class BlockBase : public ASTNode {
-  public:
-    /**
-     * \brief Constructs a program block
-     *
-     * \param pos The source position
-     * \param body The block body
-     */
-    BlockBase(parser::Position pos, std::list<T>&& body)
-        : ASTNode(pos), body_(std::move(body)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<D> create(parser::Position pos, std::list<T>&& body) {
-        return std::make_unique<D>(pos, std::move(body));
-    }
-
-    /**
-     * \brief Get the block body
-     *
-     * \return Reference to the body as a list of statements
-     */
-    typename std::list<T>& body() { return body_; }
-
-    /**
-     * \brief Get an iterator to the beginning of the body
-     *
-     * \return std::list iterator
-     */
-    typename std::list<T>::iterator begin() { return body_.begin(); }
-
-    /**
-     * \brief Get an iterator to the end of the body
-     *
-     * \return std::list iterator
-     */
-    typename std::list<T>::iterator end() { return body_.end(); }
-
-    virtual std::ostream& pretty_print(std::ostream& os) const override {
-        os << "{\n";
-        for (auto& x : body_) {
-            std::visit([&os](auto& stmt) {
-                stmt->pretty_print(os);
-            }, x);
-        }
-        os << "}\n";
-
-        return os;
-    }
-  protected:
-    std::list<T> body_; ///< the body of the block
-    virtual BlockBase<T, D>* clone() const override = 0;
-};
-
-/**
- * \class qasmtools::ast::ProgramBlock
- * \brief Class for program blocks
- */
-using ProgramBlockStmt = std::variant<ptr<Stmt>, ptr<ControlStmt>>;
-class ProgramBlock : public BlockBase<ProgramBlockStmt, ProgramBlock> {
-    using BlockBase<ProgramBlockStmt, ProgramBlock>::BlockBase;
-  public:
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-  protected:
-    ProgramBlock* clone() const override {
-        std::list<ProgramBlockStmt> tmp;
-        for (auto& x : body_) {
-            std::visit([&tmp](auto& stmt) {
-                tmp.emplace_back(object::clone(*stmt));
-            }, x);
-        }
-        return new ProgramBlock(pos_, std::move(tmp));
-    }
-};
-
-/**
- * \class qasmtools::ast::QuantumBlock
- * \brief Class for quantum program blocks
- */
-using QuantumBlockStmt = std::variant<ptr<QuantumStmt>, ptr<QuantumLoop>>;
-class QuantumBlock : public BlockBase<QuantumBlockStmt, QuantumBlock> {
-    using BlockBase<QuantumBlockStmt, QuantumBlock>::BlockBase;
-  public:
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-  protected:
-    QuantumBlock* clone() const override {
-        std::list<QuantumBlockStmt> tmp;
-        for (auto& x : body_) {
-            std::visit([&tmp](auto& stmt) {
-                tmp.emplace_back(object::clone(*stmt));
-            }, x);
-        }
-        return new QuantumBlock(pos_, std::move(tmp));
-    }
-};
-
-/**
- * \class qasmtools::ast::QuantumLoopBlock
- * \brief Class for quantum loop blocks
- */
-using QuantumLoopStmt = std::variant<ptr<QuantumStmt>>;
-class QuantumLoopBlock : public BlockBase<QuantumLoopStmt, QuantumLoopBlock> {
-    using BlockBase<QuantumLoopStmt, QuantumLoopBlock>::BlockBase;
-  public:
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-  protected:
-    QuantumLoopBlock* clone() const override {
-        std::list<QuantumLoopStmt> tmp;
-        for (auto& x : body_) {
-            std::visit([&tmp](auto& stmt) {
-                tmp.emplace_back(object::clone(*stmt));
-            }, x);
-        }
-        return new QuantumLoopBlock(pos_, std::move(tmp));
-    }
-};
-
-
 
 /**
  * \class qasmtools::ast::QuantumMeasurement
@@ -307,8 +87,6 @@ class QuantumMeasurement final : public ASTNode {
         return new QuantumMeasurement(pos_, object::clone(*q_arg_));
     }
 };
-
-
 
 /**
  * \class qasmtools::ast::MeasureStmt
@@ -639,7 +417,7 @@ class BarrierStmt final : public QuantumStmt {
     std::ostream& pretty_print(std::ostream& os, bool) const override {
         os << "barrier";
         for (auto it = args_.begin(); it != args_.end(); it++)
-            os << (it == args_.begin() ? " " : ",") << *it;
+            os << (it == args_.begin() ? " " : ",") << **it;
         os << ";\n";
         return os;
     }
@@ -871,6 +649,198 @@ class EndStmt final : public Stmt {
     }
   protected:
     EndStmt* clone() const override { return new EndStmt(pos_); }
+};
+
+/**
+ * \class qasmtools::ast::AliasStmt
+ * \brief Class for alias statements
+ * \see qasmtools::ast::StmtBase
+ */
+class AliasStmt final : public Stmt {
+    symbol alias_;      ///< the alias name
+    ptr<IndexId> qreg_; ///< the quantum bit|register
+
+  public:
+    /**
+     * \brief Constructs an alias statement
+     *
+     * \param pos The source position
+     * \param alias The alias name
+     * \param qreq The quantum bit|register
+     */
+    AliasStmt(parser::Position pos, symbol alias, ptr<IndexId> qreg)
+        : Stmt(pos), alias_(alias), qreg_(std::move(qreg)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<AliasStmt> create(parser::Position pos, symbol alias,
+                                 ptr<IndexId> qreg) {
+        return std::make_unique<AliasStmt>(pos, alias, std::move(qreg));
+    }
+
+    /**
+     * \brief Get the alias name
+     *
+     * \return Const reference to the alias name
+     */
+    const symbol& alias() const { return alias_; }
+
+    /**
+     * \brief Get the quantum bit|register
+     *
+     * \return Reference to the quantum bit|register
+     */
+    IndexId& qreg() { return *qreg_; }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool) const override {
+        os << "let " << alias_ << " = " << *qreg_ << ";\n";
+        return os;
+    }
+  protected:
+    AliasStmt* clone() const override {
+        return new AliasStmt(pos_, alias_, object::clone(*qreg_));
+    }
+};
+
+/**
+ * \brief Enum of assignment operators
+ */
+enum class AssignOp { Equals, Plus, Minus, Times, Div, BitAnd, BitOr,
+        Tilde, Caret, LeftBitShift, RightBitShift, Mod, Pow };
+inline std::ostream& operator<<(std::ostream& os, const AssignOp& aop) {
+    switch (aop) {
+        case AssignOp::Equals:
+            os << "=";
+            break;
+        case AssignOp::Plus:
+            os << "+=";
+            break;
+        case AssignOp::Minus:
+            os << "-=";
+            break;
+        case AssignOp::Times:
+            os << "*=";
+            break;
+        case AssignOp::Div:
+            os << "/=";
+            break;
+        case AssignOp::BitAnd:
+            os << "&=";
+            break;
+        case AssignOp::BitOr:
+            os << "|=";
+            break;
+        case AssignOp::Tilde:
+            os << "~=";
+            break;
+        case AssignOp::Caret:
+            os << "^=";
+            break;
+        case AssignOp::LeftBitShift:
+            os << "<<=";
+            break;
+        case AssignOp::RightBitShift:
+            os << ">>=";
+            break;
+        case AssignOp::Mod:
+            os << "%=";
+            break;
+        case AssignOp::Pow:
+            os << "**=";
+            break;
+    }
+    return os;
+}
+
+/**
+ * \class qasmtools::ast::AssignmentStmt
+ * \brief Class for assignment statements
+ * \see qasmtools::ast::StmtBase
+ */
+class AssignmentStmt final : public Stmt {
+    symbol var_;                     ///< the variable being assigned to
+    std::optional<ptr<Expr>> index_; ///< the variable index
+    AssignOp op_;                    ///< the assignment operator
+    ptr<Expr> exp_;                  ///< the expression
+
+  public:
+    /**
+     * \brief Constructs an assignment statement
+     *
+     * \param pos The source position
+     * \param var The variable name
+     * \param index Optional index (default = std::nullopt)
+     * \param op The assignment operator
+     * \param exp The expression
+     */
+    AssignmentStmt(parser::Position pos, symbol var, AssignOp op, ptr<Expr> exp)
+        : Stmt(pos), var_(var), index_(std::nullopt), op_(op),
+          exp_(std::move(exp)) {}
+    AssignmentStmt(parser::Position pos, symbol var,
+                   std::optional<ptr<Expr>>&& index, AssignOp op, ptr<Expr> exp)
+        : Stmt(pos), var_(var), index_(std::move(index)), op_(op),
+          exp_(std::move(exp)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<AssignmentStmt> create(parser::Position pos, symbol var,
+                                      AssignOp op, ptr<Expr> exp) {
+        return std::make_unique<AssignmentStmt>(pos, var, op, std::move(exp));
+    }
+    static ptr<AssignmentStmt> create(parser::Position pos, symbol var,
+                                      std::optional<ptr<Expr>>&& index,
+                                      AssignOp op, ptr<Expr> exp) {
+        return std::make_unique<AssignmentStmt>(pos, var, std::move(index), op,
+                                                std::move(exp));
+    }
+
+    /**
+     * \brief Get the variable name
+     *
+     * \return Const reference to the variable name
+     */
+    const symbol& var() const { return var_; }
+
+    /**
+     * \brief Get the variable index
+     *
+     * \return Reference to the vairable index
+     */
+    std::optional<ptr<Expr>>& index() { return index_; }
+
+    /**
+     * \brief Get the assignment operator
+     *
+     * \return Ann assignment operator enum
+     */
+    AssignOp op() const { return op_; }
+
+    /**
+     * \brief Get the expression
+     *
+     * \return Reference to the expression
+     */
+    Expr& exp() { return *exp_; }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool) const override {
+        os << var_;
+        if (index_)
+            os << "[" << **index_ << "]";
+        os << " " << op_ << " " << *exp_ << ";\n";
+        return os;
+    }
+  protected:
+    AssignmentStmt* clone() const override {
+        std::optional<ptr<Expr>> tmp = std::nullopt;
+        if (index_)
+            tmp = object::clone(**index_);
+        return new AssignmentStmt(pos_, var_, std::move(tmp), op_,
+                                  object::clone(*exp_));
+    }
 };
 
 } // namespace ast

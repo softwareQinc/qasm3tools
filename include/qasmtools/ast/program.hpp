@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "decl.hpp"
+#include "stmtblock.hpp"
 
 namespace qasmtools {
 namespace ast {
@@ -52,9 +52,18 @@ class Program : public BlockBase<ProgramStmt, Program> {
      * \param std_include Whether the standard library has been included
      * \param body The program body
      */
-    Program(parser::Position pos, bool std_include,
-            std::list<ProgramStmt>&& body)
+    Program(parser::Position pos, std::list<ProgramStmt>&& body,
+            bool std_include = false)
         : BlockBase(pos, std::move(body)), std_include_(std_include) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<Program> create(parser::Position pos,
+                               std::list<ProgramStmt>&& body,
+                               bool std_include = false) {
+        return std::make_unique<Program>(pos, std::move(body), std_include);
+    }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
@@ -78,7 +87,7 @@ class Program : public BlockBase<ProgramStmt, Program> {
                 tmp.emplace_back(object::clone(*stmt));
             }, x);
         }
-        return new Program(pos_, std_include_, std::move(tmp));
+        return new Program(pos_, std::move(tmp), std_include_);
     }
 };
 

@@ -33,11 +33,12 @@
 
 #include "../utils/angle.hpp"
 #include "base.hpp"
+#include "exprbase.hpp"
 #include "type.hpp"
 
 #include <cmath>
-#include <complex>
 #include <iomanip>
+#include <vector>
 
 namespace qasmtools {
 namespace ast {
@@ -55,7 +56,7 @@ inline std::ostream& operator<<(std::ostream& os, const Constant& c) {
             os << "\u03C4";
             break;
         case Constant::Euler:
-            os << "\u03B5";
+            os << "\u0190";
             break;
     }
     return os;
@@ -195,38 +196,6 @@ inline std::ostream& operator<<(std::ostream& os, const MathOp& uop) {
     }
     return os;
 }
-
-/**
- * \class qasmtools::ast::Expr
- * \brief Base class for openQASM expressions
- */
-class Expr : public ASTNode {
-  public:
-    Expr(parser::Position pos) : ASTNode(pos) {}
-    virtual ~Expr() = default;
-
-    /**
-     * \brief Evaluate constant expressions
-     *
-     * All sub-classes must override this
-     *
-     * \return Returns the value of the expression if it
-     *         is constant, or nullopt otherwise
-     */
-    virtual std::optional<std::complex<double>> constant_eval() const = 0;
-
-    /**
-     * \brief Internal pretty-printer with associative context
-     *
-     * \param ctx Whether the current associative context is ambiguous
-     */
-    virtual std::ostream& pretty_print(std::ostream& os, bool ctx) const = 0;
-    std::ostream& pretty_print(std::ostream& os) const override {
-        return pretty_print(os, false);
-    }
-  protected:
-    virtual Expr* clone() const override = 0;
-};
 
 /**
  * \class qasmtools::ast::BExpr
@@ -642,6 +611,90 @@ class FunctionCall final : public Expr {
         for (auto& x : args_)
             tmp.emplace_back(object::clone(*x));
         return new FunctionCall(pos_, name_, std::move(tmp));
+    }
+};
+
+/**
+ * \class qasmtools::ast::AccessExpr
+ * \brief Class for access expressions
+ * \see qasmtools::ast::Expr
+ */
+class AccessExpr final : public Expr {
+    ptr<Expr> exp_;   ///< the expression
+    ptr<Expr> index_; ///< the index
+
+  public:
+    /**
+     * \brief Constructs an Access expression
+     *
+     * \param pos The source position
+     * \param exp The expression
+     * \param index The index
+     */
+    AccessExpr(parser::Position pos, ptr<Expr> exp, ptr<Expr> index)
+        : Expr(pos), exp_(std::move(exp)), index_(std::move(index)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<AccessExpr> create(parser::Position pos, ptr<Expr> exp,
+                                  ptr<Expr> index) {
+        return std::make_unique<AccessExpr>(pos, std::move(exp),
+                                            std::move(index));
+    }
+
+    /**
+     * \brief Get the expression
+     *
+     * \return A reference to the expression
+     */
+    Expr& exp() { return *exp_; }
+
+    /**
+     * \brief Get the index
+     *
+     * \return A reference to the index
+     */
+    Expr& index() { return *index_; }
+
+    /**
+     * \brief Set the expression
+     *
+     * \param exp The new expression
+     */
+    void set_exp(ptr<Expr> exp) { exp_ = std::move(exp); }
+
+    /**
+     * \brief Set the index
+     *
+     * \param exp The new index
+     */
+    void set_index(ptr<Expr> exp) { index_ = std::move(exp); }
+
+    std::optional<std::complex<double>> constant_eval() const override {
+        return std::nullopt;
+    }
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
+        if (ctx) {
+            os << "(";
+            exp_->pretty_print(os, true);
+            os << "[";
+            index_->pretty_print(os, false);
+            os << "])";
+        } else {
+            exp_->pretty_print(os, true);
+            os << "[";
+            index_->pretty_print(os, false);
+            os << "]";
+        }
+
+        return os;
+    }
+  protected:
+    AccessExpr* clone() const override {
+        return new AccessExpr(pos_, object::clone(*exp_),
+                              object::clone(*index_));
     }
 };
 
