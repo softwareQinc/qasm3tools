@@ -25,6 +25,22 @@ std::vector<ast::ptr<ast::Expr>> make_expr_list() {
     return tmp;
 }
 
+std::vector<ast::ptr<ast::ClassicalType>> make_ctype_list() {
+    std::vector<ast::ptr<ast::ClassicalType>> tmp;
+    tmp.emplace_back(ast::NoDesignatorType::create({}, ast::NDType::Bool));
+    tmp.emplace_back(ast::BitType::create({}));
+    return tmp;
+}
+
+std::vector<ast::ptr<ast::Param>> make_param_list() {
+    std::vector<ast::ptr<ast::Param>> tmp;
+    tmp.emplace_back(ast::ClassicalParam::create({}, "ct",
+            ast::NoDesignatorType::create({}, ast::NDType::Bool)));
+    tmp.emplace_back(ast::QuantumParam::create({}, "qt",
+                                               ast::QubitType::create({})));
+    return tmp;
+}
+
 // Parsing & semantic analysis unit tests
 /******************************************************************************/
 TEST(ASTNodes, Construction) {
@@ -81,6 +97,10 @@ TEST(ASTNodes, Construction) {
         ast::AssignmentStmt asgn({}, "x_assign", ast::AssignOp::Pow,
                                  ast::object::clone(expr32));
         //decl
+        ast::SubroutineDecl sub({}, "my_subroutine", make_param_list(),
+                                ast::object::clone(pb));
+        ast::ExternDecl ext({}, "my_external", make_ctype_list(),
+                            ast::object::clone(complex_int32));
         ast::GateDecl({}, "mydecl", {}, {}, {});
         ast::QuantumRegisterDecl qrd({}, "quantum_zyx",
                                      ast::object::clone(expr3));
@@ -119,6 +139,8 @@ TEST(ASTNodes, Construction) {
         stmts.emplace_back(ast::object::clone(box));
         stmts.emplace_back(ast::object::clone(delay));
         stmts.emplace_back(ast::object::clone(rot));
+        stmts.emplace_back(ast::object::clone(sub));
+        stmts.emplace_back(ast::object::clone(ext));
         auto x = ast::Program::create({}, std::move(stmts), true);
         std::cerr << *x;
     });

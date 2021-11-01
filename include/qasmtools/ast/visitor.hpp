@@ -38,6 +38,7 @@ class SingleDesignatorType;
 class NoDesignatorType;
 class BitType;
 class ComplexType;
+class QubitType;
 class BExpr;
 class UExpr;
 class MathExpr;
@@ -71,6 +72,10 @@ class ReturnStmt;
 class EndStmt;
 class AliasStmt;
 class AssignmentStmt;
+class ClassicalParam;
+class QuantumParam;
+class SubroutineDecl;
+class ExternDecl;
 class GateDecl;
 class QuantumRegisterDecl;
 class ClassicalDecl;
@@ -118,6 +123,7 @@ class Visitor {
     virtual void visit(NoDesignatorType&) = 0;
     virtual void visit(BitType&) = 0;
     virtual void visit(ComplexType&) = 0;
+    virtual void visit(QubitType&) = 0;
     // Expressions
     virtual void visit(BExpr&) = 0;
     virtual void visit(UExpr&) = 0;
@@ -173,6 +179,10 @@ class Visitor {
     virtual void visit(RotaryStmt&) = 0;
     virtual void visit(BoxStmt&) = 0;
     // Declarations
+    virtual void visit(ClassicalParam&) = 0;
+    virtual void visit(QuantumParam&) = 0;
+    virtual void visit(SubroutineDecl&) = 0;
+    virtual void visit(ExternDecl&) = 0;
     virtual void visit(GateDecl&) = 0;
     virtual void visit(QuantumRegisterDecl&) = 0;
     virtual void visit(ClassicalDecl&) = 0;
