@@ -101,7 +101,7 @@ class BlockBase : public ASTNode {
     /**
      * \brief Internal pretty-printer which adds indentation to each line
      *
-     * \param indents Number of indents
+     * \param indents Current indentation level
      */
     virtual std::ostream& pretty_print(std::ostream& os,
                                        size_t indents) const {

@@ -47,10 +47,10 @@ class StmtBase : public ASTNode {
 
     /**
      * \brief Internal pretty-printer which can suppress the output of the
-     * stdlib, and/or add a prefix to each line
+     * stdlib, and/or add indentation to block statements
      *
      * \param suppress_std Whether to suppress output of the standard library
-     * \param prefix Prefix string
+     * \param indents Current indentation level
      */
     virtual std::ostream& pretty_print(std::ostream& os,
                                        bool suppress_std,
