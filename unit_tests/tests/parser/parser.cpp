@@ -7,37 +7,36 @@
 
 #include <sstream>
 
-using namespace qasmtools;
+using namespace qasmtools::ast;
 
-std::vector<ast::ptr<ast::IndexId>> make_va_list() {
-    std::vector<ast::ptr<ast::IndexId>> tmp;
-    tmp.emplace_back(ast::VarAccess::create({}, "a"));
-    tmp.emplace_back(ast::VarAccess::create({}, "b"));
-    tmp.emplace_back(ast::VarAccess::create({}, "c"));
+std::vector<ptr<IndexId>> make_va_list() {
+    std::vector<ptr<IndexId>> tmp;
+    tmp.emplace_back(VarAccess::create({}, "a"));
+    tmp.emplace_back(VarAccess::create({}, "b"));
+    tmp.emplace_back(VarAccess::create({}, "c"));
     return tmp;
 }
 
-std::vector<ast::ptr<ast::Expr>> make_expr_list() {
-    std::vector<ast::ptr<ast::Expr>> tmp;
-    tmp.emplace_back(ast::IntExpr::create({}, 24));
-    tmp.emplace_back(ast::RealExpr::create({}, 1.5));
-    tmp.emplace_back(ast::ConstantExpr::create({}, ast::Constant::Pi));
+std::vector<ptr<Expr>> make_expr_list() {
+    std::vector<ptr<Expr>> tmp;
+    tmp.emplace_back(IntExpr::create({}, 24));
+    tmp.emplace_back(RealExpr::create({}, 1.5));
+    tmp.emplace_back(ConstantExpr::create({}, Constant::Pi));
     return tmp;
 }
 
-std::vector<ast::ptr<ast::ClassicalType>> make_ctype_list() {
-    std::vector<ast::ptr<ast::ClassicalType>> tmp;
-    tmp.emplace_back(ast::NoDesignatorType::create({}, ast::NDType::Bool));
-    tmp.emplace_back(ast::BitType::create({}));
+std::vector<ptr<ClassicalType>> make_ctype_list() {
+    std::vector<ptr<ClassicalType>> tmp;
+    tmp.emplace_back(NoDesignatorType::create({}, NDType::Bool));
+    tmp.emplace_back(BitType::create({}));
     return tmp;
 }
 
-std::vector<ast::ptr<ast::Param>> make_param_list() {
-    std::vector<ast::ptr<ast::Param>> tmp;
-    tmp.emplace_back(ast::ClassicalParam::create({}, "ct",
-            ast::NoDesignatorType::create({}, ast::NDType::Bool)));
-    tmp.emplace_back(ast::QuantumParam::create({}, "qt",
-                                               ast::QubitType::create({})));
+std::vector<ptr<Param>> make_param_list() {
+    std::vector<ptr<Param>> tmp;
+    tmp.emplace_back(ClassicalParam::create({}, "ct",
+        NoDesignatorType::create({}, NDType::Bool)));
+    tmp.emplace_back(QubitParam::create({}, "qt"));
     return tmp;
 }
 
@@ -46,102 +45,108 @@ std::vector<ast::ptr<ast::Param>> make_param_list() {
 TEST(ASTNodes, Construction) {
     EXPECT_NO_THROW({
         //expr
-        ast::IntExpr expr1({}, 1);
-        ast::IntExpr expr2({}, 2);
-        ast::IntExpr expr3({}, 3);
-        ast::IntExpr expr10({}, 10);
-        ast::IntExpr expr32({}, 32);
+        IntExpr expr1({}, 1);
+        IntExpr expr2({}, 2);
+        IntExpr expr3({}, 3);
+        IntExpr expr10({}, 10);
+        IntExpr expr32({}, 32);
         //gate modifiers
-        ast::CtrlModifier ctrl({}, false, ast::object::clone(expr2));
-        ast::CtrlModifier negctrl({}, true, ast::object::clone(expr1));
-        ast::InvModifier inv({});
-        ast::PowModifier pow({}, ast::object::clone(expr2));
+        CtrlModifier ctrl({}, false, object::clone(expr2));
+        CtrlModifier negctrl({}, true, object::clone(expr1));
+        InvModifier inv({});
+        PowModifier pow({}, object::clone(expr2));
         //slice
-        ast::RangeSlice rs({}, ast::object::clone(expr2),
-                           ast::object::clone(expr2),
-                           ast::object::clone(expr10));
-        ast::ListSlice ls({}, make_expr_list());
+        RangeSlice rs({}, object::clone(expr2),
+                      object::clone(expr2),
+                      object::clone(expr10));
+        ListSlice ls({}, make_expr_list());
         //indexid
-        ast::VarAccess va({}, "x");
-        ast::VarAccess va1({}, "y", ast::object::clone(rs));
-        ast::VarAccess va2({}, "z", ast::object::clone(ls));
-        ast::Concat con({}, ast::object::clone(va1), ast::object::clone(va2));
+        VarAccess va({}, "x");
+        VarAccess va1({}, "y", object::clone(rs));
+        VarAccess va2({}, "z", object::clone(ls));
+        Concat con({}, object::clone(va1), object::clone(va2));
         //classical types
-        ast::SingleDesignatorType int32({}, ast::SDType::Int,
-                                        ast::object::clone(expr32));
-        ast::NoDesignatorType boolean({}, ast::NDType::Bool);
-        ast::BitType bit({});
-        ast::BitType bit2({}, ast::object::clone(expr2));
-        ast::ComplexType complex_int32({}, ast::object::clone(int32));
+        SingleDesignatorType int32({}, SDType::Int, object::clone(expr32));
+        NoDesignatorType boolean({}, NDType::Bool);
+        BitType bit({});
+        BitType bit2({}, object::clone(expr2));
+        ComplexType complex_int32({}, object::clone(int32));
 
         //program
-        ast::Program({}, {}, false);
+        Program({}, {}, false);
 
         //stmt
-        ast::QuantumMeasurement qm({}, ast::object::clone(va));
-        ast::ProgramBlock pb({}, {});
-        ast::QuantumBlock qb({}, {});
-        ast::QuantumLoopBlock qlb({}, {});
-        ast::MeasureStmt qmst({}, ast::object::clone(qm));
-        ast::ExprStmt({}, {});
-        ast::MeasureAsgnStmt qmsta({}, ast::object::clone(qm),
-                                   ast::object::clone(va));
-        ast::ResetStmt({}, make_va_list());
-        ast::BarrierStmt({}, make_va_list());
-        ast::IfStmt({}, {}, {}, {});
-        ast::BreakStmt({});
-        ast::ContinueStmt({});
-        ast::ReturnStmt({}, std::monostate());
-        ast::EndStmt({});
-        ast::AliasStmt alias({}, "my_alias", ast::object::clone(va));
-        ast::AssignmentStmt asgn({}, "x_assign", ast::AssignOp::Pow,
-                                 ast::object::clone(expr32));
+        QuantumMeasurement qm({}, object::clone(va));
+        ProgramBlock pb({}, {});
+        QuantumBlock qb({}, {});
+        QuantumLoopBlock qlb({}, {});
+        MeasureStmt qmst({}, object::clone(qm));
+        ExprStmt({}, {});
+        MeasureAsgnStmt qmsta({}, object::clone(qm), object::clone(va));
+        ResetStmt({}, make_va_list());
+        BarrierStmt({}, make_va_list());
+        IfStmt({}, {}, {}, {});
+        BreakStmt({});
+        ContinueStmt({});
+        ReturnStmt({}, std::monostate());
+        EndStmt({});
+        AliasStmt alias({}, "my_alias", object::clone(va));
+        AssignmentStmt asgn({}, "x_assign", AssignOp::Pow,
+                            object::clone(expr32));
         //decl
-        ast::SubroutineDecl sub({}, "my_subroutine", make_param_list(),
-                                ast::object::clone(pb));
-        ast::ExternDecl ext({}, "my_external", make_ctype_list(),
-                            ast::object::clone(complex_int32));
-        ast::GateDecl({}, "mydecl", {}, {}, {});
-        ast::QuantumRegisterDecl qrd({}, "quantum_zyx",
-                                     ast::object::clone(expr3));
-        ast::ClassicalDecl cd({}, "complex_int32",
-                              ast::object::clone(complex_int32));
-        ast::ClassicalDecl cd2({}, "complex_int32_2",
-                               ast::object::clone(complex_int32),
-                               ast::object::clone(expr2), true);
+        SubroutineDecl sub({}, "my_subroutine", make_param_list(),
+                           object::clone(pb));
+        ExternDecl ext({}, "my_external", make_ctype_list(),
+                       object::clone(complex_int32));
+        GateDecl({}, "mydecl", {}, {}, {});
+        QuantumRegisterDecl qrd({}, "quantum_zyx",
+                                object::clone(expr3));
+        ClassicalDecl cd({}, "complex_int32",
+                         object::clone(complex_int32));
+        ClassicalDecl cd2({}, "complex_int32_2",
+                          object::clone(complex_int32),
+                          object::clone(expr2), true);
+        CalGrammarDecl openpulse({}, "\"openpulse\"");
+        CalibrationDecl cal({}, "calib", std::monostate(), {"$0", "$2"},
+                            object::clone(complex_int32), "--foo--");
+        CalibrationDecl cal2({}, "calib", make_expr_list(), {"x"},
+                             std::nullopt, "--bar--");
         //gates
-        ast::UGate({}, {}, ast::object::clone(expr1), ast::object::clone(expr1),
-                   ast::object::clone(expr1), ast::object::clone(va));
-        ast::GPhase({}, {}, ast::object::clone(expr2), make_va_list());
-        ast::DeclaredGate({}, {}, "mygate", {}, make_va_list());
+        UGate({}, {}, object::clone(expr1), object::clone(expr1),
+              object::clone(expr1), object::clone(va));
+        GPhase({}, {}, object::clone(expr2), make_va_list());
+        DeclaredGate({}, {}, "mygate", {}, make_va_list());
         //loops
-        ast::ListSet lset({}, make_expr_list());
-        ast::ForStmt forstmt({}, "i", ast::object::clone(lset),
-                             ast::object::clone(pb));
-        ast::WhileStmt whilestmt({}, ast::object::clone(expr1),
-                                 ast::object::clone(pb));
+        ListSet lset({}, make_expr_list());
+        ForStmt forstmt({}, "i", object::clone(lset), object::clone(pb));
+        WhileStmt whilestmt({}, object::clone(expr1), object::clone(pb));
+        PragmaStmt ps({}, {});
         // timing
-        ast::BoxStmt box({}, std::nullopt, ast::object::clone(qb));
-        ast::DelayStmt delay({}, {}, ast::object::clone(expr1), make_va_list());
-        ast::RotaryStmt rot({}, make_expr_list(), ast::object::clone(expr32),
-                            make_va_list());
+        BoxStmt box({}, std::nullopt, object::clone(qb));
+        DelayStmt delay({}, {}, object::clone(expr1), make_va_list());
+        RotaryStmt rot({}, make_expr_list(), object::clone(expr32),
+                       make_va_list());
 
-        std::list<ast::ProgramStmt> stmts;
-        stmts.emplace_back(ast::object::clone(qmst));
-        stmts.emplace_back(ast::object::clone(qmsta));
-        stmts.emplace_back(ast::object::clone(qrd));
-        stmts.emplace_back(ast::object::clone(cd));
-        stmts.emplace_back(ast::object::clone(cd2));
-        stmts.emplace_back(ast::object::clone(alias));
-        stmts.emplace_back(ast::object::clone(asgn));
-        stmts.emplace_back(ast::object::clone(forstmt));
-        stmts.emplace_back(ast::object::clone(whilestmt));
-        stmts.emplace_back(ast::object::clone(box));
-        stmts.emplace_back(ast::object::clone(delay));
-        stmts.emplace_back(ast::object::clone(rot));
-        stmts.emplace_back(ast::object::clone(sub));
-        stmts.emplace_back(ast::object::clone(ext));
-        auto x = ast::Program::create({}, std::move(stmts), true);
+        std::list<ProgramStmt> stmts;
+        stmts.emplace_back(object::clone(qmst));
+        stmts.emplace_back(object::clone(qmsta));
+        stmts.emplace_back(object::clone(qrd));
+        stmts.emplace_back(object::clone(cd));
+        stmts.emplace_back(object::clone(cd2));
+        stmts.emplace_back(object::clone(alias));
+        stmts.emplace_back(object::clone(asgn));
+        stmts.emplace_back(object::clone(forstmt));
+        stmts.emplace_back(object::clone(whilestmt));
+        stmts.emplace_back(object::clone(box));
+        stmts.emplace_back(object::clone(delay));
+        stmts.emplace_back(object::clone(rot));
+        stmts.emplace_back(object::clone(sub));
+        stmts.emplace_back(object::clone(ext));
+        stmts.emplace_back(object::clone(ps));
+        stmts.emplace_back(object::clone(openpulse));
+        stmts.emplace_back(object::clone(cal));
+        stmts.emplace_back(object::clone(cal2));
+        auto x = Program::create({}, std::move(stmts), true);
         std::cerr << *x;
     });
 }

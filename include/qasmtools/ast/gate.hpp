@@ -59,8 +59,8 @@ class GateModifier : public ASTNode {
  * \brief Class for control modifiers
  */
 class CtrlModifier : public GateModifier {
-    bool neg_;
-    std::optional<ptr<Expr>> n_;
+    bool neg_;                   // true for negctrl, false for ctrl
+    std::optional<ptr<Expr>> n_; // number of control bits
   public:
     /**
      * \brief Constructs a control modifier
@@ -80,6 +80,20 @@ class CtrlModifier : public GateModifier {
             std::optional<ptr<Expr>>&& n = std::nullopt) {
         return std::make_unique<CtrlModifier>(pos, neg, std::move(n));
     }
+
+    /**
+     * \brief Get whether the modifier is negctrl or ctrl
+     *
+     * \return True for negctrl, false for ctrl
+     */
+    bool neg() const { return neg_; }
+
+    /**
+     * \brief Get the number of control bits
+     *
+     * \return Optional expr number of control bits
+     */
+    std::optional<ptr<Expr>>& n() { return n_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
@@ -151,6 +165,13 @@ class PowModifier : public GateModifier {
     static ptr<PowModifier> create(parser::Position pos, ptr<Expr> r) {
         return std::make_unique<PowModifier>(pos, std::move(r));
     }
+
+    /**
+     * \brief Get the power
+     *
+     * \return A reference to the power
+     */
+    Expr& r() { return *r_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {

@@ -36,6 +36,7 @@
 #include "type.hpp"
 
 #include <set>
+#include <variant>
 #include <vector>
 
 namespace qasmtools {
@@ -145,46 +146,51 @@ class ClassicalParam : public Param {
 };
 
 /**
- * \class qasmtools::ast::QuantumParam
- * \brief Class for subroutine quantum parameters
+ * \class qasmtools::ast::QubitParam
+ * \brief Class for subroutine qubit parameters
  */
-class QuantumParam : public Param {
-    ptr<QuantumType> type_;
-
+class QubitParam : public Param {
+    std::optional<ptr<Expr>> size_;
   public:
     /**
-     * \brief Constructs a quantum parameter
+     * \brief Constructs a qubit type
      *
      * \param pos The source position
-     * \param id The parameter identifier
-     * \param type The parameter type
+     * \param size The size
      */
-    QuantumParam(parser::Position pos, symbol id, ptr<QuantumType> type)
-      : Param(pos, id), type_(std::move(type)) {}
+    QubitParam(parser::Position pos, symbol id,
+               std::optional<ptr<Expr>>&& size = std::nullopt)
+        : Param(pos, id), size_(std::move(size)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<QuantumParam> create(parser::Position pos, symbol id,
-                                    ptr<QuantumType> type) {
-        return std::make_unique<QuantumParam>(pos, id, std::move(type));
+    static ptr<QubitParam> create(parser::Position pos, symbol id,
+            std::optional<ptr<Expr>>&& size = std::nullopt) {
+        return std::make_unique<QubitParam>(pos, id, std::move(size));
     }
 
     /**
-     * \brief Get the parmeter type
+     * \brief Get the size
      *
-     * \return Reference to the type
+     * \return Optional expr size
      */
-    QuantumType& type() { return *type_; }
+    std::optional<ptr<Expr>>& size() { return size_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << *type_ << " " << id_;
+        os << "qubit";
+        if (size_)
+            os << "[" << **size_ << "]";
+        os << " " << id_;
         return os;
     }
   protected:
-    QuantumParam* clone() const override {
-        return new QuantumParam(pos_, id_, object::clone(*type_));
+    QubitParam* clone() const override {
+        std::optional<ptr<Expr>> tmp = std::nullopt;
+        if (size_)
+            tmp = object::clone(**size_);
+        return new QubitParam(pos_, id_, std::move(tmp));
     }
 };
 
@@ -421,8 +427,7 @@ class GateDecl final : public GlobalStmt, public Decl {
      *
      * \return std::list iterator
      */
-    std::list<std::variant<ptr<QuantumStmt>, ptr<QuantumLoop>>>::iterator
-    begin() {
+    std::list<QuantumBlockStmt>::iterator begin() {
         return body_->body().begin();
     }
 
@@ -431,8 +436,7 @@ class GateDecl final : public GlobalStmt, public Decl {
      *
      * \return std::list iterator
      */
-    std::list<std::variant<ptr<QuantumStmt>, ptr<QuantumLoop>>>::iterator
-    end() {
+    std::list<QuantumBlockStmt>::iterator end() {
         return body_->body().end();
     }
 
@@ -442,6 +446,7 @@ class GateDecl final : public GlobalStmt, public Decl {
         if (suppress_std && is_std_gate(id_))
             return os;
 
+        os << "gate " << id_;
         if (c_params_.size() > 0) {
             os << "(";
             for (auto it = c_params_.begin(); it != c_params_.end(); it++) {
@@ -553,6 +558,20 @@ class ClassicalDecl final : public Stmt, public Decl {
     }
 
     /**
+     * \brief Get the type
+     *
+     * \return Reference to the type
+     */
+    ClassicalType& type() { return *type_; }
+
+    /**
+     * \brief Get the intitialized value
+     *
+     * \return Optional expr intitialized value
+     */
+    std::optional<ptr<Expr>>& equalsexp() { return equalsexp_; }
+
+    /**
      * \brief Get whether the declaration is const
      *
      * \return Whether the declaration is const
@@ -576,6 +595,183 @@ class ClassicalDecl final : public Stmt, public Decl {
             tmp = object::clone(**equalsexp_);
         return new ClassicalDecl(pos_, id_, object::clone(*type_),
                                  std::move(tmp), is_const_);
+    }
+};
+
+/**
+ * \class qasmtools::ast::CalGrammarDecl
+ * \brief Class for calibration grammar declarations
+ * \see qasmtools::ast::Stmt
+ */
+class CalGrammarDecl final : public GlobalStmt {
+    std::string name_; ///< the name of the grammar (with quotation marks)
+
+  public:
+    /**
+     * \brief Constructs a calibration grammar declaration
+     *
+     * \param pos The source position
+     * \param name The name of the grammar
+     */
+    CalGrammarDecl(parser::Position pos, std::string name)
+        : GlobalStmt(pos), name_(name) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<CalGrammarDecl> create(parser::Position pos, std::string name) {
+        return std::make_unique<CalGrammarDecl>(pos, name);
+    }
+
+    /**
+     * \brief Return the name of the grammar
+     *
+     * \return Constant reference to the name
+     */
+    const std::string& name() const { return name_; }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool) const override {
+        os << "defcalgrammar " << name_ << ";\n";
+        return os;
+    }
+  protected:
+    CalGrammarDecl* clone() const override {
+        return new CalGrammarDecl(pos_, name_);
+    }
+};
+
+/**
+ * \class qasmtools::ast::CalibrationDecl
+ * \brief Class for calibration declarations
+ * \see qasmtools::ast::Stmt
+ * \see qasmtools::ast::Decl
+ */
+class CalibrationDecl final : public GlobalStmt, public Decl {
+    using ParamsType = std::variant<std::monostate,
+                                    std::vector<ptr<ClassicalParam>>,
+                                    std::vector<ptr<Expr>>>;
+    ParamsType c_params_;                           ///< classical parameters
+    std::vector<symbol> q_params_;                  ///< quantum parameters
+    std::optional<ptr<ClassicalType>> return_type_; ///< return type
+    std::string body_;                              ///< body
+
+  public:
+    /**
+     * \brief Constructs a calibration declaration
+     *
+     * \param pos The source position
+     * \param id The calibration identifier
+     * \param c_params List of classical parameters
+     * \param q_params List of quantum parameters
+     * \param return_type Optional return type (default = std::nullopt)
+     * \param body The calibration body
+     */
+    CalibrationDecl(parser::Position pos, symbol id, ParamsType&& c_params,
+                    std::vector<symbol> q_params,
+                    std::optional<ptr<ClassicalType>>&& return_type,
+                    std::string body)
+        : GlobalStmt(pos), Decl(id), c_params_(std::move(c_params)),
+          q_params_(q_params), return_type_(std::move(return_type)), body_(body)
+        {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<CalibrationDecl> create(parser::Position pos, symbol id,
+            ParamsType&& c_params, std::vector<symbol> q_params,
+            std::optional<ptr<ClassicalType>>&& return_type, std::string body) {
+        return std::make_unique<CalibrationDecl>(pos, id, std::move(c_params),
+                                                 q_params,
+                                                 std::move(return_type), body);
+    }
+
+    /**
+     * \brief Get the classical parameter list
+     *
+     * \return Reference to the list of classical parameters
+     */
+    ParamsType& c_params() { return c_params_; }
+
+    /**
+     * \brief Get the quantum parameter list
+     *
+     * \return Reference to the list of quantum parameters
+     */
+    std::vector<symbol>& q_params() { return q_params_; }
+
+    /**
+     * \brief Get the return type
+     *
+     * \return Reference to the return type
+     */
+    std::optional<ptr<ClassicalType>>& return_type() { return return_type_; }
+
+    /**
+     * \brief Get the calibration body
+     *
+     * \return Reference to the body
+     */
+    const std::string& body() const { return body_; }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool) const override {
+        os << "defcal " << id_;
+
+        std::visit(
+            utils::overloaded{
+                [&os](const std::vector<ptr<ClassicalParam>>& cps) {
+                    os << "(";
+                    for (auto it = cps.begin(); it != cps.end(); it++) {
+                        os << (it == cps.begin() ? "" : ", ") << **it;
+                    }
+                    os << ")";
+                },
+                [&os](const std::vector<ptr<Expr>>& exps) {
+                    os << "(";
+                    for (auto it = exps.begin(); it != exps.end(); it++) {
+                        os << (it == exps.begin() ? "" : ", ") << **it;
+                    }
+                    os << ")";
+                },
+                [](auto) {}
+            },
+            c_params_);
+
+        os << " ";
+        for (auto it = q_params_.begin(); it != q_params_.end(); it++) {
+            os << (it == q_params_.begin() ? "" : ", ") << *it;
+        }
+        if (return_type_)
+            os << " -> " << **return_type_;
+        os << " { " << body_ << " }\n";
+        return os;
+    }
+  protected:
+    CalibrationDecl* clone() const override {
+        ParamsType tmp = std::monostate();
+        std::visit(
+            utils::overloaded{
+                [&tmp](const std::vector<ptr<ClassicalParam>>& cps) {
+                    std::vector<ptr<ClassicalParam>> cps_copy;
+                    for (auto& x: cps)
+                        cps_copy.emplace_back(object::clone(*x));
+                    tmp = std::move(cps_copy);
+                },
+                [&tmp](const std::vector<ptr<Expr>>& exps) {
+                    std::vector<ptr<Expr>> exps_copy;
+                    for (auto& x: exps)
+                        exps_copy.emplace_back(object::clone(*x));
+                    tmp = std::move(exps_copy);
+                },
+                [](auto) {}
+            },
+            c_params_);
+        std::optional<ptr<ClassicalType>> tmp_return = std::nullopt;
+        if (return_type_)
+            tmp_return = object::clone(**return_type_);
+        return new CalibrationDecl(pos_, id_, std::move(tmp), q_params_,
+                                   std::move(tmp_return), body_);
     }
 };
 

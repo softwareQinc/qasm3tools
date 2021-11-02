@@ -26,7 +26,7 @@
 
 /**
  * \file qasmtools/ast/type.hpp
- * \brief openQASM types
+ * \brief openQASM classical types
  */
 
 #pragma once
@@ -272,68 +272,6 @@ class ComplexType : public ClassicalType {
   protected:
     ComplexType* clone() const override {
         return new ComplexType(pos_, object::clone(*subtype_));
-    }
-};
-
-
-
-/**
- * \class qasmtools::ast::QuantumType
- * \brief Class for quantum types
- */
-class QuantumType : public ASTNode {
-  public:
-    QuantumType(parser::Position pos) : ASTNode(pos) {}
-    virtual ~QuantumType() = default;
-  protected:
-    virtual QuantumType* clone() const = 0;
-};
-
-/**
- * \class qasmtools::ast::QubitType
- * \brief Type sub-class for qubit types
- */
-class QubitType : public QuantumType {
-    std::optional<ptr<Expr>> size_;
-  public:
-    /**
-     * \brief Constructs a qubit type
-     *
-     * \param pos The source position
-     * \param size The size
-     */
-    QubitType(parser::Position pos,
-              std::optional<ptr<Expr>>&& size = std::nullopt)
-        : QuantumType(pos), size_(std::move(size)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<QubitType> create(parser::Position pos,
-            std::optional<ptr<Expr>>&& size = std::nullopt) {
-        return std::make_unique<QubitType>(pos, std::move(size));
-    }
-
-    /**
-     * \brief Get the size
-     *
-     * \return Optional expr size
-     */
-    std::optional<ptr<Expr>>& size() { return size_; }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os) const override {
-        os << "qubit";
-        if (size_)
-            os << "[" << **size_ << "]";
-        return os;
-    }
-  protected:
-    QubitType* clone() const override {
-        std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (size_)
-            tmp = object::clone(**size_);
-        return new QubitType(pos_, std::move(tmp));
     }
 };
 

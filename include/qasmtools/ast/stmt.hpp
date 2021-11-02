@@ -39,6 +39,7 @@
 #include "../utils/templates.hpp"
 
 #include <functional>
+#include <list>
 #include <variant>
 #include <vector>
 
@@ -171,14 +172,14 @@ class ExprStmt final : public Stmt {
      *
      * \return Reference to the expression
      */
-    Expr& measurement() { return *exp_; }
+    Expr& exp() { return *exp_; }
 
     /**
      * \brief Set the expression
      *
      * \param exp The new expression
      */
-    void set_subexp(ptr<Expr> exp) { exp_ = std::move(exp); }
+    void set_exp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
@@ -587,6 +588,13 @@ class ReturnStmt final : public ControlStmt {
         return std::make_unique<ReturnStmt>(pos, std::move(value));
     }
 
+    /**
+     * \brief Get the classical parameter list
+     *
+     * \return Reference to the list of classical parameters
+     */
+    RetType& value() { return value_; }
+
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
         std::visit(
@@ -840,6 +848,66 @@ class AssignmentStmt final : public Stmt {
             tmp = object::clone(**index_);
         return new AssignmentStmt(pos_, var_, std::move(tmp), op_,
                                   object::clone(*exp_));
+    }
+};
+
+/**
+ * \class qasmtools::ast::PragmaStmt
+ * \brief Class for pragma statements
+ * \see qasmtools::ast::StmtBase
+ */
+class PragmaStmt final : public GlobalStmt {
+    std::list<ptr<Stmt>> body_; ///< list of statements
+
+  public:
+    /**
+     * \brief Constructs a pragma statement
+     *
+     * \param pos The source position
+     * \param arg Rvalue reference to the list of statements
+     */
+    PragmaStmt(parser::Position pos, std::list<ptr<Stmt>>&& body)
+        : GlobalStmt(pos), body_(std::move(body)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<PragmaStmt> create(parser::Position pos,
+                                  std::list<ptr<Stmt>>&& body) {
+        return std::make_unique<PragmaStmt>(pos, std::move(body));
+    }
+
+    /**
+     * \brief Get the list of statements
+     *
+     * \return Reference to the list of statements
+     */
+    std::list<ptr<Stmt>>& body() { return body_; }
+
+    /**
+     * \brief Apply a function to each statement
+     *
+     * \param f Void function accepting a reference to the statement
+     */
+    void foreach_stmt(std::function<void(Stmt&)> f) {
+        for (auto& x: body_)
+            f(*x);
+    }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool) const override {
+        os << "#pragma {\n";
+        for (auto& x: body_)
+            os << "\t" << *x;
+        os << "}\n";
+        return os;
+    }
+  protected:
+    PragmaStmt* clone() const override {
+        std::list<ptr<Stmt>> tmp;
+        for (auto& x : body_)
+            tmp.emplace_back(object::clone(*x));
+        return new PragmaStmt(pos_, std::move(tmp));
     }
 };
 

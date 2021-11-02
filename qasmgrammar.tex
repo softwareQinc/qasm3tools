@@ -34,16 +34,16 @@
 	    & $\mid$ & \texttt{def <id>(<arg...>?) -> <ctype> \{ <stmt>* <returnstmt>? \}} \\
 	\texttt{<externdef>} & $::=$ & \texttt{extern <id>(<ctype...>?);} \\
 	    & $\mid$ & \texttt{extern <id>(<ctype...>?) -> <ctype>;} \\
-	\texttt{<gatedef>} & $::=$ & \texttt{gate <id...> <qblock>} \\
-	    & $\mid$ & \texttt{gate (<id...>?) <id...> <qblock>} \\
+	\texttt{<gatedef>} & $::=$ & \texttt{gate <id> <id...> <qblock>} \\
+	    & $\mid$ & \texttt{gate <id>(<id...>?) <id...> <qblock>} \\
 	\texttt{<calibration>} & $::=$ & \texttt{defcalgrammar "openpulse";} \\
 	    & $\mid$ & \texttt{defcalgrammar <string>;} \\
 	    & $\mid$ & \texttt{defcal <id> <id...> \{ .* \}} \\
-	    & $\mid$ & \texttt{defcal <id> (<carg...>?) <id...> \{ .* \}} \\
-	    & $\mid$ & \texttt{defcal <id> (<exp...>?) <id...> \{ .* \}} \\
+	    & $\mid$ & \texttt{defcal <id>(<carg...>?) <id...> \{ .* \}} \\
+	    & $\mid$ & \texttt{defcal <id>(<exp...>?) <id...> \{ .* \}} \\
 	    & $\mid$ & \texttt{defcal <id> <id...> -> <ctype> \{ .* \}} \\
-	    & $\mid$ & \texttt{defcal <id> (<carg...>?) <id...> -> <ctype> \{ .* \}} \\
-	    & $\mid$ & \texttt{defcal <id> (<exp...>?) <id...> -> <ctype> \{ .* \}} \\
+	    & $\mid$ & \texttt{defcal <id>(<carg...>?) <id...> -> <ctype> \{ .* \}} \\
+	    & $\mid$ & \texttt{defcal <id>(<exp...>?) <id...> -> <ctype> \{ .* \}} \\
 	\texttt{<qdecl>} & $::=$ & \texttt{qreg <id>;} $\mid$ \texttt{qreg <id>[<exp>];} \\
 	    & $\mid$ & \texttt{qubit <id>;} $\mid$ \texttt{qubit[<exp>] <id>;} \\ \\
 	\texttt{<stmt>} & $::=$ & \texttt{<exp>;} \\

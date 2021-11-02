@@ -38,7 +38,6 @@ class SingleDesignatorType;
 class NoDesignatorType;
 class BitType;
 class ComplexType;
-class QubitType;
 class BExpr;
 class UExpr;
 class MathExpr;
@@ -72,13 +71,16 @@ class ReturnStmt;
 class EndStmt;
 class AliasStmt;
 class AssignmentStmt;
+class PragmaStmt;
 class ClassicalParam;
-class QuantumParam;
+class QubitParam;
 class SubroutineDecl;
 class ExternDecl;
 class GateDecl;
 class QuantumRegisterDecl;
 class ClassicalDecl;
+class CalGrammarDecl;
+class CalibrationDecl;
 class CtrlModifier;
 class InvModifier;
 class PowModifier;
@@ -123,7 +125,6 @@ class Visitor {
     virtual void visit(NoDesignatorType&) = 0;
     virtual void visit(BitType&) = 0;
     virtual void visit(ComplexType&) = 0;
-    virtual void visit(QubitType&) = 0;
     // Expressions
     virtual void visit(BExpr&) = 0;
     virtual void visit(UExpr&) = 0;
@@ -159,6 +160,7 @@ class Visitor {
     virtual void visit(EndStmt&) = 0;
     virtual void visit(AliasStmt&) = 0;
     virtual void visit(AssignmentStmt&) = 0;
+    virtual void visit(PragmaStmt&) = 0;
     // Gates
     virtual void visit(CtrlModifier&) = 0;
     virtual void visit(InvModifier&) = 0;
@@ -180,12 +182,14 @@ class Visitor {
     virtual void visit(BoxStmt&) = 0;
     // Declarations
     virtual void visit(ClassicalParam&) = 0;
-    virtual void visit(QuantumParam&) = 0;
+    virtual void visit(QubitParam&) = 0;
     virtual void visit(SubroutineDecl&) = 0;
     virtual void visit(ExternDecl&) = 0;
     virtual void visit(GateDecl&) = 0;
     virtual void visit(QuantumRegisterDecl&) = 0;
     virtual void visit(ClassicalDecl&) = 0;
+    virtual void visit(CalGrammarDecl&) = 0;
+    virtual void visit(CalibrationDecl&) = 0;
     // Program
     virtual void visit(Program&) = 0;
     // Destructor

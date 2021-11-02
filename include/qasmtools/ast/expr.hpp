@@ -723,6 +723,13 @@ class ConstantExpr final : public Expr {
         return std::make_unique<ConstantExpr>(pos, constant);
     }
 
+    /**
+     * \brief Get the constant
+     *
+     * \return A constant enum
+     */
+    Constant constant() const { return constant_; }
+
     std::optional<std::complex<double>> constant_eval() const override {
         switch (constant_) {
             case Constant::Pi:
