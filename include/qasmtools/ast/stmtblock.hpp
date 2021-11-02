@@ -156,26 +156,5 @@ class QuantumBlock : public BlockBase<QuantumBlockStmt, QuantumBlock> {
     }
 };
 
-/**
- * \class qasmtools::ast::QuantumLoopBlock
- * \brief Class for quantum loop blocks
- */
-using QuantumLoopStmt = std::variant<ptr<QuantumStmt>>;
-class QuantumLoopBlock : public BlockBase<QuantumLoopStmt, QuantumLoopBlock> {
-    using BlockBase<QuantumLoopStmt, QuantumLoopBlock>::BlockBase;
-  public:
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-  protected:
-    QuantumLoopBlock* clone() const override {
-        std::list<QuantumLoopStmt> tmp;
-        for (auto& x : body_) {
-            std::visit([&tmp](auto& stmt) {
-                tmp.emplace_back(object::clone(*stmt));
-            }, x);
-        }
-        return new QuantumLoopBlock(pos_, std::move(tmp));
-    }
-};
-
 } // namespace ast
 } // namespace qasmtools

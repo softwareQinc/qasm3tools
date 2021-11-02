@@ -716,7 +716,7 @@ class AliasStmt final : public Stmt {
  * \brief Enum of assignment operators
  */
 enum class AssignOp { Equals, Plus, Minus, Times, Div, BitAnd, BitOr,
-        Tilde, Caret, LeftBitShift, RightBitShift, Mod, Pow };
+        Tilde, XOr, LeftBitShift, RightBitShift, Mod, Pow };
 inline std::ostream& operator<<(std::ostream& os, const AssignOp& aop) {
     switch (aop) {
         case AssignOp::Equals:
@@ -743,7 +743,7 @@ inline std::ostream& operator<<(std::ostream& os, const AssignOp& aop) {
         case AssignOp::Tilde:
             os << "~=";
             break;
-        case AssignOp::Caret:
+        case AssignOp::XOr:
             os << "^=";
             break;
         case AssignOp::LeftBitShift:

@@ -364,10 +364,10 @@ class WhileStmt final : public Stmt {
  * \brief Class for quantum for-loops
  * \see qasmtools::ast::StmtBase
  */
-class QuantumForStmt final : public QuantumLoop {
+class QuantumForStmt final : public QuantumStmt {
     symbol var_;                  ///< the loop variable
     ptr<IndexSet> index_set_;     ///< index set
-    ptr<QuantumLoopBlock> body_;  ///< loop body
+    ptr<QuantumBlock> body_;  ///< loop body
 
   public:
     /**
@@ -379,8 +379,8 @@ class QuantumForStmt final : public QuantumLoop {
      * \param body The loop body
      */
     QuantumForStmt(parser::Position pos, symbol var, ptr<IndexSet> index_set,
-                   ptr<QuantumLoopBlock> body)
-        : QuantumLoop(pos), var_(var), index_set_(std::move(index_set)),
+                   ptr<QuantumBlock> body)
+        : QuantumStmt(pos), var_(var), index_set_(std::move(index_set)),
           body_(std::move(body)) {}
 
     /**
@@ -388,7 +388,7 @@ class QuantumForStmt final : public QuantumLoop {
      */
     static ptr<QuantumForStmt> create(parser::Position pos, symbol var,
                                       ptr<IndexSet> index_set,
-                                      ptr<QuantumLoopBlock> body) {
+                                      ptr<QuantumBlock> body) {
         return std::make_unique<QuantumForStmt>(pos, var, std::move(index_set),
                                                 std::move(body));
     }
@@ -412,7 +412,7 @@ class QuantumForStmt final : public QuantumLoop {
      *
      * \return Reference to the body
      */
-    QuantumLoopBlock& body() { return *body_; }
+    QuantumBlock& body() { return *body_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {
@@ -431,9 +431,9 @@ class QuantumForStmt final : public QuantumLoop {
  * \brief Class for quantum while loops
  * \see qasmtools::ast::StmtBase
  */
-class QuantumWhileStmt final : public QuantumLoop {
+class QuantumWhileStmt final : public QuantumStmt {
     ptr<Expr> cond_;             ///< boolean expression to check
-    ptr<QuantumLoopBlock> body_; ///< loop body
+    ptr<QuantumBlock> body_; ///< loop body
 
   public:
     /**
@@ -444,14 +444,14 @@ class QuantumWhileStmt final : public QuantumLoop {
      * \param body The loop body
      */
     QuantumWhileStmt(parser::Position pos, ptr<Expr> cond,
-                     ptr<QuantumLoopBlock> body)
-        : QuantumLoop(pos), cond_(std::move(cond)), body_(std::move(body)) {}
+                     ptr<QuantumBlock> body)
+        : QuantumStmt(pos), cond_(std::move(cond)), body_(std::move(body)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<QuantumWhileStmt> create(parser::Position pos, ptr<Expr> cond,
-                                        ptr<QuantumLoopBlock> body) {
+                                        ptr<QuantumBlock> body) {
         return std::make_unique<QuantumWhileStmt>(pos, std::move(cond),
                                                   std::move(body));
     }
@@ -468,7 +468,7 @@ class QuantumWhileStmt final : public QuantumLoop {
      *
      * \return Reference to the body
      */
-    QuantumLoopBlock& body() { return *body_; }
+    QuantumBlock& body() { return *body_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool) const override {

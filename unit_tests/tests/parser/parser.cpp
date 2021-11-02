@@ -79,7 +79,6 @@ TEST(ASTNodes, Construction) {
         QuantumMeasurement qm({}, object::clone(va));
         ProgramBlock pb({}, {});
         QuantumBlock qb({}, {});
-        QuantumLoopBlock qlb({}, {});
         MeasureStmt qmst({}, object::clone(qm));
         ExprStmt({}, {});
         MeasureAsgnStmt qmsta({}, object::clone(qm), object::clone(va));
