@@ -266,7 +266,8 @@ class SubroutineDecl final : public GlobalStmt, public Decl {
     ProgramBlock& body() { return *body_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool,
+                               size_t indents) const override {
         os << "def " << id_ << "(";
         for (auto it = params_.begin(); it != params_.end(); it++) {
             os << (it == params_.begin() ? "" : ", ") << **it;
@@ -274,7 +275,8 @@ class SubroutineDecl final : public GlobalStmt, public Decl {
         os << ")";
         if (return_type_)
             os << " -> " << **return_type_;
-        os << " " << *body_;
+        os << " ";
+        body_->pretty_print(os, indents);
         return os;
     }
   protected:
@@ -340,7 +342,7 @@ class ExternDecl final : public GlobalStmt, public Decl {
     std::optional<ptr<ClassicalType>>& return_type() { return return_type_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "extern " << id_ << "(";
         for (auto it = param_types_.begin(); it != param_types_.end(); it++) {
             os << (it == param_types_.begin() ? "" : ", ") << **it;
@@ -441,8 +443,8 @@ class GateDecl final : public GlobalStmt, public Decl {
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os,
-                               bool suppress_std) const override {
+    std::ostream& pretty_print(std::ostream& os, bool suppress_std,
+                               size_t indents) const override {
         if (suppress_std && is_std_gate(id_))
             return os;
 
@@ -458,7 +460,8 @@ class GateDecl final : public GlobalStmt, public Decl {
         for (auto it = q_params_.begin(); it != q_params_.end(); it++) {
             os << (it == q_params_.begin() ? "" : ",") << *it;
         }
-        os << *body_;
+        os << " ";
+        body_->pretty_print(os, indents);
         return os;
     }
   protected:
@@ -504,7 +507,7 @@ class QuantumRegisterDecl final : public GlobalStmt, public Decl {
     std::optional<ptr<Expr>>& size() { return size_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "qubit";
         if (size_)
             os << "[" << **size_ << "]";
@@ -579,7 +582,7 @@ class ClassicalDecl final : public Stmt, public Decl {
     bool is_const() { return is_const_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         if (is_const_)
             os << "const ";
         os << *type_ << " " << id_;
@@ -631,7 +634,7 @@ class CalGrammarDecl final : public GlobalStmt {
     const std::string& name() const { return name_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "defcalgrammar " << name_ << ";\n";
         return os;
     }
@@ -715,7 +718,7 @@ class CalibrationDecl final : public GlobalStmt, public Decl {
     const std::string& body() const { return body_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "defcal " << id_;
 
         std::visit(

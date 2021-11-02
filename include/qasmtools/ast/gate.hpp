@@ -308,7 +308,7 @@ class UGate final : public Gate {
     void set_arg(ptr<IndexId> arg) { arg_ = std::move(arg); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         print_modifiers(os);
         os << "U(" << *theta_ << "," << *phi_ << "," << *lambda_ << ") "
            << *arg_ << ";\n";
@@ -414,7 +414,7 @@ class GPhase final : public Gate {
     void set_arg(int i, ptr<IndexId> arg) { args_[i] = std::move(arg); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         print_modifiers(os);
         os << "gphase(" << *gamma_ << ")";
         for (auto it = args_.begin(); it != args_.end(); it++)
@@ -554,7 +554,7 @@ class DeclaredGate final : public Gate {
     void set_qarg(int i, ptr<IndexId> arg) { q_args_[i] = std::move(arg); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         print_modifiers(os);
         os << name_;
         if (c_args_.size() > 0) {

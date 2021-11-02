@@ -132,7 +132,7 @@ class MeasureStmt final : public QuantumStmt {
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << *measurement_ << ";\n";
         return os;
     }
@@ -182,7 +182,7 @@ class ExprStmt final : public Stmt {
     void set_exp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << exp_ << ";\n";
         return os;
     }
@@ -255,7 +255,7 @@ class MeasureAsgnStmt final : public Stmt {
     void set_carg(ptr<IndexId> arg) { c_arg_ = std::move(arg); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << *c_arg_ << " = " << *measurement_ << ";\n";
         return os;
     }
@@ -332,7 +332,7 @@ class ResetStmt final : public QuantumStmt {
     void set_arg(int i, ptr<IndexId> arg) { args_[i] = std::move(arg); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "reset";
         for (auto it = args_.begin(); it != args_.end(); it++)
             os << (it == args_.begin() ? " " : ", ") << **it;
@@ -415,7 +415,7 @@ class BarrierStmt final : public QuantumStmt {
     void set_arg(int i, ptr<IndexId> arg) { args_[i] = std::move(arg); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "barrier";
         for (auto it = args_.begin(); it != args_.end(); it++)
             os << (it == args_.begin() ? " " : ",") << **it;
@@ -486,7 +486,7 @@ class IfStmt final : public Stmt {
     ProgramBlock& els() { return *else_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "if (" << *cond_ << ") " << *then_;
         if (!(else_->body().empty()))
             os << "else " << *else_;
@@ -522,7 +522,7 @@ class BreakStmt final : public ControlStmt {
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "break;\n";
         return os;
     }
@@ -553,7 +553,7 @@ class ContinueStmt final : public ControlStmt {
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "continue;\n";
         return os;
     }
@@ -596,7 +596,7 @@ class ReturnStmt final : public ControlStmt {
     RetType& value() { return value_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         std::visit(
             utils::overloaded{
                 [&os](const ptr<QuantumMeasurement>& qm) {
@@ -651,7 +651,7 @@ class EndStmt final : public Stmt {
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "end;\n";
         return os;
     }
@@ -702,7 +702,7 @@ class AliasStmt final : public Stmt {
     IndexId& qreg() { return *qreg_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "let " << alias_ << " = " << *qreg_ << ";\n";
         return os;
     }
@@ -834,7 +834,7 @@ class AssignmentStmt final : public Stmt {
     Expr& exp() { return *exp_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << var_;
         if (index_)
             os << "[" << **index_ << "]";
@@ -895,7 +895,7 @@ class PragmaStmt final : public GlobalStmt {
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "#pragma {\n";
         for (auto& x: body_)
             os << "\t" << *x;

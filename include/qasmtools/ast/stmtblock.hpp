@@ -98,16 +98,30 @@ class BlockBase : public ASTNode {
      */
     typename std::list<T>::iterator end() { return body_.end(); }
 
-    virtual std::ostream& pretty_print(std::ostream& os) const override {
+    /**
+     * \brief Internal pretty-printer which adds indentation to each line
+     *
+     * \param indents Number of indents
+     */
+    virtual std::ostream& pretty_print(std::ostream& os,
+                                       size_t indents) const {
         os << "{\n";
         for (auto& x : body_) {
-            std::visit([&os](auto& stmt) {
-                stmt->pretty_print(os);
+            for (size_t i = 0; i <= indents; i++)
+                os << "\t";
+            std::visit([&os, &indents](auto& stmt) {
+                stmt->pretty_print(os, false, indents + 1);
             }, x);
         }
+        for (size_t i = 0; i < indents; i++)
+            os << "\t";
         os << "}\n";
 
         return os;
+    }
+
+    std::ostream& pretty_print(std::ostream& os) const override {
+        return pretty_print(os, 0);
     }
   protected:
     std::list<T> body_; ///< the body of the block
@@ -139,7 +153,7 @@ class ProgramBlock : public BlockBase<ProgramBlockStmt, ProgramBlock> {
  * \class qasmtools::ast::QuantumBlock
  * \brief Class for quantum program blocks
  */
-using QuantumBlockStmt = std::variant<ptr<QuantumStmt>, ptr<QuantumLoop>>;
+using QuantumBlockStmt = std::variant<ptr<QuantumStmt>>;
 class QuantumBlock : public BlockBase<QuantumBlockStmt, QuantumBlock> {
     using BlockBase<QuantumBlockStmt, QuantumBlock>::BlockBase;
   public:

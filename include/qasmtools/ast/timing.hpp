@@ -356,7 +356,7 @@ class DelayStmt final : public TimingStmt {
     Expr& duration() { return *duration_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "delay";
         if (c_args_.size() > 0) {
             os << "(";
@@ -501,7 +501,7 @@ class RotaryStmt final : public TimingStmt {
     Expr& duration() { return *duration_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "rotary";
         if (c_args_.size() > 0) {
             os << "(";
@@ -583,11 +583,12 @@ class BoxStmt final : public TimingStmt {
     QuantumBlock& circuit() { return *circuit_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
+    std::ostream& pretty_print(std::ostream& os, bool,
+                               size_t indents) const override {
         os <<  "box ";
         if (duration_)
             os << "[" << **duration_ << "] ";
-        os << *circuit_;
+        circuit_->pretty_print(os, indents);
         return os;
     }
   protected:

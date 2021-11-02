@@ -47,12 +47,18 @@ class StmtBase : public ASTNode {
 
     /**
      * \brief Internal pretty-printer which can suppress the output of the
-     * stdlib
+     * stdlib, and/or add a prefix to each line
      *
      * \param suppress_std Whether to suppress output of the standard library
+     * \param prefix Prefix string
      */
     virtual std::ostream& pretty_print(std::ostream& os,
-                                       bool suppress_std) const = 0;
+                                       bool suppress_std,
+                                       size_t indents) const = 0;
+
+    std::ostream& pretty_print(std::ostream& os, bool suppress_std) const {
+        return pretty_print(os, suppress_std, 0);
+    }
 
     std::ostream& pretty_print(std::ostream& os) const override {
         return pretty_print(os, false);

@@ -80,10 +80,13 @@ TEST(ASTNodes, Construction) {
         ProgramBlock pb({}, {});
         QuantumBlock qb({}, {});
         MeasureStmt qmst({}, object::clone(qm));
+         qb.body().emplace_back(object::clone(qmst));
         ExprStmt({}, {});
         MeasureAsgnStmt qmsta({}, object::clone(qm), object::clone(va));
-        ResetStmt({}, make_va_list());
-        BarrierStmt({}, make_va_list());
+        ResetStmt reset({}, make_va_list());
+         pb.body().emplace_back(object::clone(reset));
+        BarrierStmt bar({}, make_va_list());
+         qb.body().emplace_back(object::clone(bar));
         IfStmt({}, {}, {}, {});
         BreakStmt({});
         ContinueStmt({});
@@ -114,14 +117,16 @@ TEST(ASTNodes, Construction) {
         UGate({}, {}, object::clone(expr1), object::clone(expr1),
               object::clone(expr1), object::clone(va));
         GPhase({}, {}, object::clone(expr2), make_va_list());
-        DeclaredGate({}, {}, "mygate", {}, make_va_list());
+        DeclaredGate ({}, {}, "mygate", {}, make_va_list());
         //loops
         ListSet lset({}, make_expr_list());
-        ForStmt forstmt({}, "i", object::clone(lset), object::clone(pb));
+        QuantumForStmt forstmt({}, "i", object::clone(lset), object::clone(qb));
+         forstmt.body().body().emplace_back(object::clone(forstmt));
         WhileStmt whilestmt({}, object::clone(expr1), object::clone(pb));
         PragmaStmt ps({}, {});
         // timing
         BoxStmt box({}, std::nullopt, object::clone(qb));
+         box.circuit().body().emplace_back(object::clone(forstmt));
         DelayStmt delay({}, {}, object::clone(expr1), make_va_list());
         RotaryStmt rot({}, make_expr_list(), object::clone(expr32),
                        make_va_list());

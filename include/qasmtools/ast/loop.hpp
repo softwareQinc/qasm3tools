@@ -293,8 +293,10 @@ class ForStmt final : public Stmt {
     ProgramBlock& body() { return *body_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
-        os << "for " << var_ << " in " << *index_set_ << " " << *body_;
+    std::ostream& pretty_print(std::ostream& os, bool,
+                               size_t indents) const override {
+        os << "for " << var_ << " in " << *index_set_ << " ";
+        body_->pretty_print(os, indents);
         return os;
     }
   protected:
@@ -348,8 +350,10 @@ class WhileStmt final : public Stmt {
     ProgramBlock& body() { return *body_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
-        os << "while (" << *cond_ << ") " << *body_;
+    std::ostream& pretty_print(std::ostream& os, bool,
+                               size_t indents) const override {
+        os << "while (" << *cond_ << ") ";
+        body_->pretty_print(os, indents);
         return os;
     }
   protected:
@@ -415,8 +419,10 @@ class QuantumForStmt final : public QuantumStmt {
     QuantumBlock& body() { return *body_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
-        os << "for " << var_ << " in " << *index_set_ << " " << *body_;
+    std::ostream& pretty_print(std::ostream& os, bool,
+                               size_t indents) const override {
+        os << "for " << var_ << " in " << *index_set_ << " ";
+        body_->pretty_print(os, indents);
         return os;
     }
   protected:
@@ -471,8 +477,10 @@ class QuantumWhileStmt final : public QuantumStmt {
     QuantumBlock& body() { return *body_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool) const override {
-        os << "while (" << *cond_ << ") " << *body_;
+    std::ostream& pretty_print(std::ostream& os, bool,
+                               size_t indents) const override {
+        os << "while (" << *cond_ << ") ";
+        body_->pretty_print(os, indents);
         return os;
     }
   protected:

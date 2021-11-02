@@ -66,7 +66,7 @@ class Program : public BlockBase<ProgramStmt, Program> {
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os) const override {
+    std::ostream& pretty_print(std::ostream& os, size_t) const override {
         os << "OPENQASM 3.0;\n";
         if (std_include_)
             os << "include \"stdgates.inc\";\n";
