@@ -148,9 +148,9 @@ TEST(ASTNodes, Construction) {
         stmts.emplace_back(object::clone(ext));
         stmts.emplace_back(object::clone(ps));
         stmts.emplace_back(object::clone(openpulse));
-        stmts.emplace_back(object::clone(cal));
-        stmts.emplace_back(object::clone(cal2));
         auto x = Program::create({}, std::move(stmts), true);
+        x->body().emplace_back(object::clone(cal));
+        x->body().emplace_back(object::clone(cal2));
         std::cerr << *x;
     });
 }

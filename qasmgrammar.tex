@@ -16,7 +16,7 @@
 \newcommand{\N}{\mathbb{N}}
 
 \title{OpenQASM 3 (legible) grammar}
-\date{\vspace{-5ex}}
+\date{\vspace{-10ex}}
 
 \begin{document}
 
@@ -64,7 +64,8 @@
 	    & $\mid$ & \texttt{measure <indexid>;} \\
 	    & $\mid$ & \texttt{reset <indexid...>;} \\
 	    & $\mid$ & \texttt{barrier <indexid...>?;} \\
-	    & $\mid$ & \texttt{<timestmt>} \\ \\
+	    & $\mid$ & \texttt{<timestmt>} \\
+	    & $\mid$ & \texttt{<qloop>} \\ \\
 	\texttt{<timestmt>} & $::=$ & \texttt{delay[<exp>] <indexid...>;} \\
 	    & $\mid$ & \texttt{delay(<exp...>?)[<exp>] <indexid...>;} \\
 	    & $\mid$ & \texttt{rotary[<exp>] <indexid...>;} \\
@@ -79,11 +80,10 @@
 	\texttt{<returnstmt>} & $::=$ & \texttt{return;} \\
 	    & $\mid$ & \texttt{return <exp>;} \\
 	    & $\mid$ & \texttt{return measure <indexid>;} \\ \\
-	\texttt{<qblock>} & $::=$ & \texttt{\{ <qstmt|qloop>* \}} \\
+	\texttt{<qblock>} & $::=$ & \texttt{\{ <qstmt>* \}} \\
 	\texttt{<qloop>} & $::=$ & \texttt{for <id> in <setdecl> <qstmt>} \\
-	    & $\mid$ & \texttt{for <id> in <setdecl> \{ <qstmt>* \}} \\
-	    & $\mid$ & \texttt{while (<exp>) <qstmt>} \\
-	    & $\mid$ & \texttt{while (<exp>) \{ <qstmt>* \}} \\ \\
+	    & $\mid$ & \texttt{for <id> in <setdecl> <qblock>} \\
+	    & $\mid$ & \texttt{while (<exp>) <qstmt>} $\mid$ \texttt{while (<exp>) <qblock>} \\ \\
 	\texttt{<arg>} & $::=$ & \texttt{<carg> | <qarg>} \\
 	\texttt{<carg>} & $::=$ & \texttt{<singledesignatortype>[<exp>] <id>} \\
 	    & $\mid$ & \texttt{<nodesignatortype> <id>} \\
