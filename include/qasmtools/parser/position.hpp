@@ -41,9 +41,8 @@ namespace parser {
  * \brief Positions in source code
  */
 class Position {
-    std::string fname_ = ""; ///< name of the containing file
     int line_ = 1;           ///< line number
-    int column_ = 1;         ///< column number
+    int column_ = 0;         ///< column number
 
   public:
     /**
@@ -58,8 +57,7 @@ class Position {
      * \param line Line number
      * \param column Column number
      */
-    Position(const std::string& fname, int line, int column)
-        : fname_(fname), line_(line), column_(column) {}
+    Position(int line, int column) : line_(line), column_(column) {}
 
     /**
      * \brief Extraction operator overload
@@ -69,16 +67,9 @@ class Position {
      * \return Reference to the output stream
      */
     friend std::ostream& operator<<(std::ostream& os, const Position& pos) {
-        os << pos.fname_ << ":" << pos.line_ << ":" << pos.column_;
+        os << pos.line_ << ":" << pos.column_;
         return os;
     }
-
-    /**
-     * \brief The name of the containing file
-     *
-     * \return Const reference to the filename
-     */
-    const std::string& get_filename() const { return fname_; }
 
     /**
      * \brief The line of the position
@@ -93,25 +84,6 @@ class Position {
      * \return The column number
      */
     int get_column() const { return column_; }
-
-    /**
-     * \brief Advance the line number by a specified amount
-     *
-     * \note Sets the column to 0
-     *
-     * \param num Number of lines to advance (optional, default is 1)
-     */
-    void advance_line(int num = 1) {
-        line_ += num;
-        column_ = 1;
-    }
-
-    /**
-     * \brief Advance the column number by a specified amount
-     *
-     * \param num Number of columns to advance (optional, default is 1)
-     */
-    void advance_column(int num = 1) { column_ += num; }
 };
 
 } // namespace parser

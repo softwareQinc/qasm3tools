@@ -259,7 +259,7 @@ class VarAccess final : public IndexId {
     std::ostream& pretty_print(std::ostream& os) const override {
         os << var_;
         if (slice_)
-            os << *slice_;
+            os << **slice_;
         return os;
     }
   protected:

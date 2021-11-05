@@ -183,7 +183,7 @@ class ExprStmt final : public Stmt {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        os << exp_ << ";\n";
+        os << *exp_ << ";\n";
         return os;
     }
   protected:
@@ -897,8 +897,10 @@ class PragmaStmt final : public GlobalStmt {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "#pragma {\n";
-        for (auto& x: body_)
-            os << "\t" << *x;
+        for (auto& x: body_) {
+            os << "\t";
+            x->pretty_print(os, false, 1);
+        }
         os << "}\n";
         return os;
     }
