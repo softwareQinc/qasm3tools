@@ -192,20 +192,68 @@ class PowModifier : public GateModifier {
  */
 class Gate : public QuantumStmt {
   public:
-    Gate(parser::Position pos, std::list<ptr<GateModifier>>&& modifiers)
-        : QuantumStmt(pos), modifiers_(std::move(modifiers)) {}
+    Gate(parser::Position pos, std::list<ptr<GateModifier>>&& modifiers,
+         std::vector<ptr<IndexId>>&& q_args)
+        : QuantumStmt(pos), modifiers_(std::move(modifiers)),
+          q_args_(std::move(q_args)) {}
 
     std::list<ptr<GateModifier>>& modifiers() {
         return modifiers_;
     }
 
+    /**
+     * \brief Get the number of quantum arguments
+     *
+     * \return The number of arguments
+     */
+    int num_qargs() const { return static_cast<int>(q_args_.size()); }
+
+    /**
+     * \brief Get the ith quantum argument
+     *
+     * \param i The number of the argument, 0-indexed
+     * \return Reference to the argument
+     */
+    IndexId& qarg(int i) { return *q_args_[i]; }
+
+    /**
+     * \brief Get the list of quantum arguments
+     *
+     * \return Reference to the list of arguments
+     */
+    std::vector<ptr<IndexId>>& qargs() { return q_args_; }
+
+    /**
+     * \brief Apply a function to each quantum argument
+     *
+     * \param f Void function accepting a reference to an argument
+     */
+    void foreach_qarg(std::function<void(IndexId&)> f) {
+        for (auto& x: q_args_)
+            f(*x);
+    }
+
+    /**
+     * \brief Set the ith quantum argument
+     *
+     * \param i The number of the argument, 0-indexed
+     * \param arg The new argument
+     */
+    void set_qarg(int i, ptr<IndexId> arg) { q_args_[i] = std::move(arg); }
+
     virtual ~Gate() = default;
   protected:
     std::list<ptr<GateModifier>> modifiers_; ///< gate modifiers
+    std::vector<ptr<IndexId>> q_args_;       ///< list of quantum arguments
 
     void print_modifiers(std::ostream& os) const {
         for (auto& x : modifiers_)
             os << *x;
+    }
+
+    void print_qargs(std::ostream& os) const {
+        for (auto it = q_args_.begin(); it != q_args_.end(); it++)
+            os << (it == q_args_.begin() ? " " : ",") << **it;
     }
 
     virtual Gate* clone() const = 0;
@@ -220,7 +268,6 @@ class UGate final : public Gate {
     ptr<Expr> theta_;  ///< theta angle
     ptr<Expr> phi_;    ///< phi angle
     ptr<Expr> lambda_; ///< lambda angle
-    ptr<IndexId> arg_; ///< quantum bit|register
 
   public:
     /**
@@ -234,10 +281,11 @@ class UGate final : public Gate {
      * \param arg Rvalue reference to the quantum argument
      */
     UGate(parser::Position pos, std::list<ptr<GateModifier>>&& modifiers,
-          ptr<Expr> theta, ptr<Expr> phi, ptr<Expr> lambda, ptr<IndexId> arg)
-            : Gate(pos, std::move(modifiers)), theta_(std::move(theta)),
-              phi_(std::move(phi)), lambda_(std::move(lambda)),
-              arg_(std::move(arg)) {}
+          ptr<Expr> theta, ptr<Expr> phi, ptr<Expr> lambda,
+          std::vector<ptr<IndexId>>&& q_args)
+            : Gate(pos, std::move(modifiers), std::move(q_args)),
+              theta_(std::move(theta)), phi_(std::move(phi)),
+              lambda_(std::move(lambda)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -245,10 +293,10 @@ class UGate final : public Gate {
     static ptr<UGate> create(parser::Position pos,
                              std::list<ptr<GateModifier>>&& modifiers,
                              ptr<Expr> theta, ptr<Expr> phi, ptr<Expr> lambda,
-                             ptr<IndexId> arg) {
+                             std::vector<ptr<IndexId>>&& q_args) {
         return std::make_unique<UGate>(pos, std::move(modifiers),
                                        std::move(theta), std::move(phi),
-                                       std::move(lambda), std::move(arg));
+                                       std::move(lambda), std::move(q_args));
     }
 
     /**
@@ -273,13 +321,6 @@ class UGate final : public Gate {
     Expr& lambda() { return *lambda_; }
 
     /**
-     * \brief Get the argument
-     *
-     * \return Reference to the quantum argument
-     */
-    IndexId& arg() { return *arg_; }
-
-    /**
      * \brief Set the theta angle
      *
      * \param theta The new angle expression
@@ -300,18 +341,12 @@ class UGate final : public Gate {
      */
     void set_lambda(ptr<Expr> lambda) { lambda_ = std::move(lambda); }
 
-    /**
-     * \brief Set the argument
-     *
-     * \param arg The new argument
-     */
-    void set_arg(ptr<IndexId> arg) { arg_ = std::move(arg); }
-
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         print_modifiers(os);
-        os << "U(" << *theta_ << "," << *phi_ << "," << *lambda_ << ") "
-           << *arg_ << ";\n";
+        os << "U(" << *theta_ << "," << *phi_ << "," << *lambda_ << ")";
+        print_qargs(os);
+        os << ";\n";
         return os;
     }
   protected:
@@ -319,9 +354,12 @@ class UGate final : public Gate {
         std::list<ptr<GateModifier>> tmp;
         for (auto& x : modifiers_)
             tmp.emplace_back(object::clone(*x));
+        std::vector<ptr<IndexId>> q_tmp;
+        for (auto& x: q_args_)
+            q_tmp.emplace_back(object::clone(*x));
         return new UGate(pos_, std::move(tmp), object::clone(*theta_),
                          object::clone(*phi_), object::clone(*lambda_),
-                         object::clone(*arg_));
+                         std::move(q_tmp));
     }
 };
 
@@ -332,7 +370,6 @@ class UGate final : public Gate {
  */
 class GPhase final : public Gate {
     ptr<Expr> gamma_;                ///< gamma angle
-    std::vector<ptr<IndexId>> args_; ///< list of quantum arguments
 
   public:
     /**
@@ -344,9 +381,9 @@ class GPhase final : public Gate {
      * \param arg Rvalue reference to the quantum argument
      */
     GPhase(parser::Position pos, std::list<ptr<GateModifier>>&& modifiers,
-           ptr<Expr> gamma, std::vector<ptr<IndexId>>&& args)
-            : Gate(pos, std::move(modifiers)), gamma_(std::move(gamma)),
-              args_(std::move(args)) {}
+           ptr<Expr> gamma, std::vector<ptr<IndexId>>&& q_args)
+            : Gate(pos, std::move(modifiers), std::move(q_args)),
+              gamma_(std::move(gamma)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -354,9 +391,9 @@ class GPhase final : public Gate {
     static ptr<GPhase> create(parser::Position pos,
                               std::list<ptr<GateModifier>>&& modifiers,
                               ptr<Expr> gamma,
-                              std::vector<ptr<IndexId>>&& args) {
+                              std::vector<ptr<IndexId>>&& q_args) {
         return std::make_unique<GPhase>(pos, std::move(modifiers),
-                                        std::move(gamma), std::move(args));
+                                        std::move(gamma), std::move(q_args));
     }
 
     /**
@@ -367,58 +404,17 @@ class GPhase final : public Gate {
     Expr& gamma() { return *gamma_; }
 
     /**
-     * \brief Get the number of quantum arguments
-     *
-     * \return The number of arguments
-     */
-    int num_args() const { return static_cast<int>(args_.size()); }
-
-    /**
-     * \brief Get the ith quantum argument
-     *
-     * \param i The number of the argument, 0-indexed
-     * \return Reference to the argument
-     */
-    IndexId& arg(int i) { return *args_[i]; }
-
-    /**
-     * \brief Get the list of quantum arguments
-     *
-     * \return Reference to the list of arguments
-     */
-    std::vector<ptr<IndexId>>& args() { return args_; }
-
-    /**
-     * \brief Apply a function to each quantum argument
-     *
-     * \param f Void function accepting a reference to an argument
-     */
-    void foreach_arg(std::function<void(IndexId&)> f) {
-        for (auto& x: args_)
-            f(*x);
-    }
-
-    /**
      * \brief Set the theta angle
      *
      * \param theta The new angle expression
      */
     void set_gamma(ptr<Expr> gamma) { gamma_ = std::move(gamma); }
 
-    /**
-     * \brief Set the ith quantum argument
-     *
-     * \param i The number of the argument, 0-indexed
-     * \param arg The new argument
-     */
-    void set_arg(int i, ptr<IndexId> arg) { args_[i] = std::move(arg); }
-
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         print_modifiers(os);
         os << "gphase(" << *gamma_ << ")";
-        for (auto it = args_.begin(); it != args_.end(); it++)
-            os << (it == args_.begin() ? " " : ",") << **it;
+        print_qargs(os);
         os << ";\n";
         return os;
     }
@@ -428,7 +424,7 @@ class GPhase final : public Gate {
         for (auto& x : modifiers_)
             tmp.emplace_back(object::clone(*x));
         std::vector<ptr<IndexId>> q_tmp;
-        for (auto& x : args_)
+        for (auto& x : q_args_)
             q_tmp.emplace_back(object::clone(*x));
         return new GPhase(pos_, std::move(tmp), object::clone(*gamma_),
                           std::move(q_tmp));
@@ -443,7 +439,6 @@ class GPhase final : public Gate {
 class DeclaredGate final : public Gate {
     symbol name_;                      ///< gate identifier
     std::vector<ptr<Expr>> c_args_;    ///< list of classical arguments
-    std::vector<ptr<IndexId>> q_args_; ///< list of quantum arguments
 
   public:
     /**
@@ -458,8 +453,8 @@ class DeclaredGate final : public Gate {
     DeclaredGate(parser::Position pos, std::list<ptr<GateModifier>>&& modifiers,
                  symbol name, std::vector<ptr<Expr>>&& c_args,
                  std::vector<ptr<IndexId>>&& q_args)
-            : Gate(pos, std::move(modifiers)), name_(name),
-              c_args_(std::move(c_args)), q_args_(std::move(q_args)) {}
+            : Gate(pos, std::move(modifiers), std::move(q_args)), name_(name),
+              c_args_(std::move(c_args)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -488,34 +483,12 @@ class DeclaredGate final : public Gate {
     int num_cargs() const { return static_cast<int>(c_args_.size()); }
 
     /**
-     * \brief Get the number of quantum arguments
-     *
-     * \return The number of arguments
-     */
-    int num_qargs() const { return static_cast<int>(q_args_.size()); }
-
-    /**
      * \brief Get the ith classical argument
      *
      * \param i The number of the argument, 0-indexed
      * \return Reference to an expression
      */
     Expr& carg(int i) { return *(c_args_[i]); }
-
-    /**
-     * \brief Get the ith quantum argument
-     *
-     * \param i The number of the argument, 0-indexed
-     * \return Reference to the argument
-     */
-    IndexId& qarg(int i) { return *q_args_[i]; }
-
-    /**
-     * \brief Get the list of quantum arguments
-     *
-     * \return Reference to the list of arguments
-     */
-    std::vector<ptr<IndexId>>& qargs() { return q_args_; }
 
     /**
      * \brief Apply a function to each classical argument
@@ -528,30 +501,12 @@ class DeclaredGate final : public Gate {
     }
 
     /**
-     * \brief Apply a function to each quantum argument
-     *
-     * \param f Void function accepting a reference to an argument
-     */
-    void foreach_qarg(std::function<void(IndexId&)> f) {
-        for (auto& x: q_args_)
-            f(*x);
-    }
-
-    /**
      * \brief Set the ith classical argument
      *
      * \param i The number of the argument, 0-indexed
      * \param expr An expression giving the new argument
      */
     void set_carg(int i, ptr<Expr> expr) { c_args_[i] = std::move(expr); }
-
-    /**
-     * \brief Set the ith quantum argument
-     *
-     * \param i The number of the argument, 0-indexed
-     * \param arg The new argument
-     */
-    void set_qarg(int i, ptr<IndexId> arg) { q_args_[i] = std::move(arg); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
@@ -563,9 +518,7 @@ class DeclaredGate final : public Gate {
                 os << (it == c_args_.begin() ? "" : ",") << **it;
             os << ")";
         }
-        os << " ";
-        for (auto it = q_args_.begin(); it != q_args_.end(); it++)
-            os << (it == q_args_.begin() ? "" : ",") << **it;
+        print_qargs(os);
         os << ";\n";
         return os;
     }

@@ -486,10 +486,16 @@ class IfStmt final : public Stmt {
     ProgramBlock& els() { return *else_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        os << "if (" << *cond_ << ") " << *then_;
-        if (!(else_->body().empty()))
-            os << "else " << *else_;
+    std::ostream& pretty_print(std::ostream& os, bool,
+                               size_t indents) const override {
+        os << "if (" << *cond_ << ") ";
+        then_->pretty_print(os, indents);
+        if (!(else_->body().empty())) {
+            for (size_t i = 0; i < indents; i++)
+                os << "\t";
+            os << "else ";
+            else_->pretty_print(os, indents);
+        }
         return os;
     }
   protected:
