@@ -123,12 +123,12 @@ class RangeSet : public IndexSet {
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "[";
         if (start_)
-            os << *start_;
+            os << **start_;
         os << ":";
         if (step_)
-            os << *step_ << ":";
+            os << **step_ << ":";
         if (stop_)
-            os << *stop_;
+            os << **stop_;
         os << "]";
         return os;
     }
