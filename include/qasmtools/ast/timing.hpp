@@ -58,7 +58,7 @@ inline std::ostream& operator<<(std::ostream& os, const TimeUnit& tu) {
             os << "us";
             break;
         case TimeUnit::mus:
-            os << "\u03BCs";
+            os << "\u00B5s";
             break;
         case TimeUnit::ms:
             os << "ms";
