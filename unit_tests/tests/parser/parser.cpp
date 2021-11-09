@@ -115,7 +115,7 @@ TEST(ASTNodes, Construction) {
                              std::nullopt, "--bar--");
         //gates
         UGate({}, {}, object::clone(expr1), object::clone(expr1),
-              object::clone(expr1), object::clone(va));
+              object::clone(expr1), make_va_list());
         GPhase({}, {}, object::clone(expr2), make_va_list());
         DeclaredGate ({}, {}, "mygate", {}, make_va_list());
         //loops

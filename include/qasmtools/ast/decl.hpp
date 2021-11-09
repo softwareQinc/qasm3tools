@@ -651,9 +651,11 @@ class CalGrammarDecl final : public GlobalStmt {
  * \see qasmtools::ast::Decl
  */
 class CalibrationDecl final : public GlobalStmt, public Decl {
+  public:
     using ParamsType = std::variant<std::monostate,
                                     std::vector<ptr<ClassicalParam>>,
                                     std::vector<ptr<Expr>>>;
+  private:
     ParamsType c_params_;                           ///< classical parameters
     std::vector<symbol> q_params_;                  ///< quantum parameters
     std::optional<ptr<ClassicalType>> return_type_; ///< return type
