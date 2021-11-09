@@ -676,18 +676,12 @@ class AccessExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        if (ctx) {
-            os << "(";
-            exp_->pretty_print(os, true);
-            os << "[";
-            index_->pretty_print(os, false);
-            os << "])";
-        } else {
-            exp_->pretty_print(os, true);
-            os << "[";
-            index_->pretty_print(os, false);
-            os << "]";
-        }
+        (void) ctx;
+
+        exp_->pretty_print(os, true);
+        os << "[";
+        index_->pretty_print(os, false);
+        os << "]";
 
         return os;
     }
