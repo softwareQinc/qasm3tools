@@ -1,4 +1,4 @@
-# antlr-cmake
+# qasm3tools
 
 ## Setup
 ```bash
