@@ -6,17 +6,10 @@ enable_testing()
 
 
 #### antlr4cpp library
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
-
-# required if linking to static library
-add_definitions(-DANTLR4CPP_STATIC)
-
-# using /MD flag for antlr4_runtime (for Visual C++ compilers only)
-set(ANTLR4_WITH_STATIC_CRT OFF)
-# add external build for antlrcpp
-include(ExternalAntlr4Cpp)
-# add antrl4cpp artifacts to project environment
-include_directories(${ANTLR4_INCLUDE_DIRS})
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_runtime)
+set_target_properties(antlr4_shared PROPERTIES EXCLUDE_FROM_ALL True)
+# antrl4cpp headers
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_runtime/runtime/src)
 
 
 #### Headers
@@ -33,4 +26,4 @@ add_executable(${PARSER} parser.cpp)
 target_link_libraries(${PARSER} PUBLIC libqasmtools)
 
 #### Unit testing
-add_subdirectory(${CMAKE_SOURCE_DIR}/unit_tests/)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/unit_tests/)
