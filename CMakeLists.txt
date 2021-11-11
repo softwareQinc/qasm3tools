@@ -8,17 +8,17 @@ enable_testing()
 #### antlr4cpp library
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_runtime)
 set_target_properties(antlr4_shared PROPERTIES EXCLUDE_FROM_ALL True)
-# antrl4cpp headers
+# antlr4cpp headers
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_runtime/runtime/src)
 
 
 #### Headers
 add_library(libqasmtools INTERFACE)
-target_link_libraries(libqasmtools INTERFACE antlr4_static)
-target_include_directories(libqasmtools INTERFACE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)
 target_include_directories(libqasmtools INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_generated/>)
+target_include_directories(libqasmtools INTERFACE
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)
+target_link_libraries(libqasmtools INTERFACE antlr4_static)
 
 #### parser executable
 set(PARSER "parser")
