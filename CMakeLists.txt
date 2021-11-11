@@ -6,8 +6,7 @@ enable_testing()
 
 
 #### antlr4cpp library
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_runtime)
-set_target_properties(antlr4_shared PROPERTIES EXCLUDE_FROM_ALL True)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_runtime EXCLUDE_FROM_ALL)
 # antlr4cpp headers
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_runtime/runtime/src)
 
