@@ -1,10 +1,20 @@
-# qasm3tools
-To use the code in this repository, add `qasm3tools/include` as an include directory.
+# antlr-cmake
 
-## Unit testing
+## Setup
 ```bash
 mkdir build && cd build
 cmake ..
-make -j8 unit_tests
+make
+```
+
+This creates the `parser` executable.
+```bash
+./parser /path/to/circuit.qasm
+```
+
+## Unit testing
+For unit testing, make sure to clone this repository with `--recursive`.
+```bash
+make unit_tests
 ctest
 ```

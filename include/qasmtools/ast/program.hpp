@@ -65,6 +65,18 @@ class Program : public BlockBase<ProgramStmt, Program> {
         return std::make_unique<Program>(pos, std::move(body), std_include);
     }
 
+    /**
+     * \brief Get whether the standard library has been included
+     *
+     * \return Whether the standard library has been included
+     */
+    bool includes_std() { return std_include_; }
+
+    /**
+     * \brief Set whether the standard library has been included
+     */
+    void set_includes_std(bool includes_std) { std_include_ = includes_std; }
+
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, size_t) const override {
         os << "OPENQASM 3.0;\n";

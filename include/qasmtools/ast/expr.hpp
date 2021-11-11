@@ -50,13 +50,13 @@ enum class Constant { Pi, Tau, Euler };
 inline std::ostream& operator<<(std::ostream& os, const Constant& c) {
     switch (c) {
         case Constant::Pi:
-            os << "\u03C0";
+            os << "π";
             break;
         case Constant::Tau:
-            os << "\u03C4";
+            os << "τ";
             break;
         case Constant::Euler:
-            os << "\u0190";
+            os << "ℇ";
             break;
     }
     return os;
