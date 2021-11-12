@@ -26,7 +26,7 @@
 
 /**
  * \file qasmtools/ast/gate.hpp
- * \brief openQASM gates
+ * \brief OpenQASM gates
  */
 
 #pragma once

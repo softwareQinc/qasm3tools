@@ -26,7 +26,7 @@
 
 /**
  * \file qasmtools/ast/expr.hpp
- * \brief openQASM expressions
+ * \brief OpenQASM expressions
  */
 
 #pragma once

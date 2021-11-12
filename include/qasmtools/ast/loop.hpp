@@ -26,7 +26,7 @@
 
 /**
  * \file qasmtools/ast/loop.hpp
- * \brief openQASM loop statements
+ * \brief OpenQASM loop statements
  */
 
 #pragma once

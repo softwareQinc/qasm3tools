@@ -26,7 +26,7 @@
 
 /**
  * \file qasmtools/ast/type.hpp
- * \brief openQASM classical types
+ * \brief OpenQASM classical types
  */
 
 #pragma once

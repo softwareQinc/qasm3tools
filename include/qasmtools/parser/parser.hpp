@@ -45,7 +45,7 @@ namespace qasmtools {
 namespace parser {
 
 /**
- * \brief openQASM 3.0 standard library (stdgates.inc) as a string constant
+ * \brief OpenQASM 3.0 standard library (stdgates.inc) as a string constant
  */
 static const std::string std_include =
     "gate p(λ) a { ctrl @ gphase(λ) a; }\n"

@@ -26,7 +26,7 @@
 
 /**
  * \file qasmtools/ast/indexid.hpp
- * \brief openQASM index identifiers
+ * \brief OpenQASM index identifiers
  */
 
 #pragma once

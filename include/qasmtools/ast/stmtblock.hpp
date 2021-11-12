@@ -26,7 +26,7 @@
 
 /**
  * \file qasmtools/ast/stmtblock.hpp
- * \brief openQASM block statements
+ * \brief OpenQASM block statements
  */
 
 #pragma once

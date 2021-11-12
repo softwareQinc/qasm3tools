@@ -26,7 +26,7 @@
 
 /**
  * \file qasmtools/ast/decl.hpp
- * \brief openQASM declarations
+ * \brief OpenQASM declarations
  */
 
 #pragma once
@@ -52,7 +52,7 @@ static const std::set<std::string_view> stdgates{
  * \brief Tests if identifier is part of the OpenQASM 3 standard library
  *
  * \param id Identifier
- * \return True if \a id is part of the standard openQASM qelib, false otherwise
+ * \return True if \a id is part of the standard OpenQASM qelib, false otherwise
  */
 inline bool is_std_gate(const std::string& id) {
     return stdgates.find(id) != stdgates.end();
@@ -60,7 +60,7 @@ inline bool is_std_gate(const std::string& id) {
 
 /**
  * \class qasmtools::ast::Decl
- * \brief Base class for openQASM declarations
+ * \brief Base class for OpenQASM declarations
  *
  * Declarations are attribute classes as they can occur in different
  * statement contexts. To avoid diamond inheritance, any derived declaration

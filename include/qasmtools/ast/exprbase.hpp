@@ -26,7 +26,7 @@
 
 /**
  * \file qasmtools/ast/exprbase.hpp
- * \brief Base class for openQASM expressions
+ * \brief Base class for OpenQASM expressions
  */
 
 #pragma once
@@ -41,7 +41,7 @@ namespace ast {
 
 /**
  * \class qasmtools::ast::Expr
- * \brief Base class for openQASM expressions
+ * \brief Base class for OpenQASM expressions
  */
 class Expr : public ASTNode {
   public:
