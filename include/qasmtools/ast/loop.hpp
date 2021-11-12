@@ -50,6 +50,7 @@ class IndexSet : public ASTNode {
   public:
     IndexSet(parser::Position pos) : ASTNode(pos) {}
     virtual ~IndexSet() = default;
+
   protected:
     virtual IndexSet* clone() const = 0;
 };
@@ -62,6 +63,7 @@ class RangeSet : public IndexSet {
     std::optional<ptr<Expr>> start_;
     std::optional<ptr<Expr>> step_;
     std::optional<ptr<Expr>> stop_;
+
   public:
     /**
      * \brief Constructs a range index set
@@ -94,8 +96,7 @@ class RangeSet : public IndexSet {
                                 std::optional<ptr<Expr>>&& step,
                                 std::optional<ptr<Expr>>&& stop) {
         return std::make_unique<RangeSet>(pos, std::move(start),
-                                          std::move(step),
-                                          std::move(stop));
+                                          std::move(step), std::move(stop));
     }
 
     /**
@@ -132,6 +133,7 @@ class RangeSet : public IndexSet {
         os << "]";
         return os;
     }
+
   protected:
     RangeSet* clone() const override {
         std::optional<ptr<Expr>> tmp_start = std::nullopt;
@@ -154,6 +156,7 @@ class RangeSet : public IndexSet {
  */
 class ListSet : public IndexSet {
     std::vector<ptr<Expr>> indices_;
+
   public:
     /**
      * \brief Construct a list index set
@@ -187,10 +190,11 @@ class ListSet : public IndexSet {
         os << "}";
         return os;
     }
+
   protected:
     ListSet* clone() const override {
         std::vector<ptr<Expr>> tmp;
-        for (auto& x: indices_)
+        for (auto& x : indices_)
             tmp.emplace_back(object::clone(*x));
         return new ListSet(pos_, std::move(tmp));
     }
@@ -202,6 +206,7 @@ class ListSet : public IndexSet {
  */
 class VarSet : public IndexSet {
     symbol var_;
+
   public:
     /**
      * \brief Construct a variable index set
@@ -209,8 +214,7 @@ class VarSet : public IndexSet {
      * \param pos The source position
      * \param var The variable
      */
-    VarSet(parser::Position pos, symbol var)
-        : IndexSet(pos), var_(var) {}
+    VarSet(parser::Position pos, symbol var) : IndexSet(pos), var_(var) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -231,10 +235,9 @@ class VarSet : public IndexSet {
         os << var_;
         return os;
     }
+
   protected:
-    VarSet* clone() const override {
-        return new VarSet(pos_, var_);
-    }
+    VarSet* clone() const override { return new VarSet(pos_, var_); }
 };
 
 /**
@@ -299,6 +302,7 @@ class ForStmt final : public Stmt {
         body_->pretty_print(os, indents);
         return os;
     }
+
   protected:
     ForStmt* clone() const override {
         return new ForStmt(pos_, var_, object::clone(*index_set_),
@@ -356,6 +360,7 @@ class WhileStmt final : public Stmt {
         body_->pretty_print(os, indents);
         return os;
     }
+
   protected:
     WhileStmt* clone() const override {
         return new WhileStmt(pos_, object::clone(*cond_),
@@ -369,8 +374,8 @@ class WhileStmt final : public Stmt {
  * \see qasmtools::ast::StmtBase
  */
 class QuantumForStmt final : public QuantumStmt {
-    symbol var_;                  ///< the loop variable
-    ptr<IndexSet> index_set_;     ///< index set
+    symbol var_;              ///< the loop variable
+    ptr<IndexSet> index_set_; ///< index set
     ptr<QuantumBlock> body_;  ///< loop body
 
   public:
@@ -425,6 +430,7 @@ class QuantumForStmt final : public QuantumStmt {
         body_->pretty_print(os, indents);
         return os;
     }
+
   protected:
     QuantumForStmt* clone() const override {
         return new QuantumForStmt(pos_, var_, object::clone(*index_set_),
@@ -438,7 +444,7 @@ class QuantumForStmt final : public QuantumStmt {
  * \see qasmtools::ast::StmtBase
  */
 class QuantumWhileStmt final : public QuantumStmt {
-    ptr<Expr> cond_;             ///< boolean expression to check
+    ptr<Expr> cond_;         ///< boolean expression to check
     ptr<QuantumBlock> body_; ///< loop body
 
   public:
@@ -483,6 +489,7 @@ class QuantumWhileStmt final : public QuantumStmt {
         body_->pretty_print(os, indents);
         return os;
     }
+
   protected:
     QuantumWhileStmt* clone() const override {
         return new QuantumWhileStmt(pos_, object::clone(*cond_),

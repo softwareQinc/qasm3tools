@@ -48,6 +48,7 @@ class Slice : public ASTNode {
   public:
     Slice(parser::Position pos) : ASTNode(pos) {}
     virtual ~Slice() = default;
+
   protected:
     virtual Slice* clone() const = 0;
 };
@@ -92,8 +93,7 @@ class RangeSlice : public Slice {
                                   std::optional<ptr<Expr>>&& step,
                                   std::optional<ptr<Expr>>&& stop) {
         return std::make_unique<RangeSlice>(pos, std::move(start),
-                                            std::move(step),
-                                            std::move(stop));
+                                            std::move(step), std::move(stop));
     }
 
     /**
@@ -130,6 +130,7 @@ class RangeSlice : public Slice {
         os << "]";
         return os;
     }
+
   protected:
     RangeSlice* clone() const override {
         std::optional<ptr<Expr>> tmp_start = std::nullopt;
@@ -152,6 +153,7 @@ class RangeSlice : public Slice {
  */
 class ListSlice : public Slice {
     std::vector<ptr<Expr>> indices_;
+
   public:
     /**
      * \brief Construct a list slice
@@ -185,16 +187,15 @@ class ListSlice : public Slice {
         os << "]";
         return os;
     }
+
   protected:
     ListSlice* clone() const override {
         std::vector<ptr<Expr>> tmp;
-        for (auto& x: indices_)
+        for (auto& x : indices_)
             tmp.emplace_back(object::clone(*x));
         return new ListSlice(pos_, std::move(tmp));
     }
 };
-
-
 
 /**
  * \class qasmtools::ast::IndexId
@@ -204,6 +205,7 @@ class IndexId : public ASTNode {
   public:
     IndexId(parser::Position pos) : ASTNode(pos) {}
     virtual ~IndexId() = default;
+
   protected:
     virtual IndexId* clone() const = 0;
 };
@@ -221,7 +223,6 @@ class VarAccess final : public IndexId {
     std::optional<ptr<Slice>> slice_; ///< optional register slice
 
   public:
-
     /**
      * \brief Construct a variable access
      *
@@ -236,8 +237,9 @@ class VarAccess final : public IndexId {
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<VarAccess> create(parser::Position pos, symbol var,
-                             std::optional<ptr<Slice>>&& slice = std::nullopt) {
+    static ptr<VarAccess>
+    create(parser::Position pos, symbol var,
+           std::optional<ptr<Slice>>&& slice = std::nullopt) {
         return std::make_unique<VarAccess>(pos, var, std::move(slice));
     }
 
@@ -262,6 +264,7 @@ class VarAccess final : public IndexId {
             os << **slice_;
         return os;
     }
+
   protected:
     VarAccess* clone() const override {
         std::optional<ptr<Slice>> tmp = std::nullopt;
@@ -332,6 +335,7 @@ class Concat final : public IndexId {
         os << *lreg_ << "||" << *rreg_;
         return os;
     }
+
   protected:
     Concat* clone() const override {
         return new Concat(pos_, object::clone(*lreg_), object::clone(*rreg_));

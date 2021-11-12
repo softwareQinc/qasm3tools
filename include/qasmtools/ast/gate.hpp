@@ -50,6 +50,7 @@ class GateModifier : public ASTNode {
   public:
     GateModifier(parser::Position pos) : ASTNode(pos) {}
     virtual ~GateModifier() = default;
+
   protected:
     virtual GateModifier* clone() const = 0;
 };
@@ -76,8 +77,9 @@ class CtrlModifier : public GateModifier {
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<CtrlModifier> create(parser::Position pos, bool neg,
-            std::optional<ptr<Expr>>&& n = std::nullopt) {
+    static ptr<CtrlModifier>
+    create(parser::Position pos, bool neg,
+           std::optional<ptr<Expr>>&& n = std::nullopt) {
         return std::make_unique<CtrlModifier>(pos, neg, std::move(n));
     }
 
@@ -103,6 +105,7 @@ class CtrlModifier : public GateModifier {
         os << " @ ";
         return os;
     }
+
   protected:
     CtrlModifier* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
@@ -137,10 +140,9 @@ class InvModifier : public GateModifier {
         os << "inv @ ";
         return os;
     }
+
   protected:
-    InvModifier* clone() const override {
-        return new InvModifier(pos_);
-    }
+    InvModifier* clone() const override { return new InvModifier(pos_); }
 };
 
 /**
@@ -149,6 +151,7 @@ class InvModifier : public GateModifier {
  */
 class PowModifier : public GateModifier {
     ptr<Expr> r_;
+
   public:
     /**
      * \brief Constructs a powering modifier
@@ -178,13 +181,12 @@ class PowModifier : public GateModifier {
         os << "pow(" << *r_ << ") @ ";
         return os;
     }
+
   protected:
     PowModifier* clone() const override {
         return new PowModifier(pos_, object::clone(*r_));
     }
 };
-
-
 
 /**
  * \class qasmtools::ast::Gate
@@ -197,9 +199,7 @@ class Gate : public QuantumStmt {
         : QuantumStmt(pos), modifiers_(std::move(modifiers)),
           q_args_(std::move(q_args)) {}
 
-    std::list<ptr<GateModifier>>& modifiers() {
-        return modifiers_;
-    }
+    std::list<ptr<GateModifier>>& modifiers() { return modifiers_; }
 
     /**
      * \brief Get the number of quantum arguments
@@ -229,7 +229,7 @@ class Gate : public QuantumStmt {
      * \param f Void function accepting a reference to an argument
      */
     void foreach_qarg(std::function<void(IndexId&)> f) {
-        for (auto& x: q_args_)
+        for (auto& x : q_args_)
             f(*x);
     }
 
@@ -242,6 +242,7 @@ class Gate : public QuantumStmt {
     void set_qarg(int i, ptr<IndexId> arg) { q_args_[i] = std::move(arg); }
 
     virtual ~Gate() = default;
+
   protected:
     std::list<ptr<GateModifier>> modifiers_; ///< gate modifiers
     std::vector<ptr<IndexId>> q_args_;       ///< list of quantum arguments
@@ -283,9 +284,9 @@ class UGate final : public Gate {
     UGate(parser::Position pos, std::list<ptr<GateModifier>>&& modifiers,
           ptr<Expr> theta, ptr<Expr> phi, ptr<Expr> lambda,
           std::vector<ptr<IndexId>>&& q_args)
-            : Gate(pos, std::move(modifiers), std::move(q_args)),
-              theta_(std::move(theta)), phi_(std::move(phi)),
-              lambda_(std::move(lambda)) {}
+        : Gate(pos, std::move(modifiers), std::move(q_args)),
+          theta_(std::move(theta)), phi_(std::move(phi)),
+          lambda_(std::move(lambda)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -349,13 +350,14 @@ class UGate final : public Gate {
         os << ";\n";
         return os;
     }
+
   protected:
     UGate* clone() const override {
         std::list<ptr<GateModifier>> tmp;
         for (auto& x : modifiers_)
             tmp.emplace_back(object::clone(*x));
         std::vector<ptr<IndexId>> q_tmp;
-        for (auto& x: q_args_)
+        for (auto& x : q_args_)
             q_tmp.emplace_back(object::clone(*x));
         return new UGate(pos_, std::move(tmp), object::clone(*theta_),
                          object::clone(*phi_), object::clone(*lambda_),
@@ -369,7 +371,7 @@ class UGate final : public Gate {
  * \see qasmtools::ast::Gate
  */
 class GPhase final : public Gate {
-    ptr<Expr> gamma_;                ///< gamma angle
+    ptr<Expr> gamma_; ///< gamma angle
 
   public:
     /**
@@ -382,8 +384,8 @@ class GPhase final : public Gate {
      */
     GPhase(parser::Position pos, std::list<ptr<GateModifier>>&& modifiers,
            ptr<Expr> gamma, std::vector<ptr<IndexId>>&& q_args)
-            : Gate(pos, std::move(modifiers), std::move(q_args)),
-              gamma_(std::move(gamma)) {}
+        : Gate(pos, std::move(modifiers), std::move(q_args)),
+          gamma_(std::move(gamma)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -418,6 +420,7 @@ class GPhase final : public Gate {
         os << ";\n";
         return os;
     }
+
   protected:
     GPhase* clone() const override {
         std::list<ptr<GateModifier>> tmp;
@@ -437,8 +440,8 @@ class GPhase final : public Gate {
  * \see qasmtools::ast::Gate
  */
 class DeclaredGate final : public Gate {
-    symbol name_;                      ///< gate identifier
-    std::vector<ptr<Expr>> c_args_;    ///< list of classical arguments
+    symbol name_;                   ///< gate identifier
+    std::vector<ptr<Expr>> c_args_; ///< list of classical arguments
 
   public:
     /**
@@ -453,8 +456,8 @@ class DeclaredGate final : public Gate {
     DeclaredGate(parser::Position pos, std::list<ptr<GateModifier>>&& modifiers,
                  symbol name, std::vector<ptr<Expr>>&& c_args,
                  std::vector<ptr<IndexId>>&& q_args)
-            : Gate(pos, std::move(modifiers), std::move(q_args)), name_(name),
-              c_args_(std::move(c_args)) {}
+        : Gate(pos, std::move(modifiers), std::move(q_args)), name_(name),
+          c_args_(std::move(c_args)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -465,7 +468,8 @@ class DeclaredGate final : public Gate {
                                     std::vector<ptr<Expr>>&& c_args,
                                     std::vector<ptr<IndexId>>&& q_args) {
         return std::make_unique<DeclaredGate>(pos, std::move(modifiers), name,
-                                              std::move(c_args), std::move(q_args));
+                                              std::move(c_args),
+                                              std::move(q_args));
     }
 
     /**
@@ -496,7 +500,7 @@ class DeclaredGate final : public Gate {
      * \param f Void function accepting an expression reference
      */
     void foreach_carg(std::function<void(Expr&)> f) {
-        for (auto& x: c_args_)
+        for (auto& x : c_args_)
             f(*x);
     }
 
@@ -522,16 +526,17 @@ class DeclaredGate final : public Gate {
         os << ";\n";
         return os;
     }
+
   protected:
     DeclaredGate* clone() const override {
         std::list<ptr<GateModifier>> tmp;
         for (auto& x : modifiers_)
             tmp.emplace_back(object::clone(*x));
         std::vector<ptr<Expr>> c_tmp;
-        for (auto& x: c_args_)
+        for (auto& x : c_args_)
             c_tmp.emplace_back(object::clone(*x));
         std::vector<ptr<IndexId>> q_tmp;
-        for (auto& x: q_args_)
+        for (auto& x : q_args_)
             q_tmp.emplace_back(object::clone(*x));
 
         return new DeclaredGate(pos_, std::move(tmp), name_, std::move(c_tmp),

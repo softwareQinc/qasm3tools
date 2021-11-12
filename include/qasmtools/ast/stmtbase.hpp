@@ -52,8 +52,7 @@ class StmtBase : public ASTNode {
      * \param suppress_std Whether to suppress output of the standard library
      * \param indents Current indentation level
      */
-    virtual std::ostream& pretty_print(std::ostream& os,
-                                       bool suppress_std,
+    virtual std::ostream& pretty_print(std::ostream& os, bool suppress_std,
                                        size_t indents) const = 0;
 
     std::ostream& pretty_print(std::ostream& os, bool suppress_std) const {
@@ -63,6 +62,7 @@ class StmtBase : public ASTNode {
     std::ostream& pretty_print(std::ostream& os) const override {
         return pretty_print(os, false);
     }
+
   protected:
     virtual StmtBase* clone() const override = 0;
 };
@@ -74,6 +74,7 @@ class GlobalStmt : public StmtBase {
   public:
     GlobalStmt(parser::Position pos) : StmtBase(pos) {}
     virtual ~GlobalStmt() = default;
+
   protected:
     virtual GlobalStmt* clone() const = 0;
 };
@@ -85,6 +86,7 @@ class Stmt : public StmtBase {
   public:
     Stmt(parser::Position pos) : StmtBase(pos) {}
     virtual ~Stmt() = default;
+
   protected:
     virtual Stmt* clone() const = 0;
 };
@@ -96,6 +98,7 @@ class QuantumStmt : public Stmt {
   public:
     QuantumStmt(parser::Position pos) : Stmt(pos) {}
     virtual ~QuantumStmt() = default;
+
   protected:
     virtual QuantumStmt* clone() const = 0;
 };
@@ -107,6 +110,7 @@ class ControlStmt : public StmtBase {
   public:
     ControlStmt(parser::Position pos) : StmtBase(pos) {}
     virtual ~ControlStmt() = default;
+
   protected:
     virtual ControlStmt* clone() const = 0;
 };
@@ -118,6 +122,7 @@ class QuantumLoop : public StmtBase {
   public:
     QuantumLoop(parser::Position pos) : StmtBase(pos) {}
     virtual ~QuantumLoop() = default;
+
   protected:
     virtual QuantumLoop* clone() const = 0;
 };

@@ -31,12 +31,12 @@
 
 #pragma once
 
+#include "../utils/templates.hpp"
 #include "base.hpp"
 #include "exprbase.hpp"
 #include "indexid.hpp"
 #include "stmtbase.hpp"
 #include "stmtblock.hpp"
-#include "../utils/templates.hpp"
 
 #include <functional>
 #include <list>
@@ -83,6 +83,7 @@ class QuantumMeasurement final : public ASTNode {
         os << "measure " << *q_arg_;
         return os;
     }
+
   protected:
     QuantumMeasurement* clone() const override {
         return new QuantumMeasurement(pos_, object::clone(*q_arg_));
@@ -136,6 +137,7 @@ class MeasureStmt final : public QuantumStmt {
         os << *measurement_ << ";\n";
         return os;
     }
+
   protected:
     MeasureStmt* clone() const override {
         return new MeasureStmt(pos_, object::clone(*measurement_));
@@ -186,6 +188,7 @@ class ExprStmt final : public Stmt {
         os << *exp_ << ";\n";
         return os;
     }
+
   protected:
     ExprStmt* clone() const override {
         return new ExprStmt(pos_, object::clone(*exp_));
@@ -211,8 +214,7 @@ class MeasureAsgnStmt final : public Stmt {
      */
     MeasureAsgnStmt(parser::Position pos, ptr<QuantumMeasurement> qm,
                     ptr<IndexId> c_arg)
-        : Stmt(pos), measurement_(std::move(qm)), c_arg_(std::move(c_arg))
-    {}
+        : Stmt(pos), measurement_(std::move(qm)), c_arg_(std::move(c_arg)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -259,6 +261,7 @@ class MeasureAsgnStmt final : public Stmt {
         os << *c_arg_ << " = " << *measurement_ << ";\n";
         return os;
     }
+
   protected:
     MeasureAsgnStmt* clone() const override {
         return new MeasureAsgnStmt(pos_, object::clone(*measurement_),
@@ -320,7 +323,7 @@ class ResetStmt final : public QuantumStmt {
      * \param f Void function accepting a reference to the argument
      */
     void foreach_arg(std::function<void(IndexId&)> f) {
-        for (auto& x: args_)
+        for (auto& x : args_)
             f(*x);
     }
 
@@ -339,6 +342,7 @@ class ResetStmt final : public QuantumStmt {
         os << ";\n";
         return os;
     }
+
   protected:
     ResetStmt* clone() const override {
         std::vector<ptr<IndexId>> tmp;
@@ -402,7 +406,7 @@ class BarrierStmt final : public QuantumStmt {
      * \param f Void function accepting a reference to the argument
      */
     void foreach_arg(std::function<void(IndexId&)> f) {
-        for (auto& x: args_)
+        for (auto& x : args_)
             f(*x);
     }
 
@@ -422,6 +426,7 @@ class BarrierStmt final : public QuantumStmt {
         os << ";\n";
         return os;
     }
+
   protected:
     BarrierStmt* clone() const override {
         std::vector<ptr<IndexId>> tmp;
@@ -498,6 +503,7 @@ class IfStmt final : public Stmt {
         }
         return os;
     }
+
   protected:
     IfStmt* clone() const override {
         return new IfStmt(pos_, object::clone(*cond_), object::clone(*then_),
@@ -532,6 +538,7 @@ class BreakStmt final : public ControlStmt {
         os << "break;\n";
         return os;
     }
+
   protected:
     BreakStmt* clone() const override { return new BreakStmt(pos_); }
 };
@@ -563,6 +570,7 @@ class ContinueStmt final : public ControlStmt {
         os << "continue;\n";
         return os;
     }
+
   protected:
     ContinueStmt* clone() const override { return new ContinueStmt(pos_); }
 };
@@ -573,9 +581,8 @@ class ContinueStmt final : public ControlStmt {
  * \see qasmtools::ast::StmtBase
  */
 class ReturnStmt final : public ControlStmt {
-    using RetType = std::variant<std::monostate,
-                                 ptr<QuantumMeasurement>,
-                                 ptr<Expr>>;
+    using RetType =
+        std::variant<std::monostate, ptr<QuantumMeasurement>, ptr<Expr>>;
     RetType value_;
 
   public:
@@ -603,32 +610,28 @@ class ReturnStmt final : public ControlStmt {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        std::visit(
-            utils::overloaded{
-                [&os](const ptr<QuantumMeasurement>& qm) {
-                    os << "return " << *qm << ";\n";
-                },
-                [&os](const ptr<Expr>& exp) {
-                    os << "return " << *exp << ";\n";
-                },
-                [&os](auto) {
-                    os << "return;\n";
-                }},
-            value_);
+        std::visit(utils::overloaded{[&os](const ptr<QuantumMeasurement>& qm) {
+                                         os << "return " << *qm << ";\n";
+                                     },
+                                     [&os](const ptr<Expr>& exp) {
+                                         os << "return " << *exp << ";\n";
+                                     },
+                                     [&os](auto) { os << "return;\n"; }},
+                   value_);
         return os;
     }
+
   protected:
     ReturnStmt* clone() const override {
         RetType value_copy = std::monostate();
         std::visit(
-            utils::overloaded{
-                [&value_copy](const ptr<QuantumMeasurement>& qm) {
-                    value_copy = object::clone(*qm);
-                },
-                [&value_copy](const ptr<Expr>& exp) {
-                    value_copy = object::clone(*exp);
-                },
-                [](auto) {}},
+            utils::overloaded{[&value_copy](const ptr<QuantumMeasurement>& qm) {
+                                  value_copy = object::clone(*qm);
+                              },
+                              [&value_copy](const ptr<Expr>& exp) {
+                                  value_copy = object::clone(*exp);
+                              },
+                              [](auto) {}},
             value_);
         return new ReturnStmt(pos_, std::move(value_copy));
     }
@@ -661,6 +664,7 @@ class EndStmt final : public Stmt {
         os << "end;\n";
         return os;
     }
+
   protected:
     EndStmt* clone() const override { return new EndStmt(pos_); }
 };
@@ -712,6 +716,7 @@ class AliasStmt final : public Stmt {
         os << "let " << alias_ << " = " << *qreg_ << ";\n";
         return os;
     }
+
   protected:
     AliasStmt* clone() const override {
         return new AliasStmt(pos_, alias_, object::clone(*qreg_));
@@ -721,8 +726,21 @@ class AliasStmt final : public Stmt {
 /**
  * \brief Enum of assignment operators
  */
-enum class AssignOp { Equals, Plus, Minus, Times, Div, BitAnd, BitOr,
-        Tilde, XOr, LeftBitShift, RightBitShift, Mod, Pow };
+enum class AssignOp {
+    Equals,
+    Plus,
+    Minus,
+    Times,
+    Div,
+    BitAnd,
+    BitOr,
+    Tilde,
+    XOr,
+    LeftBitShift,
+    RightBitShift,
+    Mod,
+    Pow
+};
 inline std::ostream& operator<<(std::ostream& os, const AssignOp& aop) {
     switch (aop) {
         case AssignOp::Equals:
@@ -847,6 +865,7 @@ class AssignmentStmt final : public Stmt {
         os << " " << op_ << " " << *exp_ << ";\n";
         return os;
     }
+
   protected:
     AssignmentStmt* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
@@ -896,20 +915,21 @@ class PragmaStmt final : public GlobalStmt {
      * \param f Void function accepting a reference to the statement
      */
     void foreach_stmt(std::function<void(Stmt&)> f) {
-        for (auto& x: body_)
+        for (auto& x : body_)
             f(*x);
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "#pragma {\n";
-        for (auto& x: body_) {
+        for (auto& x : body_) {
             os << "\t";
             x->pretty_print(os, false, 1);
         }
         os << "}\n";
         return os;
     }
+
   protected:
     PragmaStmt* clone() const override {
         std::list<ptr<Stmt>> tmp;

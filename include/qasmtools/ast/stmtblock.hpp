@@ -31,9 +31,9 @@
 
 #pragma once
 
+#include "../utils/templates.hpp"
 #include "base.hpp"
 #include "stmtbase.hpp"
-#include "../utils/templates.hpp"
 
 #include <functional>
 #include <list>
@@ -80,7 +80,7 @@ class BlockBase : public ASTNode {
      * \param f Void function accepting a reference to the statement
      */
     void foreach_stmt(std::function<void(T&)> f) {
-        for (auto& x: body_)
+        for (auto& x : body_)
             f(x);
     }
 
@@ -103,15 +103,16 @@ class BlockBase : public ASTNode {
      *
      * \param indents Current indentation level
      */
-    virtual std::ostream& pretty_print(std::ostream& os,
-                                       size_t indents) const {
+    virtual std::ostream& pretty_print(std::ostream& os, size_t indents) const {
         os << "{\n";
         for (auto& x : body_) {
             for (size_t i = 0; i <= indents; i++)
                 os << "\t";
-            std::visit([&os, &indents](auto& stmt) {
-                stmt->pretty_print(os, false, indents + 1);
-            }, x);
+            std::visit(
+                [&os, &indents](auto& stmt) {
+                    stmt->pretty_print(os, false, indents + 1);
+                },
+                x);
         }
         for (size_t i = 0; i < indents; i++)
             os << "\t";
@@ -123,6 +124,7 @@ class BlockBase : public ASTNode {
     std::ostream& pretty_print(std::ostream& os) const override {
         return pretty_print(os, 0);
     }
+
   protected:
     std::list<T> body_; ///< the body of the block
     virtual BlockBase<T, D>* clone() const override = 0;
@@ -135,15 +137,17 @@ class BlockBase : public ASTNode {
 using ProgramBlockStmt = std::variant<ptr<Stmt>, ptr<ControlStmt>>;
 class ProgramBlock : public BlockBase<ProgramBlockStmt, ProgramBlock> {
     using BlockBase<ProgramBlockStmt, ProgramBlock>::BlockBase;
+
   public:
     void accept(Visitor& visitor) override { visitor.visit(*this); }
+
   protected:
     ProgramBlock* clone() const override {
         std::list<ProgramBlockStmt> tmp;
         for (auto& x : body_) {
-            std::visit([&tmp](auto& stmt) {
-                tmp.emplace_back(object::clone(*stmt));
-            }, x);
+            std::visit(
+                [&tmp](auto& stmt) { tmp.emplace_back(object::clone(*stmt)); },
+                x);
         }
         return new ProgramBlock(pos_, std::move(tmp));
     }
@@ -156,15 +160,17 @@ class ProgramBlock : public BlockBase<ProgramBlockStmt, ProgramBlock> {
 using QuantumBlockStmt = std::variant<ptr<QuantumStmt>>;
 class QuantumBlock : public BlockBase<QuantumBlockStmt, QuantumBlock> {
     using BlockBase<QuantumBlockStmt, QuantumBlock>::BlockBase;
+
   public:
     void accept(Visitor& visitor) override { visitor.visit(*this); }
+
   protected:
     QuantumBlock* clone() const override {
         std::list<QuantumBlockStmt> tmp;
         for (auto& x : body_) {
-            std::visit([&tmp](auto& stmt) {
-                tmp.emplace_back(object::clone(*stmt));
-            }, x);
+            std::visit(
+                [&tmp](auto& stmt) { tmp.emplace_back(object::clone(*stmt)); },
+                x);
         }
         return new QuantumBlock(pos_, std::move(tmp));
     }

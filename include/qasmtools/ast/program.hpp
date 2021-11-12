@@ -44,6 +44,7 @@ namespace ast {
 using ProgramStmt = std::variant<ptr<GlobalStmt>, ptr<Stmt>>;
 class Program : public BlockBase<ProgramStmt, Program> {
     bool std_include_;
+
   public:
     /**
      * \brief Constructs a QASM program
@@ -83,21 +84,24 @@ class Program : public BlockBase<ProgramStmt, Program> {
         if (std_include_)
             os << "include \"stdgates.inc\";\n";
         os << "\n";
-        for (auto& x: body_) {
-            std::visit([&os, this](auto& stmt) {
-                stmt->pretty_print(os, std_include_);
-            }, x);
+        for (auto& x : body_) {
+            std::visit(
+                [&os, this](auto& stmt) {
+                    stmt->pretty_print(os, std_include_);
+                },
+                x);
         }
 
         return os;
     }
+
   protected:
     Program* clone() const override {
         std::list<ProgramStmt> tmp;
         for (auto& x : body_) {
-            std::visit([&tmp](auto& stmt) {
-                tmp.emplace_back(object::clone(*stmt));
-            }, x);
+            std::visit(
+                [&tmp](auto& stmt) { tmp.emplace_back(object::clone(*stmt)); },
+                x);
         }
         return new Program(pos_, std::move(tmp), std_include_);
     }

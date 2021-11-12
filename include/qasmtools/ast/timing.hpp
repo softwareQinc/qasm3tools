@@ -76,7 +76,7 @@ inline std::ostream& operator<<(std::ostream& os, const TimeUnit& tu) {
  * \see qasmtools::ast::Expr
  */
 class TimeExpr final : public Expr {
-    double value_;    ///< the floating point value
+    double value_;   ///< the floating point value
     TimeUnit units_; ///< the units
 
   public:
@@ -124,6 +124,7 @@ class TimeExpr final : public Expr {
            << units_;
         return os;
     }
+
   protected:
     TimeExpr* clone() const override {
         return new TimeExpr(pos_, value_, units_);
@@ -171,6 +172,7 @@ class DurationGateExpr final : public Expr {
         os << "durationof(" << gate_ << ")";
         return os;
     }
+
   protected:
     DurationGateExpr* clone() const override {
         return new DurationGateExpr(pos_, gate_);
@@ -219,13 +221,12 @@ class DurationBlockExpr final : public Expr {
         os << "durationof(" << *block_ << ")";
         return os;
     }
+
   protected:
     DurationBlockExpr* clone() const override {
         return new DurationBlockExpr(pos_, object::clone(*block_));
     }
 };
-
-
 
 /**
  * \class qasmtools::ast::TimingStmt
@@ -235,6 +236,7 @@ class TimingStmt : public QuantumStmt {
   public:
     TimingStmt(parser::Position pos) : QuantumStmt(pos) {}
     virtual ~TimingStmt() = default;
+
   protected:
     virtual TimingStmt* clone() const = 0;
 };
@@ -260,8 +262,8 @@ class DelayStmt final : public TimingStmt {
      */
     DelayStmt(parser::Position pos, std::vector<ptr<Expr>>&& c_args,
               ptr<Expr> duration, std::vector<ptr<IndexId>>&& q_args)
-            : TimingStmt(pos), c_args_(std::move(c_args)),
-              duration_(std::move(duration)), q_args_(std::move(q_args)) {}
+        : TimingStmt(pos), c_args_(std::move(c_args)),
+          duration_(std::move(duration)), q_args_(std::move(q_args)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -270,9 +272,8 @@ class DelayStmt final : public TimingStmt {
                                  std::vector<ptr<Expr>>&& c_args,
                                  ptr<Expr> duration,
                                  std::vector<ptr<IndexId>>&& q_args) {
-        return std::make_unique<DelayStmt>(pos, std::move(c_args),
-                                           std::move(duration),
-                                           std::move(q_args));
+        return std::make_unique<DelayStmt>(
+            pos, std::move(c_args), std::move(duration), std::move(q_args));
     }
 
     /**
@@ -318,7 +319,7 @@ class DelayStmt final : public TimingStmt {
      * \param f Void function accepting an expression reference
      */
     void foreach_carg(std::function<void(Expr&)> f) {
-        for (auto& x: c_args_)
+        for (auto& x : c_args_)
             f(*x);
     }
 
@@ -328,7 +329,7 @@ class DelayStmt final : public TimingStmt {
      * \param f Void function accepting a reference to an argument
      */
     void foreach_qarg(std::function<void(IndexId&)> f) {
-        for (auto& x: q_args_)
+        for (auto& x : q_args_)
             f(*x);
     }
 
@@ -370,13 +371,14 @@ class DelayStmt final : public TimingStmt {
         os << ";\n";
         return os;
     }
+
   protected:
     DelayStmt* clone() const override {
         std::vector<ptr<Expr>> c_tmp;
-        for (auto& x: c_args_)
+        for (auto& x : c_args_)
             c_tmp.emplace_back(object::clone(*x));
         std::vector<ptr<IndexId>> q_tmp;
-        for (auto& x: q_args_)
+        for (auto& x : q_args_)
             q_tmp.emplace_back(object::clone(*x));
 
         return new DelayStmt(pos_, std::move(c_tmp), object::clone(*duration_),
@@ -405,8 +407,8 @@ class RotaryStmt final : public TimingStmt {
      */
     RotaryStmt(parser::Position pos, std::vector<ptr<Expr>>&& c_args,
                ptr<Expr> duration, std::vector<ptr<IndexId>>&& q_args)
-            : TimingStmt(pos), c_args_(std::move(c_args)),
-              duration_(std::move(duration)), q_args_(std::move(q_args)) {}
+        : TimingStmt(pos), c_args_(std::move(c_args)),
+          duration_(std::move(duration)), q_args_(std::move(q_args)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -415,9 +417,8 @@ class RotaryStmt final : public TimingStmt {
                                   std::vector<ptr<Expr>>&& c_args,
                                   ptr<Expr> duration,
                                   std::vector<ptr<IndexId>>&& q_args) {
-        return std::make_unique<RotaryStmt>(pos, std::move(c_args),
-                                            std::move(duration),
-                                            std::move(q_args));
+        return std::make_unique<RotaryStmt>(
+            pos, std::move(c_args), std::move(duration), std::move(q_args));
     }
 
     /**
@@ -463,7 +464,7 @@ class RotaryStmt final : public TimingStmt {
      * \param f Void function accepting an expression reference
      */
     void foreach_carg(std::function<void(Expr&)> f) {
-        for (auto& x: c_args_)
+        for (auto& x : c_args_)
             f(*x);
     }
 
@@ -473,7 +474,7 @@ class RotaryStmt final : public TimingStmt {
      * \param f Void function accepting a reference to an argument
      */
     void foreach_qarg(std::function<void(IndexId&)> f) {
-        for (auto& x: q_args_)
+        for (auto& x : q_args_)
             f(*x);
     }
 
@@ -515,13 +516,14 @@ class RotaryStmt final : public TimingStmt {
         os << ";\n";
         return os;
     }
+
   protected:
     RotaryStmt* clone() const override {
         std::vector<ptr<Expr>> c_tmp;
-        for (auto& x: c_args_)
+        for (auto& x : c_args_)
             c_tmp.emplace_back(object::clone(*x));
         std::vector<ptr<IndexId>> q_tmp;
-        for (auto& x: q_args_)
+        for (auto& x : q_args_)
             q_tmp.emplace_back(object::clone(*x));
 
         return new RotaryStmt(pos_, std::move(c_tmp), object::clone(*duration_),
@@ -585,12 +587,13 @@ class BoxStmt final : public TimingStmt {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool,
                                size_t indents) const override {
-        os <<  "box ";
+        os << "box ";
         if (duration_)
             os << "[" << **duration_ << "] ";
         circuit_->pretty_print(os, indents);
         return os;
     }
+
   protected:
     BoxStmt* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;

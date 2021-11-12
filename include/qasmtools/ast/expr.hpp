@@ -65,9 +65,27 @@ inline std::ostream& operator<<(std::ostream& os, const Constant& c) {
 /**
  * \brief Enum of binary operators
  */
-enum class BinaryOp { LogicalOr, LogicalAnd, BitOr, XOr, BitAnd, EQ, NEQ,
-        GT, LT, GTE, LTE, LeftBitShift, RightBitShift, Plus, Minus, Times,
-        Divide, Mod, Pow };
+enum class BinaryOp {
+    LogicalOr,
+    LogicalAnd,
+    BitOr,
+    XOr,
+    BitAnd,
+    EQ,
+    NEQ,
+    GT,
+    LT,
+    GTE,
+    LTE,
+    LeftBitShift,
+    RightBitShift,
+    Plus,
+    Minus,
+    Times,
+    Divide,
+    Mod,
+    Pow
+};
 inline std::ostream& operator<<(std::ostream& os, const BinaryOp& bop) {
     switch (bop) {
         case BinaryOp::LogicalOr:
@@ -153,8 +171,20 @@ inline std::ostream& operator<<(std::ostream& os, const UnaryOp& uop) {
 /**
  * \brief Enum of math operators
  */
-enum class MathOp { Arcsin, Sin, Arccos, Cos, Arctan, Tan, Exp, Ln, Sqrt,
-        Rotl, Rotr, Popcount };
+enum class MathOp {
+    Arcsin,
+    Sin,
+    Arccos,
+    Cos,
+    Arctan,
+    Tan,
+    Exp,
+    Ln,
+    Sqrt,
+    Rotl,
+    Rotr,
+    Popcount
+};
 inline std::ostream& operator<<(std::ostream& os, const MathOp& uop) {
     switch (uop) {
         case MathOp::Arcsin:
@@ -305,6 +335,7 @@ class BExpr final : public Expr {
 
         return os;
     }
+
   protected:
     BExpr* clone() const override {
         return new BExpr(pos_, object::clone(*lexp_), op_,
@@ -382,6 +413,7 @@ class UExpr final : public Expr {
 
         return os;
     }
+
   protected:
     UExpr* clone() const override {
         return new UExpr(pos_, op_, object::clone(*exp_));
@@ -473,6 +505,7 @@ class MathExpr final : public Expr {
 
         return os;
     }
+
   protected:
     MathExpr* clone() const override {
         std::vector<ptr<Expr>> tmp;
@@ -542,6 +575,7 @@ class CastExpr final : public Expr {
 
         return os;
     }
+
   protected:
     CastExpr* clone() const override {
         return new CastExpr(pos_, object::clone(*type_), object::clone(*exp_));
@@ -605,6 +639,7 @@ class FunctionCall final : public Expr {
 
         return os;
     }
+
   protected:
     FunctionCall* clone() const override {
         std::vector<ptr<Expr>> tmp;
@@ -685,6 +720,7 @@ class AccessExpr final : public Expr {
 
         return os;
     }
+
   protected:
     AccessExpr* clone() const override {
         return new AccessExpr(pos_, object::clone(*exp_),
@@ -743,6 +779,7 @@ class ConstantExpr final : public Expr {
         os << constant_;
         return os;
     }
+
   protected:
     ConstantExpr* clone() const override {
         return new ConstantExpr(pos_, constant_);
@@ -790,6 +827,7 @@ class IntExpr final : public Expr {
         os << value_;
         return os;
     }
+
   protected:
     IntExpr* clone() const override { return new IntExpr(pos_, value_); }
 };
@@ -836,6 +874,7 @@ class RealExpr final : public Expr {
         os << std::setprecision(15) << value_ << std::setprecision(ss);
         return os;
     }
+
   protected:
     RealExpr* clone() const override { return new RealExpr(pos_, value_); }
 };
@@ -879,10 +918,10 @@ class ImagExpr final : public Expr {
         (void) ctx;
 
         std::streamsize ss = os.precision();
-        os << std::setprecision(15) << value_ << std::setprecision(ss)
-           << "im";
+        os << std::setprecision(15) << value_ << std::setprecision(ss) << "im";
         return os;
     }
+
   protected:
     ImagExpr* clone() const override { return new ImagExpr(pos_, value_); }
 };
@@ -928,6 +967,7 @@ class BoolExpr final : public Expr {
         os << (value_ ? "true" : "false");
         return os;
     }
+
   protected:
     BoolExpr* clone() const override { return new BoolExpr(pos_, value_); }
 };
@@ -972,6 +1012,7 @@ class VarExpr final : public Expr {
         os << var_;
         return os;
     }
+
   protected:
     VarExpr* clone() const override { return new VarExpr(pos_, var_); }
 };
@@ -1017,6 +1058,7 @@ class StringExpr final : public Expr {
         os << text_;
         return os;
     }
+
   protected:
     StringExpr* clone() const override { return new StringExpr(pos_, text_); }
 };

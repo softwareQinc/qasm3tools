@@ -43,9 +43,10 @@ namespace qasmtools {
 namespace ast {
 
 static const std::set<std::string_view> stdgates{
-    "p", "x", "y", "z", "h", "s", "sdg", "t", "tdg", "sx", "rx", "ry", "rz",
-    "cx", "cy", "cz", "cp", "crx", "cry", "crz", "ch", "swap", "ccx", "cswap",
-    "cu", "CX", "phase", "cphase", "id", "u1", "u2", "u3"};
+    "p",   "x",   "y",     "z",      "h",  "s",    "sdg", "t",
+    "tdg", "sx",  "rx",    "ry",     "rz", "cx",   "cy",  "cz",
+    "cp",  "crx", "cry",   "crz",    "ch", "swap", "ccx", "cswap",
+    "cu",  "CX",  "phase", "cphase", "id", "u1",   "u2",  "u3"};
 
 /**
  * \brief Tests if identifier is part of the OpenQASM 3 standard library
@@ -96,6 +97,7 @@ class Param : public ASTNode {
      * \return Constant reference to the identifier
      */
     const symbol& id() { return id_; }
+
   protected:
     symbol id_; ///< the parameter identifier
     virtual Param* clone() const = 0;
@@ -117,7 +119,7 @@ class ClassicalParam : public Param {
      * \param type The parameter type
      */
     ClassicalParam(parser::Position pos, symbol id, ptr<ClassicalType> type)
-      : Param(pos, id), type_(std::move(type)) {}
+        : Param(pos, id), type_(std::move(type)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -139,6 +141,7 @@ class ClassicalParam : public Param {
         os << *type_ << " " << id_;
         return os;
     }
+
   protected:
     ClassicalParam* clone() const override {
         return new ClassicalParam(pos_, id_, object::clone(*type_));
@@ -151,6 +154,7 @@ class ClassicalParam : public Param {
  */
 class QubitParam : public Param {
     std::optional<ptr<Expr>> size_;
+
   public:
     /**
      * \brief Constructs a qubit type
@@ -165,8 +169,9 @@ class QubitParam : public Param {
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<QubitParam> create(parser::Position pos, symbol id,
-            std::optional<ptr<Expr>>&& size = std::nullopt) {
+    static ptr<QubitParam>
+    create(parser::Position pos, symbol id,
+           std::optional<ptr<Expr>>&& size = std::nullopt) {
         return std::make_unique<QubitParam>(pos, id, std::move(size));
     }
 
@@ -185,6 +190,7 @@ class QubitParam : public Param {
         os << " " << id_;
         return os;
     }
+
   protected:
     QubitParam* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
@@ -230,15 +236,15 @@ class SubroutineDecl final : public GlobalStmt, public Decl {
      * \brief Protected heap-allocated construction
      */
     static ptr<SubroutineDecl> create(parser::Position pos, symbol id,
-            std::vector<ptr<Param>>&& params,
-            ptr<ProgramBlock> body) {
+                                      std::vector<ptr<Param>>&& params,
+                                      ptr<ProgramBlock> body) {
         return std::make_unique<SubroutineDecl>(pos, id, std::move(params),
                                                 std::move(body));
     }
-    static ptr<SubroutineDecl> create(parser::Position pos, symbol id,
-            std::vector<ptr<Param>>&& params,
-            std::optional<ptr<ClassicalType>>&& return_type,
-            ptr<ProgramBlock> body) {
+    static ptr<SubroutineDecl>
+    create(parser::Position pos, symbol id, std::vector<ptr<Param>>&& params,
+           std::optional<ptr<ClassicalType>>&& return_type,
+           ptr<ProgramBlock> body) {
         return std::make_unique<SubroutineDecl>(pos, id, std::move(params),
                                                 std::move(return_type),
                                                 std::move(body));
@@ -279,6 +285,7 @@ class SubroutineDecl final : public GlobalStmt, public Decl {
         body_->pretty_print(os, indents);
         return os;
     }
+
   protected:
     SubroutineDecl* clone() const override {
         std::vector<ptr<Param>> tmp_params;
@@ -320,9 +327,10 @@ class ExternDecl final : public GlobalStmt, public Decl {
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<ExternDecl> create(parser::Position pos, symbol id,
-            std::vector<ptr<ClassicalType>>&& param_types,
-            std::optional<ptr<ClassicalType>>&& return_type = std::nullopt) {
+    static ptr<ExternDecl>
+    create(parser::Position pos, symbol id,
+           std::vector<ptr<ClassicalType>>&& param_types,
+           std::optional<ptr<ClassicalType>>&& return_type = std::nullopt) {
         return std::make_unique<ExternDecl>(pos, id, std::move(param_types),
                                             std::move(return_type));
     }
@@ -353,6 +361,7 @@ class ExternDecl final : public GlobalStmt, public Decl {
         os << ";\n";
         return os;
     }
+
   protected:
     ExternDecl* clone() const override {
         std::vector<ptr<ClassicalType>> tmp_params;
@@ -438,9 +447,7 @@ class GateDecl final : public GlobalStmt, public Decl {
      *
      * \return std::list iterator
      */
-    std::list<QuantumBlockStmt>::iterator end() {
-        return body_->body().end();
-    }
+    std::list<QuantumBlockStmt>::iterator end() { return body_->body().end(); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool suppress_std,
@@ -464,6 +471,7 @@ class GateDecl final : public GlobalStmt, public Decl {
         body_->pretty_print(os, indents);
         return os;
     }
+
   protected:
     GateDecl* clone() const override {
         return new GateDecl(pos_, id_, c_params_, q_params_,
@@ -494,8 +502,9 @@ class QuantumRegisterDecl final : public GlobalStmt, public Decl {
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<QuantumRegisterDecl> create(parser::Position pos, symbol id,
-            std::optional<ptr<Expr>>&& size = std::nullopt) {
+    static ptr<QuantumRegisterDecl>
+    create(parser::Position pos, symbol id,
+           std::optional<ptr<Expr>>&& size = std::nullopt) {
         return std::make_unique<QuantumRegisterDecl>(pos, id, std::move(size));
     }
 
@@ -514,6 +523,7 @@ class QuantumRegisterDecl final : public GlobalStmt, public Decl {
         os << " " << id_ << ";\n";
         return os;
     }
+
   protected:
     QuantumRegisterDecl* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
@@ -552,10 +562,10 @@ class ClassicalDecl final : public Stmt, public Decl {
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<ClassicalDecl> create(parser::Position pos, symbol id,
-            ptr<ClassicalType> type,
-            std::optional<ptr<Expr>>&& equalsexp = std::nullopt,
-            bool is_const = false) {
+    static ptr<ClassicalDecl>
+    create(parser::Position pos, symbol id, ptr<ClassicalType> type,
+           std::optional<ptr<Expr>>&& equalsexp = std::nullopt,
+           bool is_const = false) {
         return std::make_unique<ClassicalDecl>(pos, id, std::move(type),
                                                std::move(equalsexp), is_const);
     }
@@ -591,6 +601,7 @@ class ClassicalDecl final : public Stmt, public Decl {
         os << ";\n";
         return os;
     }
+
   protected:
     ClassicalDecl* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
@@ -638,6 +649,7 @@ class CalGrammarDecl final : public GlobalStmt {
         os << "defcalgrammar " << name_ << ";\n";
         return os;
     }
+
   protected:
     CalGrammarDecl* clone() const override {
         return new CalGrammarDecl(pos_, name_);
@@ -652,9 +664,10 @@ class CalGrammarDecl final : public GlobalStmt {
  */
 class CalibrationDecl final : public GlobalStmt, public Decl {
   public:
-    using ParamsType = std::variant<std::monostate,
-                                    std::vector<ptr<ClassicalParam>>,
-                                    std::vector<ptr<Expr>>>;
+    using ParamsType =
+        std::variant<std::monostate, std::vector<ptr<ClassicalParam>>,
+                     std::vector<ptr<Expr>>>;
+
   private:
     ParamsType c_params_;                           ///< classical parameters
     std::vector<symbol> q_params_;                  ///< quantum parameters
@@ -677,15 +690,16 @@ class CalibrationDecl final : public GlobalStmt, public Decl {
                     std::optional<ptr<ClassicalType>>&& return_type,
                     std::string body)
         : GlobalStmt(pos), Decl(id), c_params_(std::move(c_params)),
-          q_params_(q_params), return_type_(std::move(return_type)), body_(body)
-        {}
+          q_params_(q_params), return_type_(std::move(return_type)),
+          body_(body) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<CalibrationDecl> create(parser::Position pos, symbol id,
-            ParamsType&& c_params, std::vector<symbol> q_params,
-            std::optional<ptr<ClassicalType>>&& return_type, std::string body) {
+    static ptr<CalibrationDecl>
+    create(parser::Position pos, symbol id, ParamsType&& c_params,
+           std::vector<symbol> q_params,
+           std::optional<ptr<ClassicalType>>&& return_type, std::string body) {
         return std::make_unique<CalibrationDecl>(pos, id, std::move(c_params),
                                                  q_params,
                                                  std::move(return_type), body);
@@ -723,25 +737,24 @@ class CalibrationDecl final : public GlobalStmt, public Decl {
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "defcal " << id_;
 
-        std::visit(
-            utils::overloaded{
-                [&os](const std::vector<ptr<ClassicalParam>>& cps) {
-                    os << "(";
-                    for (auto it = cps.begin(); it != cps.end(); it++) {
-                        os << (it == cps.begin() ? "" : ", ") << **it;
-                    }
-                    os << ")";
-                },
-                [&os](const std::vector<ptr<Expr>>& exps) {
-                    os << "(";
-                    for (auto it = exps.begin(); it != exps.end(); it++) {
-                        os << (it == exps.begin() ? "" : ", ") << **it;
-                    }
-                    os << ")";
-                },
-                [](auto) {}
-            },
-            c_params_);
+        std::visit(utils::overloaded{
+                       [&os](const std::vector<ptr<ClassicalParam>>& cps) {
+                           os << "(";
+                           for (auto it = cps.begin(); it != cps.end(); it++) {
+                               os << (it == cps.begin() ? "" : ", ") << **it;
+                           }
+                           os << ")";
+                       },
+                       [&os](const std::vector<ptr<Expr>>& exps) {
+                           os << "(";
+                           for (auto it = exps.begin(); it != exps.end();
+                                it++) {
+                               os << (it == exps.begin() ? "" : ", ") << **it;
+                           }
+                           os << ")";
+                       },
+                       [](auto) {}},
+                   c_params_);
 
         os << " ";
         for (auto it = q_params_.begin(); it != q_params_.end(); it++) {
@@ -752,26 +765,25 @@ class CalibrationDecl final : public GlobalStmt, public Decl {
         os << " { " << body_ << " }\n";
         return os;
     }
+
   protected:
     CalibrationDecl* clone() const override {
         ParamsType tmp = std::monostate();
-        std::visit(
-            utils::overloaded{
-                [&tmp](const std::vector<ptr<ClassicalParam>>& cps) {
-                    std::vector<ptr<ClassicalParam>> cps_copy;
-                    for (auto& x: cps)
-                        cps_copy.emplace_back(object::clone(*x));
-                    tmp = std::move(cps_copy);
-                },
-                [&tmp](const std::vector<ptr<Expr>>& exps) {
-                    std::vector<ptr<Expr>> exps_copy;
-                    for (auto& x: exps)
-                        exps_copy.emplace_back(object::clone(*x));
-                    tmp = std::move(exps_copy);
-                },
-                [](auto) {}
-            },
-            c_params_);
+        std::visit(utils::overloaded{
+                       [&tmp](const std::vector<ptr<ClassicalParam>>& cps) {
+                           std::vector<ptr<ClassicalParam>> cps_copy;
+                           for (auto& x : cps)
+                               cps_copy.emplace_back(object::clone(*x));
+                           tmp = std::move(cps_copy);
+                       },
+                       [&tmp](const std::vector<ptr<Expr>>& exps) {
+                           std::vector<ptr<Expr>> exps_copy;
+                           for (auto& x : exps)
+                               exps_copy.emplace_back(object::clone(*x));
+                           tmp = std::move(exps_copy);
+                       },
+                       [](auto) {}},
+                   c_params_);
         std::optional<ptr<ClassicalType>> tmp_return = std::nullopt;
         if (return_type_)
             tmp_return = object::clone(**return_type_);

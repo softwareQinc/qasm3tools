@@ -88,6 +88,7 @@ class ClassicalType : public ASTNode {
   public:
     ClassicalType(parser::Position pos) : ASTNode(pos) {}
     virtual ~ClassicalType() = default;
+
   protected:
     virtual ClassicalType* clone() const = 0;
 };
@@ -99,6 +100,7 @@ class ClassicalType : public ASTNode {
 class SingleDesignatorType : public ClassicalType {
     SDType type_;
     ptr<Expr> size_;
+
   public:
     /**
      * \brief Constructs a single-designator type
@@ -138,6 +140,7 @@ class SingleDesignatorType : public ClassicalType {
         os << type_ << "[" << *size_ << "]";
         return os;
     }
+
   protected:
     SingleDesignatorType* clone() const override {
         return new SingleDesignatorType(pos_, type_, object::clone(*size_));
@@ -150,6 +153,7 @@ class SingleDesignatorType : public ClassicalType {
  */
 class NoDesignatorType : public ClassicalType {
     NDType type_;
+
   public:
     /**
      * \brief Constructs a no-designator type
@@ -179,6 +183,7 @@ class NoDesignatorType : public ClassicalType {
         os << type_;
         return os;
     }
+
   protected:
     NoDesignatorType* clone() const override {
         return new NoDesignatorType(pos_, type_);
@@ -191,6 +196,7 @@ class NoDesignatorType : public ClassicalType {
  */
 class BitType : public ClassicalType {
     std::optional<ptr<Expr>> size_;
+
   public:
     /**
      * \brief Constructs a bit type
@@ -224,6 +230,7 @@ class BitType : public ClassicalType {
             os << "[" << **size_ << "]";
         return os;
     }
+
   protected:
     BitType* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
@@ -239,6 +246,7 @@ class BitType : public ClassicalType {
  */
 class ComplexType : public ClassicalType {
     ptr<SingleDesignatorType> subtype_;
+
   public:
     /**
      * \brief Constructs a bit type
@@ -269,6 +277,7 @@ class ComplexType : public ClassicalType {
         os << "complex[" << *subtype_ << "]";
         return os;
     }
+
   protected:
     ComplexType* clone() const override {
         return new ComplexType(pos_, object::clone(*subtype_));
