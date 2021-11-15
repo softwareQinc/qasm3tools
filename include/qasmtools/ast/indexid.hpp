@@ -332,7 +332,7 @@ class Concat final : public IndexId {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << *lreg_ << "||" << *rreg_;
+        os << *lreg_ << "++" << *rreg_;
         return os;
     }
 

@@ -6,7 +6,7 @@
 ```bash
 mkdir build && cd build
 cmake ..
-make
+make -j8
 ```
 
 This creates the `parser` executable.
@@ -17,6 +17,6 @@ This creates the `parser` executable.
 ## Unit testing
 For unit testing, make sure to clone this repository with `--recursive`.
 ```bash
-make unit_tests
+make -j8 unit_tests
 ctest
 ```

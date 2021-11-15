@@ -26,13 +26,13 @@ public:
     T__68 = 69, T__69 = 70, T__70 = 71, T__71 = 72, T__72 = 73, T__73 = 74, 
     T__74 = 75, T__75 = 76, T__76 = 77, T__77 = 78, T__78 = 79, T__79 = 80, 
     T__80 = 81, T__81 = 82, T__82 = 83, T__83 = 84, T__84 = 85, T__85 = 86, 
-    T__86 = 87, T__87 = 88, T__88 = 89, T__89 = 90, T__90 = 91, LBRACKET = 92, 
-    RBRACKET = 93, LBRACE = 94, RBRACE = 95, LPAREN = 96, RPAREN = 97, COLON = 98, 
-    SEMICOLON = 99, DOT = 100, COMMA = 101, EQUALS = 102, ARROW = 103, PLUS = 104, 
-    MINUS = 105, MUL = 106, DIV = 107, MOD = 108, IMAG = 109, ImagNumber = 110, 
-    Constant = 111, Whitespace = 112, Newline = 113, Integer = 114, Identifier = 115, 
-    RealNumber = 116, TimingLiteral = 117, StringLiteral = 118, LineComment = 119, 
-    BlockComment = 120
+    T__86 = 87, T__87 = 88, T__88 = 89, T__89 = 90, T__90 = 91, T__91 = 92, 
+    LBRACKET = 93, RBRACKET = 94, LBRACE = 95, RBRACE = 96, LPAREN = 97, 
+    RPAREN = 98, COLON = 99, SEMICOLON = 100, DOT = 101, COMMA = 102, EQUALS = 103, 
+    ARROW = 104, PLUS = 105, MINUS = 106, MUL = 107, DIV = 108, MOD = 109, 
+    IMAG = 110, ImagNumber = 111, Constant = 112, Whitespace = 113, Newline = 114, 
+    Integer = 115, Identifier = 116, RealNumber = 117, TimingLiteral = 118, 
+    StringLiteral = 119, LineComment = 120, BlockComment = 121
   };
 
   explicit qasm3Lexer(antlr4::CharStream *input);
