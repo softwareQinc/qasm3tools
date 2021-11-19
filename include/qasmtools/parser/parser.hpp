@@ -90,6 +90,11 @@ class ASTConstructor : public qasm3Visitor {
                                    std::optional<ast::ptr<ast::Expr>>,
                                    std::optional<ast::ptr<ast::Expr>>>;
 
+    const std::vector<std::string> units{"dt", "ns", "us", "µs", "ms", "s"};
+    const std::vector<ast::TimeUnit> timeunits{
+        ast::TimeUnit::dt,  ast::TimeUnit::ns, ast::TimeUnit::us,
+        ast::TimeUnit::mus, ast::TimeUnit::ms, ast::TimeUnit::s};
+
   public:
     virtual antlrcpp::Any
     visitProgram(qasm3Parser::ProgramContext* ctx) override {
@@ -161,9 +166,8 @@ class ASTConstructor : public qasm3Visitor {
     visitStatement(qasm3Parser::StatementContext* ctx) override {
         auto a = ctx->children[0]->accept(this);
         if (a.is<ast::ptr<ast::QuantumStmt>>()) {
-            return ast::ptr<ast::Stmt>(std::move(
-                a.as<ast::ptr<ast::QuantumStmt>>())); // upcast QuantumStmt* to
-                                                      // Stmt*
+            return ast::ptr<ast::Stmt>(
+                std::move(a.as<ast::ptr<ast::QuantumStmt>>()));
         } else
             return a;
     }
@@ -181,7 +185,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitClassicalAssignment(
         qasm3Parser::ClassicalAssignmentContext* ctx) override {
         // classicalAssignment : Identifier designator? assignmentOperator
-        // expression
+        //                       expression
         auto op = ctx->assignmentOperator()->accept(this).as<ast::AssignOp>();
         auto exp = std::move(
             ctx->expression()->accept(this).as<ast::ptr<ast::Expr>>());
@@ -222,8 +226,8 @@ class ASTConstructor : public qasm3Visitor {
 
     virtual antlrcpp::Any visitQuantumDeclaration(
         qasm3Parser::QuantumDeclarationContext* ctx) override {
-        // quantumDeclaration : 'qreg' Identifier designator? | 'qubit'
-        // designator? Identifier
+        // quantumDeclaration : 'qreg' Identifier designator?
+        //                    | 'qubit' designator? Identifier
         if (ctx->designator()) {
             auto size = std::move(
                 ctx->designator()->accept(this).as<ast::ptr<ast::Expr>>());
@@ -237,8 +241,8 @@ class ASTConstructor : public qasm3Visitor {
 
     virtual antlrcpp::Any
     visitQuantumArgument(qasm3Parser::QuantumArgumentContext* ctx) override {
-        // quantumArgument : 'qreg' Identifier designator? | 'qubit' designator?
-        // Identifier
+        // quantumArgument : 'qreg' Identifier designator?
+        //                 | 'qubit' designator? Identifier
         if (ctx->designator()) {
             auto size = std::move(
                 ctx->designator()->accept(this).as<ast::ptr<ast::Expr>>());
@@ -334,7 +338,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitConstantDeclaration(
         qasm3Parser::ConstantDeclarationContext* ctx) override {
         // constantDeclaration : 'const' classicalType Identifier
-        // equalsExpression
+        //                       equalsExpression
         auto type = std::move(ctx->classicalType()
                                   ->accept(this)
                                   .as<ast::ptr<ast::ClassicalType>>());
@@ -348,7 +352,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitSingleDesignatorDeclaration(
         qasm3Parser::SingleDesignatorDeclarationContext* ctx) override {
         // singleDesignatorDeclaration : singleDesignatorType designator
-        // Identifier equalsExpression?
+        //                               Identifier equalsExpression?
         auto type = ctx->singleDesignatorType()->accept(this).as<ast::SDType>();
         auto size = std::move(
             ctx->designator()->accept(this).as<ast::ptr<ast::Expr>>());
@@ -367,7 +371,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitNoDesignatorDeclaration(
         qasm3Parser::NoDesignatorDeclarationContext* ctx) override {
         // noDesignatorDeclaration : noDesignatorType Identifier
-        // equalsExpression?
+        //                           equalsExpression?
         auto type = ctx->noDesignatorType()->accept(this).as<ast::NDType>();
         auto tmp = ast::ptr<ast::ClassicalType>(
             new ast::NoDesignatorType(get_pos(ctx), type));
@@ -384,7 +388,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any
     visitBitDeclaration(qasm3Parser::BitDeclarationContext* ctx) override {
         // bitDeclaration : ( 'creg' Identifier designator? | 'bit' designator?
-        // Identifier ) equalsExpression?
+        //                  Identifier ) equalsExpression?
         ast::ptr<ast::ClassicalType> tmp;
         if (ctx->designator()) {
             auto size = std::move(
@@ -407,7 +411,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitComplexDeclaration(
         qasm3Parser::ComplexDeclarationContext* ctx) override {
         // complexDeclaration : 'complex' LBRACKET numericType RBRACKET
-        // Identifier equalsExpression?
+        //                      Identifier equalsExpression?
         auto subtype =
             std::move(ctx->numericType()
                           ->accept(this)
@@ -441,11 +445,11 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitClassicalArgument(
         qasm3Parser::ClassicalArgumentContext* ctx) override {
         // classicalArgument : ( singleDesignatorType designator |
-        // noDesignatorType ) Identifier
+        //                     noDesignatorType ) Identifier
         //                   | 'creg' Identifier designator?
         //                   | 'bit' designator? Identifier
         //                   | 'complex' LBRACKET numericType RBRACKET
-        //                   Identifier
+        //                     Identifier
         if (ctx->singleDesignatorType()) {
             auto type =
                 ctx->singleDesignatorType()->accept(this).as<ast::SDType>();
@@ -534,7 +538,7 @@ class ASTConstructor : public qasm3Visitor {
     visitIndexIdentifier(qasm3Parser::IndexIdentifierContext* ctx) override {
         // indexIdentifier : Identifier rangeDefinition
         //                 | Identifier ( LBRACKET expressionList RBRACKET )?
-        //                 | indexIdentifier '||' indexIdentifier
+        //                 | indexIdentifier '++' indexIdentifier
         if (ctx->Identifier()) {
             if (ctx->rangeDefinition()) {
                 auto [start, step, stop] = std::move(
@@ -579,8 +583,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any
     visitRangeDefinition(qasm3Parser::RangeDefinitionContext* ctx) override {
         // rangeDefinition : LBRACKET expression? COLON expression? ( COLON
-        // expression )? RBRACKET Return triplet of Expr*, nullptr = no
-        // expression
+        //                   expression )? RBRACKET
         ExprTriplet range(std::nullopt, std::nullopt, std::nullopt);
         int index = 1;
         auto a = ctx->children[index]->accept(this);
@@ -640,7 +643,7 @@ class ASTConstructor : public qasm3Visitor {
         std::list<ast::QuantumBlockStmt> body;
         for (auto& child : ctx->children) {
             auto a = child->accept(this);
-            if (a.is<ast::ptr<ast::QuantumStmt>>())
+            if (a.isNotNull())
                 body.emplace_back(
                     std::move(a.as<ast::ptr<ast::QuantumStmt>>()));
         }
@@ -695,13 +698,12 @@ class ASTConstructor : public qasm3Visitor {
                 new ast::MeasureStmt(get_pos(ctx), std::move(msmt)));
         } else
             return ctx->children[0]->accept(this);
-        ;
     }
 
     virtual antlrcpp::Any
     visitQuantumPhase(qasm3Parser::QuantumPhaseContext* ctx) override {
         // quantumPhase : quantumGateModifier* 'gphase' LPAREN expression RPAREN
-        // indexIdentifierList?
+        //                indexIdentifierList?
         std::list<ast::ptr<ast::GateModifier>> mods;
         for (auto x : ctx->quantumGateModifier())
             mods.emplace_back(
@@ -736,10 +738,9 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitQuantumMeasurementAssignment(
         qasm3Parser::QuantumMeasurementAssignmentContext* ctx) override {
         // quantumMeasurementAssignment : quantumMeasurement ( ARROW
-        // indexIdentifier
-        // )?
+        //                                indexIdentifier )?
         //                              | indexIdentifier EQUALS
-        //                              quantumMeasurement
+        //                                quantumMeasurement
         auto msmt = std::move(ctx->quantumMeasurement()
                                   ->accept(this)
                                   .as<ast::ptr<ast::QuantumMeasurement>>());
@@ -798,7 +799,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any
     visitQuantumGateCall(qasm3Parser::QuantumGateCallContext* ctx) override {
         // quantumGateCall : quantumGateModifier* quantumGateName ( LPAREN
-        // expressionList RPAREN )? indexIdentifierList
+        //                   expressionList RPAREN )? indexIdentifierList
         std::list<ast::ptr<ast::GateModifier>> mods;
         for (auto x : ctx->quantumGateModifier())
             mods.emplace_back(
@@ -1126,7 +1127,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any
     visitBuiltInCall(qasm3Parser::BuiltInCallContext* ctx) override {
         // builtInCall : ( builtInMath | castOperator ) LPAREN expressionList
-        // RPAREN
+        //               RPAREN
         auto args = std::move(ctx->expressionList()
                                   ->accept(this)
                                   .as<std::vector<ast::ptr<ast::Expr>>>());
@@ -1195,7 +1196,7 @@ class ASTConstructor : public qasm3Visitor {
 
     virtual antlrcpp::Any
     visitEqualsExpression(qasm3Parser::EqualsExpressionContext* ctx) override {
-        return ctx->children[1]->accept(this);
+        return ctx->expression()->accept(this);
     }
 
     virtual antlrcpp::Any visitAssignmentOperator(
@@ -1272,7 +1273,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitBranchingStatement(
         qasm3Parser::BranchingStatementContext* ctx) override {
         // branchingStatement : 'if' LPAREN expression RPAREN programBlock (
-        // 'else' programBlock )?
+        //                      'else' programBlock )?
         auto cond = std::move(
             ctx->expression()->accept(this).as<ast::ptr<ast::Expr>>());
         auto branches = ctx->programBlock();
@@ -1326,7 +1327,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any
     visitReturnStatement(qasm3Parser::ReturnStatementContext* ctx) override {
         // returnStatement : 'return' ( expression | quantumMeasurement )?
-        // SEMICOLON;
+        //                   SEMICOLON
         if (ctx->expression()) {
             auto exp = std::move(
                 ctx->expression()->accept(this).as<ast::ptr<ast::Expr>>());
@@ -1365,7 +1366,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitExternDeclaration(
         qasm3Parser::ExternDeclarationContext* ctx) override {
         // externDeclaration : 'extern' Identifier LPAREN classicalTypeList?
-        // RPAREN returnSignature? SEMICOLON
+        //                     RPAREN returnSignature? SEMICOLON
         std::vector<ast::ptr<ast::ClassicalType>> param_types;
         if (ctx->classicalTypeList())
             param_types =
@@ -1397,7 +1398,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitSubroutineDefinition(
         qasm3Parser::SubroutineDefinitionContext* ctx) override {
         // subroutineDefinition : 'def' Identifier LPAREN anyTypeArgumentList?
-        // RPAREN returnSignature? subroutineBlock
+        //                        RPAREN returnSignature? subroutineBlock
         std::vector<ast::ptr<ast::Param>> params;
         if (ctx->anyTypeArgumentList())
             params = std::move(ctx->anyTypeArgumentList()
@@ -1466,12 +1467,8 @@ class ASTConstructor : public qasm3Visitor {
     visitTimingIdentifier(qasm3Parser::TimingIdentifierContext* ctx) override {
         // timingIdentifier : TimingLiteral
         //                  | 'durationof' LPAREN ( Identifier | quantumBlock )
-        //                  RPAREN
+        //                    RPAREN
         if (ctx->TimingLiteral()) {
-            std::vector<std::string> units{"dt", "ns", "us", "µs", "ms", "s"};
-            std::vector<ast::TimeUnit> timeunits{
-                ast::TimeUnit::dt,  ast::TimeUnit::ns, ast::TimeUnit::us,
-                ast::TimeUnit::mus, ast::TimeUnit::ms, ast::TimeUnit::s};
             std::string lit = ctx->TimingLiteral()->getText();
             for (int i = 0; i < units.size(); i++) {
                 if (ends_with(lit, units[i])) {
@@ -1504,8 +1501,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitTimingInstruction(
         qasm3Parser::TimingInstructionContext* ctx) override {
         // timingInstruction : timingInstructionName ( LPAREN expressionList?
-        // RPAREN
-        // )? designator indexIdentifierList
+        //                     RPAREN )? designator indexIdentifierList
         std::vector<ast::ptr<ast::Expr>> c_args;
         if (ctx->expressionList())
             c_args = std::move(ctx->expressionList()
@@ -1539,7 +1535,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitCalibrationGrammarDeclaration(
         qasm3Parser::CalibrationGrammarDeclarationContext* ctx) override {
         // calibrationGrammarDeclaration : 'defcalgrammar' calibrationGrammar
-        // SEMICOLON
+        //                                 SEMICOLON
         std::string name = ctx->calibrationGrammar()->getText();
         return ast::ptr<ast::GlobalStmt>(
             new ast::CalGrammarDecl(get_pos(ctx), name));
@@ -1548,8 +1544,9 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any visitCalibrationDefinition(
         qasm3Parser::CalibrationDefinitionContext* ctx) override {
         // calibrationDefinition : 'defcal' Identifier ( LPAREN
-        // calibrationArgumentList? RPAREN )? identifierList
-        //                         returnSignature? LBRACE .*? RBRACE
+        //                         calibrationArgumentList? RPAREN )?
+        //                         identifierList returnSignature? LBRACE .*?
+        //                         RBRACE
         ast::CalibrationDecl::ParamsType c_params = std::monostate();
         if (ctx->calibrationArgumentList())
             c_params = std::move(ctx->calibrationArgumentList()

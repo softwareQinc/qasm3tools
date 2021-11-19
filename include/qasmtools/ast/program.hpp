@@ -72,8 +72,7 @@ class Program : public BlockBase<ProgramStmt, Program> {
      */
     void extend(Program& other) {
         std_include_ = std_include_ || other.std_include_;
-        body_.insert(body_.end(),
-                     std::make_move_iterator(other.body_.begin()),
+        body_.insert(body_.end(), std::make_move_iterator(other.body_.begin()),
                      std::make_move_iterator(other.body_.end()));
         other.std_include_ = false;
         other.body_.clear();
