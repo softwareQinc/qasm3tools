@@ -94,18 +94,14 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any
     visitProgram(qasm3Parser::ProgramContext* ctx) override {
         // program : header (globalStatement | statement)*
-        auto prog = ast::Program::create(get_pos(ctx), {}, false);
+        auto prog = ast::Program::create(
+            get_pos(ctx), {}, get_source_name(ctx) == "stdgates.inc");
         auto includes =
             std::move(ctx->header()
                           ->accept(this)
                           .as<std::vector<ast::ptr<ast::Program>>>());
         for (auto& included : includes) {
-            prog->set_includes_std(prog->includes_std() ||
-                                   included->includes_std());
-            prog->body().insert(
-                prog->body().end(),
-                std::make_move_iterator(included->body().begin()),
-                std::make_move_iterator(included->body().end()));
+            prog->extend(*included);
         }
         std::list<ast::ProgramStmt> body;
         for (auto& child : ctx->children) {
@@ -143,9 +139,7 @@ class ASTConstructor : public qasm3Visitor {
         std::string inc_str = ctx->StringLiteral()->getText();
         std::string fname = inc_str.substr(1, inc_str.length() - 2);
         if (fname == "stdgates.inc") {
-            auto prog = parse_string(std_include, fname);
-            prog->set_includes_std(true);
-            return prog;
+            return parse_string(std_include, fname);
         } else {
             return parse_file(fname);
         }
@@ -1620,6 +1614,11 @@ class ASTConstructor : public qasm3Visitor {
             return false;
         }
         return str.substr(str.length() - suffix.length()) == suffix;
+    }
+
+    static std::string get_source_name(qasm3Parser::ProgramContext* ctx) {
+        antlr4::Token* tok = ctx->start;
+        return tok->getTokenSource()->getSourceName();
     }
 };
 

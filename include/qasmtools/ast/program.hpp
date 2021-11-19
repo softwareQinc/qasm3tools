@@ -67,16 +67,17 @@ class Program : public BlockBase<ProgramStmt, Program> {
     }
 
     /**
-     * \brief Get whether the standard library has been included
-     *
-     * \return Whether the standard library has been included
+     * \brief Add another program's contents to the end of this program
+     * \note This clears the other program's body
      */
-    bool includes_std() { return std_include_; }
-
-    /**
-     * \brief Set whether the standard library has been included
-     */
-    void set_includes_std(bool includes_std) { std_include_ = includes_std; }
+    void extend(Program& other) {
+        std_include_ = std_include_ || other.std_include_;
+        body_.insert(body_.end(),
+                     std::make_move_iterator(other.body_.begin()),
+                     std::make_move_iterator(other.body_.end()));
+        other.std_include_ = false;
+        other.body_.clear();
+    }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, size_t) const override {
