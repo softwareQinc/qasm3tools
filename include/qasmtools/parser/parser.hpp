@@ -96,14 +96,6 @@ class ASTConstructor : public qasm3Visitor {
         // program : header (globalStatement | statement)*
         auto prog = ast::Program::create(
             get_pos(ctx), {}, get_source_name(ctx) == "stdgates.inc");
-        auto includes =
-            std::move(ctx->header()
-                          ->accept(this)
-                          .as<std::vector<ast::ptr<ast::Program>>>());
-        for (auto& included : includes) {
-            prog->extend(*included);
-        }
-        std::list<ast::ProgramStmt> body;
         for (auto& child : ctx->children) {
             auto a = child->accept(this);
             if (a.is<ast::ptr<ast::GlobalStmt>>()) {
@@ -112,6 +104,12 @@ class ASTConstructor : public qasm3Visitor {
             } else if (a.is<ast::ptr<ast::Stmt>>()) {
                 prog->body().emplace_back(
                     std::move(a.as<ast::ptr<ast::Stmt>>()));
+            } else {
+                auto includes =
+                    std::move(a.as<std::vector<ast::ptr<ast::Program>>>());
+                for (auto& included : includes) {
+                    prog->extend(*included);
+                }
             }
         }
         return prog;
