@@ -176,6 +176,13 @@ class PowModifier : public GateModifier {
      */
     Expr& r() { return *r_; }
 
+    /**
+     * \brief Set the power
+     *
+     * \param r The new power
+     */
+    void set_r(ptr<Expr> r) { r_ = std::move(r); }
+
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "pow(" << *r_ << ") @ ";
@@ -199,6 +206,11 @@ class Gate : public QuantumStmt {
         : QuantumStmt(pos), modifiers_(std::move(modifiers)),
           q_args_(std::move(q_args)) {}
 
+    /**
+     * \brief Get the list of gate modifiers
+     *
+     * \return Reference to the list of gate modifiers
+     */
     std::list<ptr<GateModifier>>& modifiers() { return modifiers_; }
 
     /**

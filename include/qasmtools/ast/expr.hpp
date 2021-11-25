@@ -456,11 +456,27 @@ class MathExpr final : public Expr {
     MathOp op() const { return op_; }
 
     /**
-     * \brief Get the arguments
+     * \brief Get the number of arguments
      *
-     * \return A reference to the argumants
+     * \return The number of arguments
      */
-    std::vector<ptr<Expr>>& args() { return args_; }
+    int num_args() const { return static_cast<int>(args_.size()); }
+
+    /**
+     * \brief Get the ith argument
+     *
+     * \param i The number of the argument, 0-indexed
+     * \return Reference to an expression
+     */
+    Expr& arg(int i) { return *(args_[i]); }
+
+    /**
+     * \brief Set the ith argument
+     *
+     * \param i The number of the argument, 0-indexed
+     * \param expr An expression giving the new argument
+     */
+    void set_arg(int i, ptr<Expr> expr) { args_[i] = std::move(expr); }
 
     std::optional<std::complex<double>> constant_eval() const override {
         if (args_.size() != 1)
@@ -548,7 +564,14 @@ class CastExpr final : public Expr {
      *
      * \return A reference to the type
      */
-    const ClassicalType& type() const { return *type_; }
+    ClassicalType& type() { return *type_; }
+
+    /**
+     * \brief Set the type
+     *
+     * \param type The new type
+     */
+    void set_type(ptr<ClassicalType> type) { type_ = std::move(type); }
 
     /**
      * \brief Get the sub-expression
@@ -619,11 +642,27 @@ class FunctionCall final : public Expr {
     const symbol& name() const { return name_; }
 
     /**
-     * \brief Get the arguments
+     * \brief Get the number of arguments
      *
-     * \return A reference to the argumants
+     * \return The number of arguments
      */
-    std::vector<ptr<Expr>>& args() { return args_; }
+    int num_args() const { return static_cast<int>(args_.size()); }
+
+    /**
+     * \brief Get the ith argument
+     *
+     * \param i The number of the argument, 0-indexed
+     * \return Reference to an expression
+     */
+    Expr& arg(int i) { return *(args_[i]); }
+
+    /**
+     * \brief Set the ith argument
+     *
+     * \param i The number of the argument, 0-indexed
+     * \param expr An expression giving the new argument
+     */
+    void set_arg(int i, ptr<Expr> expr) { args_[i] = std::move(expr); }
 
     std::optional<std::complex<double>> constant_eval() const override {
         return std::nullopt;

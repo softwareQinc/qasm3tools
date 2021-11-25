@@ -77,7 +77,7 @@ class ASTNode : public object::cloneable<ASTNode> {
      *
      * \return The node's position in source
      */
-    parser::Position pos() const { return pos_; }
+    const parser::Position& pos() const { return pos_; }
 
     /**
      * \brief Provides dispatch for the Visitor pattern

@@ -356,6 +356,13 @@ class DelayStmt final : public TimingStmt {
      */
     Expr& duration() { return *duration_; }
 
+    /**
+     * \brief Set the duration
+     *
+     * \param d The new duration
+     */
+    void set_duration(ptr<Expr> d) { duration_ = std::move(d); }
+
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "delay";
@@ -500,6 +507,13 @@ class RotaryStmt final : public TimingStmt {
      * \return Reference to thr duration
      */
     Expr& duration() { return *duration_; }
+
+    /**
+     * \brief Set the duration
+     *
+     * \param d The new duration
+     */
+    void set_duration(ptr<Expr> d) { duration_ = std::move(d); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {

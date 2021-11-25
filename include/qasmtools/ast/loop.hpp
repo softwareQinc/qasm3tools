@@ -102,23 +102,23 @@ class RangeSet : public IndexSet {
     /**
      * \brief Get the start index
      *
-     * return const std::optional reference to start index
+     * return std::optional reference to start index
      */
-    const std::optional<ptr<Expr>>& start() const { return start_; }
+    std::optional<ptr<Expr>>& start() { return start_; }
 
     /**
      * \brief Get the step size
      *
-     * return const std::optional reference to step size
+     * return std::optional reference to step size
      */
-    const std::optional<ptr<Expr>>& step() const { return step_; }
+    std::optional<ptr<Expr>>& step() { return step_; }
 
     /**
      * \brief Get the stop index
      *
-     * return const std::optional reference to stop index
+     * return std::optional reference to stop index
      */
-    const std::optional<ptr<Expr>>& stop() const { return stop_; }
+    std::optional<ptr<Expr>>& stop() { return stop_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
@@ -347,6 +347,13 @@ class WhileStmt final : public Stmt {
     Expr& cond() { return *cond_; }
 
     /**
+     * \brief Set the boolean expression
+     *
+     * \param cond The new expression
+     */
+    void set_cond(ptr<Expr> cond) { cond_ = std::move(cond); }
+
+    /**
      * \brief Get the loop body
      *
      * \return Reference to the body
@@ -474,6 +481,13 @@ class QuantumWhileStmt final : public QuantumStmt {
      * \return A reference to the boolean expression
      */
     Expr& cond() { return *cond_; }
+
+    /**
+     * \brief Set the boolean expression
+     *
+     * \param cond The new expression
+     */
+    void set_cond(ptr<Expr> cond) { cond_ = std::move(cond); }
 
     /**
      * \brief Get the loop body

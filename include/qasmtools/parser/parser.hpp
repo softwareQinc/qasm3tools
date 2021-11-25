@@ -31,6 +31,7 @@
 #pragma once
 
 #include "../ast/ast.hpp"
+#include "../ast/semantic.hpp"
 #include "antlr4-runtime.h"
 #include "position.hpp"
 #include "qasm3LexerImpl.hpp"
@@ -1634,7 +1635,9 @@ inline ast::ptr<ast::Program> parse_file(std::string fname) {
     if (parser.getNumberOfSyntaxErrors() > 0)
         throw std::logic_error("Parsing failed!");
     ASTConstructor constructor;
-    return constructor.make_ast(tree);
+    auto result = constructor.make_ast(tree);
+    ast::check_source(*result);
+    return result;
 }
 
 /**
@@ -1653,7 +1656,9 @@ inline ast::ptr<ast::Program> parse_string(const std::string& str,
     if (parser.getNumberOfSyntaxErrors() > 0)
         throw std::logic_error("Parsing failed!");
     ASTConstructor constructor;
-    return constructor.make_ast(tree);
+    auto result = constructor.make_ast(tree);
+    ast::check_source(*result);
+    return result;
 }
 
 } // namespace parser

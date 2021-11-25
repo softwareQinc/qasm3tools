@@ -135,6 +135,13 @@ class SingleDesignatorType : public ClassicalType {
      */
     Expr& size() { return *size_; }
 
+    /**
+     * \brief Set the size
+     *
+     * \param d The new size
+     */
+    void set_size(ptr<Expr> size) { size_ = std::move(size); }
+
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << type_ << "[" << *size_ << "]";

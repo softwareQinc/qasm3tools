@@ -34,6 +34,10 @@
 namespace qasmtools {
 namespace ast {
 
+class RangeSlice;
+class ListSlice;
+class VarAccess;
+class Concat;
 class SingleDesignatorType;
 class NoDesignatorType;
 class BitType;
@@ -54,14 +58,12 @@ class StringExpr;
 class TimeExpr;
 class DurationGateExpr;
 class DurationBlockExpr;
-class Program;
 class QuantumMeasurement;
 class ProgramBlock;
 class QuantumBlock;
-class QuantumLoopBlock;
 class MeasureStmt;
-class ExprStmt;
 class MeasureAsgnStmt;
+class ExprStmt;
 class ResetStmt;
 class BarrierStmt;
 class IfStmt;
@@ -72,25 +74,12 @@ class EndStmt;
 class AliasStmt;
 class AssignmentStmt;
 class PragmaStmt;
-class ClassicalParam;
-class QubitParam;
-class SubroutineDecl;
-class ExternDecl;
-class GateDecl;
-class QuantumRegisterDecl;
-class ClassicalDecl;
-class CalGrammarDecl;
-class CalibrationDecl;
 class CtrlModifier;
 class InvModifier;
 class PowModifier;
 class UGate;
 class GPhase;
 class DeclaredGate;
-class RangeSlice;
-class ListSlice;
-class VarAccess;
-class Concat;
 class RangeSet;
 class ListSet;
 class VarSet;
@@ -101,6 +90,16 @@ class QuantumWhileStmt;
 class DelayStmt;
 class RotaryStmt;
 class BoxStmt;
+class ClassicalParam;
+class QubitParam;
+class SubroutineDecl;
+class ExternDecl;
+class GateDecl;
+class QuantumRegisterDecl;
+class ClassicalDecl;
+class CalGrammarDecl;
+class CalibrationDecl;
+class Program;
 
 /**
  * \class qasmtools::ast::Visitor
@@ -145,11 +144,10 @@ class Visitor {
     // Statement components
     virtual void visit(QuantumMeasurement&) = 0;
     virtual void visit(ProgramBlock&) = 0;
-    virtual void visit(QuantumLoopBlock&) = 0;
     virtual void visit(QuantumBlock&) = 0;
     // Statements
-    virtual void visit(MeasureAsgnStmt&) = 0;
     virtual void visit(MeasureStmt&) = 0;
+    virtual void visit(MeasureAsgnStmt&) = 0;
     virtual void visit(ExprStmt&) = 0;
     virtual void visit(ResetStmt&) = 0;
     virtual void visit(BarrierStmt&) = 0;

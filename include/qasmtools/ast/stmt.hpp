@@ -74,9 +74,9 @@ class QuantumMeasurement final : public ASTNode {
     /**
      * \brief Get the quantum argument
      *
-     * \return Const reference to the quantum argument
+     * \return Reference to the quantum argument
      */
-    const IndexId& q_arg() const { return *q_arg_; }
+    IndexId& q_arg() { return *q_arg_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
@@ -141,57 +141,6 @@ class MeasureStmt final : public QuantumStmt {
   protected:
     MeasureStmt* clone() const override {
         return new MeasureStmt(pos_, object::clone(*measurement_));
-    }
-};
-
-/**
- * \class qasmtools::ast::ExprStmt
- * \brief Class for expression statements
- * \see qasmtools::ast::StmtBase
- */
-class ExprStmt final : public Stmt {
-    ptr<Expr> exp_; ///< the expression
-
-  public:
-    /**
-     * \brief Constructs an expression statement
-     *
-     * \param pos The source position
-     * \param exp The expression
-     */
-    ExprStmt(parser::Position pos, ptr<Expr> exp)
-        : Stmt(pos), exp_(std::move(exp)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<ExprStmt> create(parser::Position pos, ptr<Expr> exp) {
-        return std::make_unique<ExprStmt>(pos, std::move(exp));
-    }
-
-    /**
-     * \brief Get the expression
-     *
-     * \return Reference to the expression
-     */
-    Expr& exp() { return *exp_; }
-
-    /**
-     * \brief Set the expression
-     *
-     * \param exp The new expression
-     */
-    void set_exp(ptr<Expr> exp) { exp_ = std::move(exp); }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        os << *exp_ << ";\n";
-        return os;
-    }
-
-  protected:
-    ExprStmt* clone() const override {
-        return new ExprStmt(pos_, object::clone(*exp_));
     }
 };
 
@@ -266,6 +215,57 @@ class MeasureAsgnStmt final : public Stmt {
     MeasureAsgnStmt* clone() const override {
         return new MeasureAsgnStmt(pos_, object::clone(*measurement_),
                                    object::clone(*c_arg_));
+    }
+};
+
+/**
+ * \class qasmtools::ast::ExprStmt
+ * \brief Class for expression statements
+ * \see qasmtools::ast::StmtBase
+ */
+class ExprStmt final : public Stmt {
+    ptr<Expr> exp_; ///< the expression
+
+  public:
+    /**
+     * \brief Constructs an expression statement
+     *
+     * \param pos The source position
+     * \param exp The expression
+     */
+    ExprStmt(parser::Position pos, ptr<Expr> exp)
+        : Stmt(pos), exp_(std::move(exp)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<ExprStmt> create(parser::Position pos, ptr<Expr> exp) {
+        return std::make_unique<ExprStmt>(pos, std::move(exp));
+    }
+
+    /**
+     * \brief Get the expression
+     *
+     * \return Reference to the expression
+     */
+    Expr& exp() { return *exp_; }
+
+    /**
+     * \brief Set the expression
+     *
+     * \param exp The new expression
+     */
+    void set_exp(ptr<Expr> exp) { exp_ = std::move(exp); }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
+        os << *exp_ << ";\n";
+        return os;
+    }
+
+  protected:
+    ExprStmt* clone() const override {
+        return new ExprStmt(pos_, object::clone(*exp_));
     }
 };
 
@@ -475,6 +475,13 @@ class IfStmt final : public Stmt {
      * \return A reference to the boolean expression
      */
     Expr& cond() { return *cond_; }
+
+    /**
+     * \brief Set the boolean expression
+     *
+     * \param cond The new expression
+     */
+    void set_cond(ptr<Expr> cond) { cond_ = std::move(cond); }
 
     /**
      * \brief Get the then branch
@@ -856,6 +863,13 @@ class AssignmentStmt final : public Stmt {
      * \return Reference to the expression
      */
     Expr& exp() { return *exp_; }
+
+    /**
+     * \brief Set the expression
+     *
+     * \param exp The new expression
+     */
+    void set_exp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
