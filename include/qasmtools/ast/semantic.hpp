@@ -52,28 +52,6 @@ class SemanticError : public std::exception {
 };
 
 /**
- * \struct qasmtools::ast::ConstVar
- * \brief Data struct denoting a constant variable
- */
-struct ConstVar {
-    Expr* value;
-};
-
-/**
- * \struct qasmtools::ast::NotConstVar
- * \brief Data struct denoting a variable that is not constant
- */
-struct NotConstVar {};
-
-/**
- * \brief OpenQASM types as a std::variant
- *
- * Functional-style syntax trees in C++17 as a simpler alternative
- * to inheritance hierarchy. Support is still lacking for large-scale.
- */
-using Type = std::variant<ConstVar, NotConstVar>;
-
-/**
  * \class qasmtools::ast::SemanticChecker
  * \brief Implementation of the semantic analysis compiler phase
  * \see qasmtools::ast::Visitor
@@ -82,6 +60,29 @@ using Type = std::variant<ConstVar, NotConstVar>;
  * Use the functional interface qasmtools::ast::check_source instead.
  */
 class SemanticChecker final : public Visitor {
+    /**
+     * \struct qasmtools::ast::ConstVar
+     * \brief Data struct denoting a compile-time constant variable
+     */
+    struct ConstVar {
+        Expr* value;
+        ClassicalType* type;
+    };
+
+    /**
+     * \struct qasmtools::ast::NotConstVar
+     * \brief Data struct denoting a non-constant variable
+     */
+    struct NotConstVar {};
+
+    /**
+     * \brief OpenQASM types as a std::variant
+     *
+     * Functional-style syntax trees in C++17 as a simpler alternative
+     * to inheritance hierarchy. Support is still lacking for large-scale.
+     */
+    using Type = std::variant<ConstVar, NotConstVar>;
+
   public:
     bool run(Program& prog) {
         prog.accept(*this);
@@ -187,9 +188,18 @@ class SemanticChecker final : public Visitor {
     void visit(BoolExpr&) override {}
     void visit(VarExpr& exp) override {
         auto entry = lookup(exp.var());
-        if (entry && std::holds_alternative<ConstVar>(*entry)) {
-            auto val = std::get<ConstVar>(*entry).value;
-            replacement_expr_ = object::clone(*val);
+        if (!entry) {
+            std::cerr << exp.pos() << ": error : undefined identifier \""
+                      << exp.var() << "\"\n";
+            error_ = true;
+        } else if (std::holds_alternative<ConstVar>(*entry)) {
+            auto var = std::get<ConstVar>(*entry);
+            replacement_expr_ = ptr<Expr>(new CastExpr({}, object::clone(*var.type),
+                                                       object::clone(*var.value)));
+        } else if (expect_const_) {
+            std::cerr << exp.pos() << ": error : identifier \""
+                      << exp.var() << "\" is not a compile-time constant expression\n";
+            error_ = true;
         }
     }
     void visit(StringExpr&) override {}
@@ -286,7 +296,11 @@ class SemanticChecker final : public Visitor {
         pop_scope();
     }
     // Gates
-    void visit(CtrlModifier& mod) override { visit_optional_expr(mod.n()); }
+    void visit(CtrlModifier& mod) override {
+        expect_const_ = true;
+        visit_optional_expr(mod.n());
+        expect_const_ = false;
+    }
     void visit(InvModifier&) override {}
     void visit(PowModifier& mod) override {
         mod.r().accept(*this);
@@ -461,6 +475,7 @@ class SemanticChecker final : public Visitor {
         set(decl.id(), NotConstVar{}, decl.pos());
     }
     void visit(ExternDecl& decl) override {
+        expect_const_ = true;
         for (auto& type : decl.param_types()) {
             type->accept(*this);
         }
@@ -469,6 +484,7 @@ class SemanticChecker final : public Visitor {
         if (ret_type) {
             (**ret_type).accept(*this);
         }
+        expect_const_ = false;
 
         set(decl.id(), NotConstVar{}, decl.pos());
     }
@@ -488,17 +504,35 @@ class SemanticChecker final : public Visitor {
         set(decl.id(), NotConstVar{}, decl.pos());
     }
     void visit(QuantumRegisterDecl& decl) override {
+        expect_const_ = true;
         visit_optional_expr(decl.size());
+        expect_const_ = false;
         set(decl.id(), NotConstVar{}, decl.pos());
     }
     void visit(ClassicalDecl& decl) override {
-        decl.type().accept(*this);
-        visit_optional_expr(decl.equalsexp());
-
-        if (decl.is_const())
-            set(decl.id(), ConstVar{decl.equalsexp()->get()}, decl.pos());
-        else
+        if (decl.is_const()) {
+            expect_const_ = true;
+            decl.type().accept(*this);
+            if (!decl.equalsexp()) {
+                std::cerr << decl.pos() << ": error : constant identifier \""
+                          << decl.id() << "\" must be initialized\n";
+                error_ = true;
+                expect_const_ = false;
+                return;
+            }
+            (**decl.equalsexp()).accept(*this);
+            if (replacement_expr_) {
+                decl.equalsexp() = std::move(replacement_expr_);
+                replacement_expr_ = std::nullopt;
+            }
+            expect_const_ = false;
+            set(decl.id(), ConstVar{decl.equalsexp()->get(),
+                                    std::addressof(decl.type())}, decl.pos());
+        } else {
+            decl.type().accept(*this);
+            visit_optional_expr(decl.equalsexp());
             set(decl.id(), NotConstVar{}, decl.pos());
+        }
     }
     void visit(CalGrammarDecl&) override {}
     void visit(CalibrationDecl&) override {} // need to implement when finalized
@@ -515,6 +549,7 @@ class SemanticChecker final : public Visitor {
 
   private:
     bool error_ = false; ///< whether errors have occurred
+    bool expect_const_ = false; ///< true when traversing a compile-time constant
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
         {}}; ///< a stack of symbol tables
     std::optional<ptr<Expr>> replacement_expr_;
