@@ -51,7 +51,7 @@ def hadamard_layer(qubit[n-1] ancilla) {
  */
 def cycle(qubit[n] data, qubit[n-1] ancilla) -> bit[n-1] {
   reset ancilla;
-  hadamard_layer ancilla;
+  hadamard_layer(ancilla);
 
   // First round of CNOTs in the bulk
   for row in [0: d - 2] {
@@ -74,7 +74,7 @@ def cycle(qubit[n] data, qubit[n-1] ancilla) -> bit[n-1] {
   }
   // Remaining rounds of CNOTs, go here ...
 
-  hadamard_layer ancilla;
+  hadamard_layer(ancilla);
   return measure ancilla;
 }
 

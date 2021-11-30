@@ -78,7 +78,7 @@ def distill(qubit[10] magic, qubit[3] scratch) -> bool {
   cx scratch[1], magic[0];
   h scratch[1];
   checks = measure scratch;
-  success = ~(bool(checks[0]) | bool(checks[1]) | bool(checks[2]));
+  bool success = ~(bool(checks[0]) | bool(checks[1]) | bool(checks[2]));
   return success;
 }
 
@@ -113,7 +113,7 @@ def distill_and_buffer(int[32] num, qubit[33] work, qubit[buffer_size] buffer) {
   // Run first-level circuits until 10 successes,
   // storing the outputs for use in the second level
   for i in [0: 9] {
-    rus_level_0 magic_lvl0, scratch;
+    rus_level_0(magic_lvl0, scratch);
     swap magic_lvl0[0], magic_lvl1_0[i];
     swap magic_lvl0[1], magic_lvl1_1[i];
   }
@@ -154,15 +154,15 @@ reset workspace;
 reset buffer;
 reset q;
 
-distill_and_buffer(buffer_size) workspace, buffer;
+distill_and_buffer(buffer_size, workspace, buffer);
 
 // Consume magic states to apply some gates ...
 h q[0];
 cx q[0], q[1];
-Ty(address) q[0], buffer;
+Ty(address, q[0], buffer);
 address += 1;
 cx q[0], q[1];
-Ty(address) q[1], buffer;
+Ty(address, q[1], buffer);
 address += 1;
 
 // In principle each Ty gate can execute as soon as the magic

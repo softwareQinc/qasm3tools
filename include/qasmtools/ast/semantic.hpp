@@ -1016,33 +1016,121 @@ class CallChecker final : public Visitor {
     }
     // Gates
     void visit(CtrlModifier& mod) override {
-        visit_optional_classical_expr(mod.n());
+        if (mod.n()) {
+            auto val = evaluate(**mod.n());
+            if (val) {
+                if (*val <= 0) {
+                    std::cerr << mod.pos() << ": error : number of control bits must be positive\n";
+                    error_ = true;
+                } else {
+                    mod.n() = ptr<Expr>(new IntExpr({}, *val));
+                    control_bits_ = *val;
+                }
+            } else {
+                std::cerr << mod.pos() << ": error : unable to evaluate the number of control bits\n";
+                error_ = true;
+            }
+        } else {
+            control_bits_ = 1;
+        }
     }
     void visit(InvModifier&) override {}
     void visit(PowModifier& mod) override {
         visit_classical_expr(mod.r());
     }
     void visit(UGate& gate) override {
-        for (auto& mod : gate.modifiers())
+        int total_control_bits = 0;
+        for (auto &mod: gate.modifiers()) {
+            control_bits_ = 0;
             mod->accept(*this);
+            if (error_)
+                return;
+            total_control_bits += control_bits_;
+        }
+
         visit_classical_expr(gate.theta());
         visit_classical_expr(gate.phi());
         visit_classical_expr(gate.lambda());
+
+        if (gate.num_qargs() != 1 + total_control_bits) {
+            std::cerr << gate.pos() << ": error : gate \"U\" expects "
+                      << 1 << " quantum parameter";
+            if (total_control_bits > 0) {
+                std::cerr << " plus " << total_control_bits << " control bits";
+            }
+            std::cerr << ", but got " << gate.num_qargs() << "\n";
+            error_ = true;
+            return;
+        }
         gate.foreach_qarg([this](IndexId& qarg) { visit_quantum_indexid(qarg); });
     }
     void visit(GPhase& gate) override {
-        for (auto& mod : gate.modifiers())
+        int total_control_bits = 0;
+        for (auto &mod: gate.modifiers()) {
+            control_bits_ = 0;
             mod->accept(*this);
+            if (error_)
+                return;
+            total_control_bits += control_bits_;
+        }
+
         visit_classical_expr(gate.gamma());
+
+
+        if (gate.num_qargs() != total_control_bits) {
+            std::cerr << gate.pos() << ": error : gate \"gphase\" expects "
+                      << total_control_bits << " quantum parameters, but got "
+                      << gate.num_qargs() << "\n";
+            error_ = true;
+            return;
+        }
         gate.foreach_qarg([this](IndexId& qarg) { visit_quantum_indexid(qarg); });
     }
     void visit(DeclaredGate& gate) override {
-        for (auto& mod : gate.modifiers())
-            mod->accept(*this);
-        for (int i = 0; i < gate.num_cargs(); i++) {
-            visit_classical_expr(gate.carg(i));
+        auto entry = lookup(gate.name());
+        if (!entry) {
+            std::cerr << gate.pos() << ": error : undefined gate \""
+                      << gate.name() << "\"\n";
+            error_ = true;
+        } else if (!std::holds_alternative<GateType>(*entry)) {
+            std::cerr << gate.pos() << ": error : identifier \""
+                      << gate.name() << "\" is not a gate\n";
+            error_ = true;
+        } else {
+            auto gate_type = std::get<GateType>(*entry);
+
+            int total_control_bits = 0;
+            for (auto &mod: gate.modifiers()) {
+                control_bits_ = 0;
+                mod->accept(*this);
+                if (error_)
+                    return;
+                total_control_bits += control_bits_;
+            }
+
+            if (gate.num_cargs() != gate_type.num_c_params) {
+                std::cerr << gate.pos() << ": error : gate \""
+                          << gate.name() << "\" expects "
+                          << gate_type.num_c_params << " classical parameters, but got "
+                          << gate.num_cargs() << "\n";
+                error_ = true;
+                return;
+            }
+            gate.foreach_carg([this](Expr &carg) { visit_classical_expr(carg); });
+
+            if (gate.num_qargs() != gate_type.num_q_params+total_control_bits) {
+                std::cerr << gate.pos() << ": error : gate \""
+                          << gate.name() << "\" expects "
+                          << gate_type.num_q_params << " quantum parameters";
+                if (total_control_bits > 0) {
+                    std::cerr << " plus " << total_control_bits << " control bits";
+                }
+                std::cerr << ", but got " << gate.num_qargs() << "\n";
+                error_ = true;
+                return;
+            }
+            gate.foreach_qarg([this](IndexId &qarg) { visit_quantum_indexid(qarg); });
         }
-        gate.foreach_qarg([this](IndexId& qarg) { visit_quantum_indexid(qarg); });
     }
     // Loops
     void visit(RangeSet& set) override {
@@ -1226,6 +1314,7 @@ class CallChecker final : public Visitor {
 
   private:
     bool error_ = false; ///< whether errors have occurred
+    int control_bits_ = 0; ///< number of control bits from control modifiers
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
         {}}; ///< a stack of symbol tables
     Types type_ = Types::None;
@@ -1327,6 +1416,153 @@ class CallChecker final : public Visitor {
             std::cerr << indexid.pos() << ": error : expected quantum register, but got classical type\n";
             error_ = true;
         }
+    }
+
+    class ConstIntEvaluator final : public Visitor {
+        std::optional<int> value_ = std::nullopt; ///< return value
+        bool cast_is_int_ = false;
+
+      public:
+        std::optional<int> evaluate(Expr& exp) {
+            exp.accept(*this);
+            return value_;
+        }
+
+        // Index identifiers
+        void visit(RangeSlice&) override {}
+        void visit(ListSlice&) override {}
+        void visit(VarAccess&) override {}
+        void visit(Concat&) override {}
+        // Types
+        void visit(SingleDesignatorType& type) override {
+            cast_is_int_ = type.type() == SDType::Int || type.type() == SDType::Uint;
+        }
+        void visit(NoDesignatorType&) override {
+            cast_is_int_ = false;
+        }
+        void visit(BitType&) override {
+            cast_is_int_ = false;
+        }
+        void visit(ComplexType&) override {
+            cast_is_int_ = false;
+        }
+        // Expressions
+        void visit(BExpr& exp) override {
+            exp.lexp().accept(*this);
+            auto lexp = value_;
+            exp.rexp().accept(*this);
+            auto rexp = value_;
+            if (lexp && rexp) {
+                switch (exp.op()) {
+                    case BinaryOp::Plus:
+                        value_ = *lexp + *rexp;
+                        break;
+                    case BinaryOp::Minus:
+                        value_ = *lexp - *rexp;
+                        break;
+                    case BinaryOp::Times:
+                        value_ = *lexp * *rexp;
+                        break;
+                    case BinaryOp::Divide:
+                        value_ = *lexp / *rexp;
+                        break;
+                    case BinaryOp::Pow:
+                        value_ = pow(*lexp, *rexp);
+                        break;
+                    default:
+                        value_ = std::nullopt;
+                }
+            } else
+                value_ = std::nullopt;
+        }
+        void visit(UExpr& exp) override {
+            exp.subexp().accept(*this);
+            auto subexp = value_;
+            if (subexp) {
+                switch (exp.op()) {
+                    case UnaryOp::Neg:
+                        value_ = -(*subexp);
+                        break;
+                    default:
+                        value_ = std::nullopt;
+                }
+            } else
+                value_ = std::nullopt;
+        }
+        void visit(MathExpr&) override { value_ = std::nullopt; }
+        void visit(CastExpr& exp) override {
+            exp.type().accept(*this);
+            if (cast_is_int_) {
+                exp.subexp().accept(*this);
+            } else {
+                value_ = std::nullopt;
+            }
+        }
+        void visit(FunctionCall&) override { value_ = std::nullopt; }
+        void visit(AccessExpr&) override { value_ = std::nullopt; }
+        void visit(ConstantExpr&) override { value_ = std::nullopt; }
+        void visit(IntExpr& exp) override { value_ = exp.value(); }
+        void visit(RealExpr&) override { value_ = std::nullopt; }
+        void visit(ImagExpr&) override { value_ = std::nullopt; }
+        void visit(BoolExpr&) override { value_ = std::nullopt; }
+        void visit(VarExpr& exp) override { value_ = std::nullopt; }
+        void visit(StringExpr&) override { value_ = std::nullopt; }
+        void visit(TimeExpr&) override { value_ = std::nullopt; }
+        void visit(DurationGateExpr&) override { value_ = std::nullopt; }
+        void visit(DurationBlockExpr&) override { value_ = std::nullopt; }
+        // Statement components
+        void visit(QuantumMeasurement&) override {}
+        void visit(ProgramBlock&) override {}
+        void visit(QuantumBlock&) override {}
+        // Statements
+        void visit(MeasureStmt&) override {}
+        void visit(MeasureAsgnStmt&) override {}
+        void visit(ExprStmt&) override {}
+        void visit(ResetStmt&) override {}
+        void visit(BarrierStmt&) override {}
+        void visit(IfStmt&) override {}
+        void visit(BreakStmt&) override {}
+        void visit(ContinueStmt&) override {}
+        void visit(ReturnStmt&) override {}
+        void visit(EndStmt&) override {}
+        void visit(AliasStmt&) override {}
+        void visit(AssignmentStmt&) override {}
+        void visit(PragmaStmt&) override {}
+        // Gates
+        void visit(CtrlModifier&) override {}
+        void visit(InvModifier&) override {}
+        void visit(PowModifier&) override {}
+        void visit(UGate&) override {}
+        void visit(GPhase&) override {}
+        void visit(DeclaredGate&) override {}
+        // Loops
+        void visit(RangeSet&) override {}
+        void visit(ListSet&) override {}
+        void visit(VarSet&) override {}
+        void visit(ForStmt&) override {}
+        void visit(WhileStmt&) override {}
+        void visit(QuantumForStmt&) override {}
+        void visit(QuantumWhileStmt&) override {}
+        // Timing Statements
+        void visit(DelayStmt&) override {}
+        void visit(RotaryStmt&) override {}
+        void visit(BoxStmt&) override {}
+        // Declarations
+        void visit(ClassicalParam&) override {}
+        void visit(QubitParam&) override {}
+        void visit(SubroutineDecl&) override {}
+        void visit(ExternDecl&) override {}
+        void visit(GateDecl&) override {}
+        void visit(QuantumRegisterDecl&) override {}
+        void visit(ClassicalDecl&) override {}
+        void visit(CalGrammarDecl&) override {}
+        void visit(CalibrationDecl&) override {}
+        // Program
+        void visit(Program&) override {}
+    };
+
+    std::optional<int> evaluate(Expr& exp) {
+        return ConstIntEvaluator().evaluate(exp);
     }
 };
 
