@@ -118,17 +118,23 @@ class ConstExprChecker final : public Visitor {
                       << va.var() << "\"\n";
             error_ = true;
         } else {
-            std::visit(utils::overloaded{[this, &va](ConstVar&) {
-                           std::cerr << va.pos() << ": error : constant variable \""
-                                     << va.var() << "\" cannot be used as an argument\n";
-                           error_ = true;
-                       },
-                       [this, &va](LoopVar&) {
-                           std::cerr << va.pos() << ": error : loop variable \""
-                                     << va.var() << "\" cannot be used as an argument\n";
-                           error_ = true;
-                       },
-                       [](auto) {}},
+            std::visit(utils::overloaded{
+                           [this, &va](ConstVar&) {
+                               std::cerr
+                                   << va.pos()
+                                   << ": error : constant variable \""
+                                   << va.var()
+                                   << "\" cannot be used as an argument\n";
+                               error_ = true;
+                           },
+                           [this, &va](LoopVar&) {
+                               std::cerr
+                                   << va.pos() << ": error : loop variable \""
+                                   << va.var()
+                                   << "\" cannot be used as an argument\n";
+                               error_ = true;
+                           },
+                           [](auto) {}},
                        *entry);
         }
         if (va.slice())
@@ -220,11 +226,11 @@ class ConstExprChecker final : public Visitor {
             error_ = true;
         } else if (std::holds_alternative<ConstVar>(*entry)) {
             auto var = std::get<ConstVar>(*entry);
-            replacement_expr_ = ptr<Expr>(new CastExpr({}, object::clone(*var.type),
-                                                       object::clone(*var.value)));
+            replacement_expr_ = ptr<Expr>(new CastExpr(
+                {}, object::clone(*var.type), object::clone(*var.value)));
         } else if (expect_const_) {
-            std::cerr << exp.pos() << ": error : identifier \""
-                      << exp.var() << "\" is not a compile-time constant expression\n";
+            std::cerr << exp.pos() << ": error : identifier \"" << exp.var()
+                      << "\" is not a compile-time constant expression\n";
             error_ = true;
         }
     }
@@ -315,11 +321,13 @@ class ConstExprChecker final : public Visitor {
                       << stmt.var() << "\"\n";
             error_ = true;
         } else if (std::holds_alternative<ConstVar>(*entry)) {
-            std::cerr << stmt.pos() << ": error : cannot assign to constant variable \""
+            std::cerr << stmt.pos()
+                      << ": error : cannot assign to constant variable \""
                       << stmt.var() << "\"\n";
             error_ = true;
         } else if (std::holds_alternative<LoopVar>(*entry)) {
-            std::cerr << stmt.pos() << ": error : cannot assign to loop variable \""
+            std::cerr << stmt.pos()
+                      << ": error : cannot assign to loop variable \""
                       << stmt.var() << "\"\n";
             error_ = true;
         }
@@ -569,8 +577,9 @@ class ConstExprChecker final : public Visitor {
                 replacement_expr_ = std::nullopt;
             }
             expect_const_ = false;
-            set(decl.id(), ConstVar{decl.equalsexp()->get(),
-                                    std::addressof(decl.type())}, decl.pos());
+            set(decl.id(),
+                ConstVar{decl.equalsexp()->get(), std::addressof(decl.type())},
+                decl.pos());
         } else {
             decl.type().accept(*this);
             visit_optional_expr(decl.equalsexp());
@@ -592,7 +601,8 @@ class ConstExprChecker final : public Visitor {
 
   private:
     bool error_ = false; ///< whether errors have occurred
-    bool expect_const_ = false; ///< true when traversing a compile-time constant
+    bool expect_const_ =
+        false; ///< true when traversing a compile-time constant
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
         {}}; ///< a stack of symbol tables
     std::optional<ptr<Expr>> replacement_expr_;
@@ -682,12 +692,7 @@ class ConstExprChecker final : public Visitor {
  * \see qasmtools::ast::Visitor
  */
 class CallChecker final : public Visitor {
-    enum class Types {
-        None,
-        Classical,
-        QuantumBit,
-        QuantumRegister
-    };
+    enum class Types { None, Classical, QuantumBit, QuantumRegister };
 
     /**
      * \brief Data struct denoting a classical-type variable
@@ -731,8 +736,9 @@ class CallChecker final : public Visitor {
      * Functional-style syntax trees in C++17 as a simpler alternative
      * to inheritance hierarchy. Support is still lacking for large-scale.
      */
-    using Type = std::variant<ClassicalType, QuantumBitType,
-        QuantumRegisterType, GateType, SubroutineType, OtherType>;
+    using Type =
+        std::variant<ClassicalType, QuantumBitType, QuantumRegisterType,
+                     GateType, SubroutineType, OtherType>;
 
   public:
     bool run(Program& prog) {
@@ -765,8 +771,8 @@ class CallChecker final : public Visitor {
         } else if (std::holds_alternative<QuantumBitType>(*entry)) {
             type_ = Types::QuantumBit;
             if (va.slice()) {
-                std::cerr << va.pos() << ": error : quantum bit \""
-                          << va.var() << "\" cannnot be indexed\n";
+                std::cerr << va.pos() << ": error : quantum bit \"" << va.var()
+                          << "\" cannnot be indexed\n";
                 error_ = true;
                 type_ = Types::None;
             }
@@ -775,8 +781,8 @@ class CallChecker final : public Visitor {
                 (**va.slice()).accept(*this);
             type_ = Types::Classical;
         } else {
-            std::cerr << va.pos() << ": error : identifier \""
-                      << va.var() << "\" is not a quantum type\n";
+            std::cerr << va.pos() << ": error : identifier \"" << va.var()
+                      << "\" is not a quantum type\n";
             error_ = true;
             type_ = Types::None;
         }
@@ -791,7 +797,9 @@ class CallChecker final : public Visitor {
         } else if (t1 == Types::Classical && t2 == Types::Classical) {
             type_ = Types::Classical;
         } else if (t1 == Types::Classical || t2 == Types::Classical) {
-            std::cerr << c.pos() << ": error : concatenation of classical and quantum register\n";
+            std::cerr << c.pos()
+                      << ": error : concatenation of classical and quantum "
+                         "register\n";
             error_ = true;
             type_ = Types::None;
         } else {
@@ -814,7 +822,9 @@ class CallChecker final : public Visitor {
         exp.rexp().accept(*this);
         auto t2 = type_;
         if (t1 != Types::Classical || t2 != Types::Classical) {
-            std::cerr << exp.pos() << ": error : binary expression expects classical type operands\n";
+            std::cerr << exp.pos()
+                      << ": error : binary expression expects classical type "
+                         "operands\n";
             error_ = true;
         }
         type_ = Types::Classical;
@@ -822,7 +832,9 @@ class CallChecker final : public Visitor {
     void visit(UExpr& exp) override {
         exp.subexp().accept(*this);
         if (type_ != Types::Classical) {
-            std::cerr << exp.pos() << ": error : unary expression expects classical type operand\n";
+            std::cerr << exp.pos()
+                      << ": error : unary expression expects classical type "
+                         "operand\n";
             error_ = true;
             type_ = Types::None;
         }
@@ -851,23 +863,23 @@ class CallChecker final : public Visitor {
             if (subrtn_type.param_types.size() != exp.num_args()) {
                 std::cerr << exp.pos() << ": error : subroutine \""
                           << exp.name() << "\" expects "
-                          << subrtn_type.param_types.size()  << " arguments, but got "
-                          << exp.num_args() << "\n";
+                          << subrtn_type.param_types.size()
+                          << " arguments, but got " << exp.num_args() << "\n";
                 error_ = true;
             } else {
                 for (int i = 0; i < exp.num_args(); i++) {
                     exp.arg(i).accept(*this);
                     if (type_ != subrtn_type.param_types[i]) {
-                        std::cerr << exp.pos() << ": error : argument "
-                                  << i << " is the wrong type\n";
+                        std::cerr << exp.pos() << ": error : argument " << i
+                                  << " is the wrong type\n";
                         error_ = true;
                     }
                 }
             }
             type_ = subrtn_type.return_type;
         } else {
-            std::cerr << exp.pos() << ": error : identifier \""
-                      << exp.name() << "\" is not a subroutine\n";
+            std::cerr << exp.pos() << ": error : identifier \"" << exp.name()
+                      << "\" is not a subroutine\n";
             error_ = true;
             type_ = Types::None;
         }
@@ -881,7 +893,8 @@ class CallChecker final : public Visitor {
         } else if (tmp == Types::QuantumRegister) {
             type_ = Types::QuantumBit;
         } else if (tmp == Types::QuantumBit) {
-            std::cerr << exp.exp().pos() << ": error : invalid access operator\n";
+            std::cerr << exp.exp().pos()
+                      << ": error : invalid access operator\n";
             error_ = true;
             type_ = Types::None;
         }
@@ -920,8 +933,8 @@ class CallChecker final : public Visitor {
                       << exp.gate() << "\"\n";
             error_ = true;
         } else if (!std::holds_alternative<GateType>(*entry)) {
-            std::cerr << exp.pos() << ": error : identifier \""
-                      << exp.gate() << "\" is not a gate\n";
+            std::cerr << exp.pos() << ": error : identifier \"" << exp.gate()
+                      << "\" is not a gate\n";
             error_ = true;
         }
         type_ = Types::Classical;
@@ -952,13 +965,13 @@ class CallChecker final : public Visitor {
         stmt.measurement().accept(*this);
         stmt.c_arg().accept(*this);
         if (type_ == Types::QuantumBit || type_ == Types::QuantumRegister) {
-            std::cerr << stmt.c_arg().pos() << ": error : expected classical register, but got quantum type\n";
+            std::cerr << stmt.c_arg().pos()
+                      << ": error : expected classical register, but got "
+                         "quantum type\n";
             error_ = true;
         }
     }
-    void visit(ExprStmt& stmt) override {
-        stmt.exp().accept(*this);
-    }
+    void visit(ExprStmt& stmt) override { stmt.exp().accept(*this); }
     void visit(ResetStmt& stmt) override {
         for (int i = 0; i < stmt.num_args(); i++)
             visit_quantum_indexid(stmt.arg(i));
@@ -981,14 +994,12 @@ class CallChecker final : public Visitor {
     void visit(BreakStmt&) override {}
     void visit(ContinueStmt&) override {}
     void visit(ReturnStmt& stmt) override {
-        std::visit(utils::overloaded{[this](ptr<QuantumMeasurement>& qm) {
-                                         qm->accept(*this);
-                                     },
-                                     [this](ptr<Expr>& exp) {
-                                         visit_classical_expr(*exp);
-                                     },
-                                     [](auto) {}},
-                   stmt.value());
+        std::visit(
+            utils::overloaded{
+                [this](ptr<QuantumMeasurement>& qm) { qm->accept(*this); },
+                [this](ptr<Expr>& exp) { visit_classical_expr(*exp); },
+                [](auto) {}},
+            stmt.value());
     }
     void visit(EndStmt&) override {}
     void visit(AliasStmt& stmt) override {
@@ -1002,8 +1013,8 @@ class CallChecker final : public Visitor {
                       << stmt.var() << "\"\n";
             error_ = true;
         } else if (!std::holds_alternative<ClassicalType>(*entry)) {
-            std::cerr << stmt.pos() << ": error : identifier \""
-                      << stmt.var() << "\" is not a classical type\n";
+            std::cerr << stmt.pos() << ": error : identifier \"" << stmt.var()
+                      << "\" is not a classical type\n";
             error_ = true;
         }
         visit_optional_classical_expr(stmt.index());
@@ -1020,14 +1031,18 @@ class CallChecker final : public Visitor {
             auto val = evaluate(**mod.n());
             if (val) {
                 if (*val <= 0) {
-                    std::cerr << mod.pos() << ": error : number of control bits must be positive\n";
+                    std::cerr << mod.pos()
+                              << ": error : number of control bits must be "
+                                 "positive\n";
                     error_ = true;
                 } else {
                     mod.n() = ptr<Expr>(new IntExpr({}, *val));
                     control_bits_ = *val;
                 }
             } else {
-                std::cerr << mod.pos() << ": error : unable to evaluate the number of control bits\n";
+                std::cerr << mod.pos()
+                          << ": error : unable to evaluate the number of "
+                             "control bits\n";
                 error_ = true;
             }
         } else {
@@ -1035,12 +1050,10 @@ class CallChecker final : public Visitor {
         }
     }
     void visit(InvModifier&) override {}
-    void visit(PowModifier& mod) override {
-        visit_classical_expr(mod.r());
-    }
+    void visit(PowModifier& mod) override { visit_classical_expr(mod.r()); }
     void visit(UGate& gate) override {
         int total_control_bits = 0;
-        for (auto &mod: gate.modifiers()) {
+        for (auto& mod : gate.modifiers()) {
             control_bits_ = 0;
             mod->accept(*this);
             if (error_)
@@ -1053,8 +1066,8 @@ class CallChecker final : public Visitor {
         visit_classical_expr(gate.lambda());
 
         if (gate.num_qargs() != 1 + total_control_bits) {
-            std::cerr << gate.pos() << ": error : gate \"U\" expects "
-                      << 1 << " quantum parameter";
+            std::cerr << gate.pos() << ": error : gate \"U\" expects " << 1
+                      << " quantum parameter";
             if (total_control_bits > 0) {
                 std::cerr << " plus " << total_control_bits << " control bits";
             }
@@ -1062,11 +1075,12 @@ class CallChecker final : public Visitor {
             error_ = true;
             return;
         }
-        gate.foreach_qarg([this](IndexId& qarg) { visit_quantum_indexid(qarg); });
+        gate.foreach_qarg(
+            [this](IndexId& qarg) { visit_quantum_indexid(qarg); });
     }
     void visit(GPhase& gate) override {
         int total_control_bits = 0;
-        for (auto &mod: gate.modifiers()) {
+        for (auto& mod : gate.modifiers()) {
             control_bits_ = 0;
             mod->accept(*this);
             if (error_)
@@ -1076,7 +1090,6 @@ class CallChecker final : public Visitor {
 
         visit_classical_expr(gate.gamma());
 
-
         if (gate.num_qargs() != total_control_bits) {
             std::cerr << gate.pos() << ": error : gate \"gphase\" expects "
                       << total_control_bits << " quantum parameters, but got "
@@ -1084,7 +1097,8 @@ class CallChecker final : public Visitor {
             error_ = true;
             return;
         }
-        gate.foreach_qarg([this](IndexId& qarg) { visit_quantum_indexid(qarg); });
+        gate.foreach_qarg(
+            [this](IndexId& qarg) { visit_quantum_indexid(qarg); });
     }
     void visit(DeclaredGate& gate) override {
         auto entry = lookup(gate.name());
@@ -1093,14 +1107,14 @@ class CallChecker final : public Visitor {
                       << gate.name() << "\"\n";
             error_ = true;
         } else if (!std::holds_alternative<GateType>(*entry)) {
-            std::cerr << gate.pos() << ": error : identifier \""
-                      << gate.name() << "\" is not a gate\n";
+            std::cerr << gate.pos() << ": error : identifier \"" << gate.name()
+                      << "\" is not a gate\n";
             error_ = true;
         } else {
             auto gate_type = std::get<GateType>(*entry);
 
             int total_control_bits = 0;
-            for (auto &mod: gate.modifiers()) {
+            for (auto& mod : gate.modifiers()) {
                 control_bits_ = 0;
                 mod->accept(*this);
                 if (error_)
@@ -1109,27 +1123,31 @@ class CallChecker final : public Visitor {
             }
 
             if (gate.num_cargs() != gate_type.num_c_params) {
-                std::cerr << gate.pos() << ": error : gate \""
-                          << gate.name() << "\" expects "
-                          << gate_type.num_c_params << " classical parameters, but got "
+                std::cerr << gate.pos() << ": error : gate \"" << gate.name()
+                          << "\" expects " << gate_type.num_c_params
+                          << " classical parameters, but got "
                           << gate.num_cargs() << "\n";
                 error_ = true;
                 return;
             }
-            gate.foreach_carg([this](Expr &carg) { visit_classical_expr(carg); });
+            gate.foreach_carg(
+                [this](Expr& carg) { visit_classical_expr(carg); });
 
-            if (gate.num_qargs() != gate_type.num_q_params+total_control_bits) {
-                std::cerr << gate.pos() << ": error : gate \""
-                          << gate.name() << "\" expects "
-                          << gate_type.num_q_params << " quantum parameters";
+            if (gate.num_qargs() !=
+                gate_type.num_q_params + total_control_bits) {
+                std::cerr << gate.pos() << ": error : gate \"" << gate.name()
+                          << "\" expects " << gate_type.num_q_params
+                          << " quantum parameters";
                 if (total_control_bits > 0) {
-                    std::cerr << " plus " << total_control_bits << " control bits";
+                    std::cerr << " plus " << total_control_bits
+                              << " control bits";
                 }
                 std::cerr << ", but got " << gate.num_qargs() << "\n";
                 error_ = true;
                 return;
             }
-            gate.foreach_qarg([this](IndexId &qarg) { visit_quantum_indexid(qarg); });
+            gate.foreach_qarg(
+                [this](IndexId& qarg) { visit_quantum_indexid(qarg); });
         }
     }
     // Loops
@@ -1150,8 +1168,8 @@ class CallChecker final : public Visitor {
                       << vs.var() << "\"\n";
             error_ = true;
         } else if (!std::holds_alternative<ClassicalType>(*entry)) {
-            std::cerr << vs.pos() << ": error : identifier \""
-                      << vs.var() << "\" is not a classical type\n";
+            std::cerr << vs.pos() << ": error : identifier \"" << vs.var()
+                      << "\" is not a classical type\n";
             error_ = true;
         }
     }
@@ -1278,8 +1296,10 @@ class CallChecker final : public Visitor {
 
         pop_scope();
 
-        set(decl.id(), GateType{(int) decl.c_params().size(),
-                                (int) decl.q_params().size()}, decl.pos());
+        set(decl.id(),
+            GateType{(int) decl.c_params().size(),
+                     (int) decl.q_params().size()},
+            decl.pos());
     }
     void visit(QuantumRegisterDecl& decl) override {
         visit_optional_classical_expr(decl.size());
@@ -1313,7 +1333,7 @@ class CallChecker final : public Visitor {
     }
 
   private:
-    bool error_ = false; ///< whether errors have occurred
+    bool error_ = false;   ///< whether errors have occurred
     int control_bits_ = 0; ///< number of control bits from control modifiers
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
         {}}; ///< a stack of symbol tables
@@ -1390,7 +1410,9 @@ class CallChecker final : public Visitor {
     void visit_classical_expr(Expr& exp) {
         exp.accept(*this);
         if (type_ != Types::Classical) {
-            std::cerr << exp.pos() << ": error : expected classical expression, but got \"" << exp << "\"\n";
+            std::cerr << exp.pos()
+                      << ": error : expected classical expression, but got \""
+                      << exp << "\"\n";
             error_ = true;
         }
     }
@@ -1413,7 +1435,9 @@ class CallChecker final : public Visitor {
     void visit_quantum_indexid(IndexId& indexid) {
         indexid.accept(*this);
         if (type_ == Types::Classical) {
-            std::cerr << indexid.pos() << ": error : expected quantum register, but got classical type\n";
+            std::cerr << indexid.pos()
+                      << ": error : expected quantum register, but got "
+                         "classical type\n";
             error_ = true;
         }
     }
@@ -1435,17 +1459,12 @@ class CallChecker final : public Visitor {
         void visit(Concat&) override {}
         // Types
         void visit(SingleDesignatorType& type) override {
-            cast_is_int_ = type.type() == SDType::Int || type.type() == SDType::Uint;
+            cast_is_int_ =
+                type.type() == SDType::Int || type.type() == SDType::Uint;
         }
-        void visit(NoDesignatorType&) override {
-            cast_is_int_ = false;
-        }
-        void visit(BitType&) override {
-            cast_is_int_ = false;
-        }
-        void visit(ComplexType&) override {
-            cast_is_int_ = false;
-        }
+        void visit(NoDesignatorType&) override { cast_is_int_ = false; }
+        void visit(BitType&) override { cast_is_int_ = false; }
+        void visit(ComplexType&) override { cast_is_int_ = false; }
         // Expressions
         void visit(BExpr& exp) override {
             exp.lexp().accept(*this);
