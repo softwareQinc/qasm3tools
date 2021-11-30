@@ -112,26 +112,24 @@ class ConstExprChecker final : public Visitor {
         }
     }
     void visit(VarAccess& va) override {
-        if (measurement_output_) {
-            auto entry = lookup(va.var());
-            if (!entry) {
-                std::cerr << va.pos() << ": error : undefined identifier \""
-                          << va.var() << "\"\n";
-                error_ = true;
-            } else {
-                std::visit(utils::overloaded{[this, &va](ConstVar&) {
-                               std::cerr << va.pos() << ": error : cannot assign measurement to constant variable \""
-                                         << va.var() << "\"\n";
-                               error_ = true;
-                           },
-                           [this, &va](LoopVar&) {
-                               std::cerr << va.pos() << ": error : cannot assign measurement to loop variable \""
-                                         << va.var() << "\"\n";
-                               error_ = true;
-                           },
-                           [](auto) {}},
-                           *entry);
-            }
+        auto entry = lookup(va.var());
+        if (!entry) {
+            std::cerr << va.pos() << ": error : undefined identifier \""
+                      << va.var() << "\"\n";
+            error_ = true;
+        } else {
+            std::visit(utils::overloaded{[this, &va](ConstVar&) {
+                           std::cerr << va.pos() << ": error : constant variable \""
+                                     << va.var() << "\" cannot be used as an argument\n";
+                           error_ = true;
+                       },
+                       [this, &va](LoopVar&) {
+                           std::cerr << va.pos() << ": error : loop variable \""
+                                     << va.var() << "\" cannot be used as an argument\n";
+                           error_ = true;
+                       },
+                       [](auto) {}},
+                       *entry);
         }
         if (va.slice())
             (**va.slice()).accept(*this);
@@ -256,9 +254,7 @@ class ConstExprChecker final : public Visitor {
     void visit(MeasureStmt& stmt) override { stmt.measurement().accept(*this); }
     void visit(MeasureAsgnStmt& stmt) override {
         stmt.measurement().accept(*this);
-        measurement_output_ = true;
         stmt.c_arg().accept(*this);
-        measurement_output_ = false;
     }
     void visit(ExprStmt& stmt) override {
         stmt.exp().accept(*this);
@@ -597,7 +593,6 @@ class ConstExprChecker final : public Visitor {
   private:
     bool error_ = false; ///< whether errors have occurred
     bool expect_const_ = false; ///< true when traversing a compile-time constant
-    bool measurement_output_ = false; ///< true when traversing the classical argument of a measurement assignment
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
         {}}; ///< a stack of symbol tables
     std::optional<ptr<Expr>> replacement_expr_;
