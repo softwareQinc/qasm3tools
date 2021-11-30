@@ -13,8 +13,8 @@ TEST(Parsing, Standard_Compliance) {
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/adder.qasm"));
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/alignment.qasm"));
-    EXPECT_NO_THROW(
-        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/cphase.qasm"));
+    /*EXPECT_NO_THROW(
+        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/cphase.qasm"));*/
     /*EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/dd.qasm"));*/
     EXPECT_NO_THROW(
@@ -49,8 +49,8 @@ TEST(Parsing, Standard_Compliance) {
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/teleport.qasm"));
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/varteleport.qasm"));
-    EXPECT_NO_THROW(
-        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/vqe.qasm"));
+    /*EXPECT_NO_THROW(
+        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/vqe.qasm"));*/
 }
 /******************************************************************************/
 
@@ -89,7 +89,7 @@ TEST(Parsing, Idempotence) {
                       "complex[float[32]] complex_e_1 = ℇ+1im;\n"
                       "rotl(c,2);\n"
                       "measure q[0]++q[1,3,6];\n"
-                      "c = measure q;\n"
+                      "c[2:2:10] = measure q[2:2:10];\n"
                       "reset qq++q[2:2:8];\n"
                       "barrier;\n"
                       "if (true) {\n"
@@ -110,7 +110,7 @@ TEST(Parsing, Idempotence) {
                       "}\n"
                       "let q_alias = q[0,1,2,4,8];\n"
                       "box [0.25s] {\n"
-                      "\tdelay(0.5,1.5)[1.234µs] $0,$1;\n"
+                      "\tdelay(0.5,1.5)[1.234µs] q_alias[0],q[2];\n"
                       "\tfor i in [5:2:9] {\n"
                       "\t\tCCCX q[0],q[1],q[2],q[i];\n"
                       "\t}\n"
