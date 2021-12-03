@@ -57,10 +57,12 @@ class SemanticError : public std::exception {
  * const expressions, and that const variables are not assigned to. Also
  * replaces occurences of const expressions with their values, e.g.
  *   const int[32] n = 8;
- *   qubit[n] q;
+ *   qubit[n-1] q;
+ *   int[16] i = n;
  * becomes
  *   const int[32] n = 8;
- *   qubit[int[32](8)] q;
+ *   qubit[7] q;
+ *   int[16] i = int[32](8);
  * \see qasmtools::ast::Visitor
  */
 class ConstExprChecker final : public Visitor {
@@ -151,6 +153,20 @@ class ConstExprChecker final : public Visitor {
             type.set_size(std::move(*replacement_expr_));
             replacement_expr_ = std::nullopt;
         }
+        auto size = evaluate(type.size());
+        if (size) {
+            if (*size <= 0) {
+                std::cerr << type.pos()
+                          << ": error : designator size must be positive\n";
+                error_ = true;
+            } else
+                type.set_size(ptr<Expr>(new IntExpr({}, *size)));
+        } else {
+            std::cerr
+                << type.pos()
+                << ": error : designator size is not a compile-time constant\n";
+            error_ = true;
+        }
     }
     void visit(NoDesignatorType&) override {}
     void visit(BitType& type) override { visit_optional_expr(type.size()); }
@@ -200,6 +216,12 @@ class ConstExprChecker final : public Visitor {
                 replacement_expr_ = std::nullopt;
             }
         }
+        if (expect_const_) {
+            std::cerr
+                << exp.pos()
+                << ": error : function call is not a constant expression\n";
+            error_ = true;
+        }
     }
     void visit(AccessExpr& exp) override {
         exp.exp().accept(*this);
@@ -230,7 +252,7 @@ class ConstExprChecker final : public Visitor {
                 {}, object::clone(*var.type), object::clone(*var.value)));
         } else if (expect_const_) {
             std::cerr << exp.pos() << ": error : identifier \"" << exp.var()
-                      << "\" is not a compile-time constant expression\n";
+                      << "\" is not a constant expression\n";
             error_ = true;
         }
     }
@@ -345,9 +367,24 @@ class ConstExprChecker final : public Visitor {
     }
     // Gates
     void visit(CtrlModifier& mod) override {
-        expect_const_ = true;
         visit_optional_expr(mod.n());
-        expect_const_ = false;
+        if (mod.n()) {
+            auto n = evaluate(**mod.n());
+            if (n) {
+                if (*n <= 0) {
+                    std::cerr << mod.pos()
+                              << ": error : number of control bits must be "
+                                 "positive\n";
+                    error_ = true;
+                } else
+                    mod.n() = ptr<Expr>(new IntExpr({}, *n));
+            } else {
+                std::cerr << mod.pos()
+                          << ": error : number of control bits is not a "
+                             "compile-time constant\n";
+                error_ = true;
+            }
+        }
     }
     void visit(InvModifier&) override {}
     void visit(PowModifier& mod) override {
@@ -508,7 +545,6 @@ class ConstExprChecker final : public Visitor {
     void visit(SubroutineDecl& decl) override {
         push_scope();
 
-        expect_const_ = true;
         for (auto& param : decl.params()) {
             param->accept(*this);
         }
@@ -517,7 +553,6 @@ class ConstExprChecker final : public Visitor {
         if (ret_type) {
             (**ret_type).accept(*this);
         }
-        expect_const_ = false;
 
         decl.body().accept(*this);
 
@@ -526,7 +561,6 @@ class ConstExprChecker final : public Visitor {
         set(decl.id(), OtherVar{}, decl.pos());
     }
     void visit(ExternDecl& decl) override {
-        expect_const_ = true;
         for (auto& type : decl.param_types()) {
             type->accept(*this);
         }
@@ -535,7 +569,6 @@ class ConstExprChecker final : public Visitor {
         if (ret_type) {
             (**ret_type).accept(*this);
         }
-        expect_const_ = false;
 
         set(decl.id(), OtherVar{}, decl.pos());
     }
@@ -555,9 +588,24 @@ class ConstExprChecker final : public Visitor {
         set(decl.id(), OtherVar{}, decl.pos());
     }
     void visit(QuantumRegisterDecl& decl) override {
-        expect_const_ = true;
         visit_optional_expr(decl.size());
-        expect_const_ = false;
+        if (decl.size()) {
+            auto size = evaluate(**decl.size());
+            if (size) {
+                if (*size <= 0) {
+                    std::cerr
+                        << decl.pos()
+                        << ": error : quantum register size must be positive\n";
+                    error_ = true;
+                } else
+                    decl.size() = ptr<Expr>(new IntExpr({}, *size));
+            } else {
+                std::cerr << decl.pos()
+                          << ": error : quantum register size is not a "
+                             "compile-time constant\n";
+                error_ = true;
+            }
+        }
         set(decl.id(), OtherVar{}, decl.pos());
     }
     void visit(ClassicalDecl& decl) override {
@@ -684,14 +732,156 @@ class ConstExprChecker final : public Visitor {
             }
         }
     }
+
+    class ConstIntEvaluator final : public Visitor {
+        std::optional<int> value_ = std::nullopt; ///< return value
+        bool cast_is_int_ = false;
+
+      public:
+        std::optional<int> evaluate(Expr& exp) {
+            exp.accept(*this);
+            return value_;
+        }
+
+        // Index identifiers
+        void visit(RangeSlice&) override {}
+        void visit(ListSlice&) override {}
+        void visit(VarAccess&) override {}
+        void visit(Concat&) override {}
+        // Types
+        void visit(SingleDesignatorType& type) override {
+            cast_is_int_ =
+                type.type() == SDType::Int || type.type() == SDType::Uint;
+        }
+        void visit(NoDesignatorType&) override { cast_is_int_ = false; }
+        void visit(BitType&) override { cast_is_int_ = false; }
+        void visit(ComplexType&) override { cast_is_int_ = false; }
+        // Expressions
+        void visit(BExpr& exp) override {
+            exp.lexp().accept(*this);
+            auto lexp = value_;
+            exp.rexp().accept(*this);
+            auto rexp = value_;
+            if (lexp && rexp) {
+                switch (exp.op()) {
+                    case BinaryOp::Plus:
+                        value_ = *lexp + *rexp;
+                        break;
+                    case BinaryOp::Minus:
+                        value_ = *lexp - *rexp;
+                        break;
+                    case BinaryOp::Times:
+                        value_ = *lexp * *rexp;
+                        break;
+                    case BinaryOp::Divide:
+                        value_ = *lexp / *rexp;
+                        break;
+                    case BinaryOp::Pow:
+                        value_ = pow(*lexp, *rexp);
+                        break;
+                    default:
+                        value_ = std::nullopt;
+                }
+            } else
+                value_ = std::nullopt;
+        }
+        void visit(UExpr& exp) override {
+            exp.subexp().accept(*this);
+            auto subexp = value_;
+            if (subexp) {
+                switch (exp.op()) {
+                    case UnaryOp::Neg:
+                        value_ = -(*subexp);
+                        break;
+                    default:
+                        value_ = std::nullopt;
+                }
+            } else
+                value_ = std::nullopt;
+        }
+        void visit(MathExpr&) override { value_ = std::nullopt; }
+        void visit(CastExpr& exp) override {
+            exp.type().accept(*this);
+            if (cast_is_int_) {
+                exp.subexp().accept(*this);
+            } else {
+                value_ = std::nullopt;
+            }
+        }
+        void visit(FunctionCall&) override { value_ = std::nullopt; }
+        void visit(AccessExpr&) override { value_ = std::nullopt; }
+        void visit(ConstantExpr&) override { value_ = std::nullopt; }
+        void visit(IntExpr& exp) override { value_ = exp.value(); }
+        void visit(RealExpr&) override { value_ = std::nullopt; }
+        void visit(ImagExpr&) override { value_ = std::nullopt; }
+        void visit(BoolExpr&) override { value_ = std::nullopt; }
+        void visit(VarExpr& exp) override { value_ = std::nullopt; }
+        void visit(StringExpr&) override { value_ = std::nullopt; }
+        void visit(TimeExpr&) override { value_ = std::nullopt; }
+        void visit(DurationGateExpr&) override { value_ = std::nullopt; }
+        void visit(DurationBlockExpr&) override { value_ = std::nullopt; }
+        // Statement components
+        void visit(QuantumMeasurement&) override {}
+        void visit(ProgramBlock&) override {}
+        void visit(QuantumBlock&) override {}
+        // Statements
+        void visit(MeasureStmt&) override {}
+        void visit(MeasureAsgnStmt&) override {}
+        void visit(ExprStmt&) override {}
+        void visit(ResetStmt&) override {}
+        void visit(BarrierStmt&) override {}
+        void visit(IfStmt&) override {}
+        void visit(BreakStmt&) override {}
+        void visit(ContinueStmt&) override {}
+        void visit(ReturnStmt&) override {}
+        void visit(EndStmt&) override {}
+        void visit(AliasStmt&) override {}
+        void visit(AssignmentStmt&) override {}
+        void visit(PragmaStmt&) override {}
+        // Gates
+        void visit(CtrlModifier&) override {}
+        void visit(InvModifier&) override {}
+        void visit(PowModifier&) override {}
+        void visit(UGate&) override {}
+        void visit(GPhase&) override {}
+        void visit(DeclaredGate&) override {}
+        // Loops
+        void visit(RangeSet&) override {}
+        void visit(ListSet&) override {}
+        void visit(VarSet&) override {}
+        void visit(ForStmt&) override {}
+        void visit(WhileStmt&) override {}
+        void visit(QuantumForStmt&) override {}
+        void visit(QuantumWhileStmt&) override {}
+        // Timing Statements
+        void visit(DelayStmt&) override {}
+        void visit(RotaryStmt&) override {}
+        void visit(BoxStmt&) override {}
+        // Declarations
+        void visit(ClassicalParam&) override {}
+        void visit(QubitParam&) override {}
+        void visit(SubroutineDecl&) override {}
+        void visit(ExternDecl&) override {}
+        void visit(GateDecl&) override {}
+        void visit(QuantumRegisterDecl&) override {}
+        void visit(ClassicalDecl&) override {}
+        void visit(CalGrammarDecl&) override {}
+        void visit(CalibrationDecl&) override {}
+        // Program
+        void visit(Program&) override {}
+    };
+
+    std::optional<int> evaluate(Expr& exp) {
+        return ConstIntEvaluator().evaluate(exp);
+    }
 };
 
 /**
- * \class qasmtools::ast::CallChecker
- * \brief Chaeck quantum gate, built-in math, casting, and subroutine calls
+ * \class qasmtools::ast::TypeChecker
+ * \brief Type checking
  * \see qasmtools::ast::Visitor
  */
-class CallChecker final : public Visitor {
+class TypeChecker final : public Visitor {
     enum class Types { None, Classical, QuantumBit, QuantumRegister };
 
     /**
@@ -1028,23 +1218,8 @@ class CallChecker final : public Visitor {
     // Gates
     void visit(CtrlModifier& mod) override {
         if (mod.n()) {
-            auto val = evaluate(**mod.n());
-            if (val) {
-                if (*val <= 0) {
-                    std::cerr << mod.pos()
-                              << ": error : number of control bits must be "
-                                 "positive\n";
-                    error_ = true;
-                } else {
-                    mod.n() = ptr<Expr>(new IntExpr({}, *val));
-                    control_bits_ = *val;
-                }
-            } else {
-                std::cerr << mod.pos()
-                          << ": error : unable to evaluate the number of "
-                             "control bits\n";
-                error_ = true;
-            }
+            auto expr = dynamic_cast<IntExpr*>(mod.n()->get());
+            control_bits_ = expr->value();
         } else {
             control_bits_ = 1;
         }
@@ -1441,155 +1616,13 @@ class CallChecker final : public Visitor {
             error_ = true;
         }
     }
-
-    class ConstIntEvaluator final : public Visitor {
-        std::optional<int> value_ = std::nullopt; ///< return value
-        bool cast_is_int_ = false;
-
-      public:
-        std::optional<int> evaluate(Expr& exp) {
-            exp.accept(*this);
-            return value_;
-        }
-
-        // Index identifiers
-        void visit(RangeSlice&) override {}
-        void visit(ListSlice&) override {}
-        void visit(VarAccess&) override {}
-        void visit(Concat&) override {}
-        // Types
-        void visit(SingleDesignatorType& type) override {
-            cast_is_int_ =
-                type.type() == SDType::Int || type.type() == SDType::Uint;
-        }
-        void visit(NoDesignatorType&) override { cast_is_int_ = false; }
-        void visit(BitType&) override { cast_is_int_ = false; }
-        void visit(ComplexType&) override { cast_is_int_ = false; }
-        // Expressions
-        void visit(BExpr& exp) override {
-            exp.lexp().accept(*this);
-            auto lexp = value_;
-            exp.rexp().accept(*this);
-            auto rexp = value_;
-            if (lexp && rexp) {
-                switch (exp.op()) {
-                    case BinaryOp::Plus:
-                        value_ = *lexp + *rexp;
-                        break;
-                    case BinaryOp::Minus:
-                        value_ = *lexp - *rexp;
-                        break;
-                    case BinaryOp::Times:
-                        value_ = *lexp * *rexp;
-                        break;
-                    case BinaryOp::Divide:
-                        value_ = *lexp / *rexp;
-                        break;
-                    case BinaryOp::Pow:
-                        value_ = pow(*lexp, *rexp);
-                        break;
-                    default:
-                        value_ = std::nullopt;
-                }
-            } else
-                value_ = std::nullopt;
-        }
-        void visit(UExpr& exp) override {
-            exp.subexp().accept(*this);
-            auto subexp = value_;
-            if (subexp) {
-                switch (exp.op()) {
-                    case UnaryOp::Neg:
-                        value_ = -(*subexp);
-                        break;
-                    default:
-                        value_ = std::nullopt;
-                }
-            } else
-                value_ = std::nullopt;
-        }
-        void visit(MathExpr&) override { value_ = std::nullopt; }
-        void visit(CastExpr& exp) override {
-            exp.type().accept(*this);
-            if (cast_is_int_) {
-                exp.subexp().accept(*this);
-            } else {
-                value_ = std::nullopt;
-            }
-        }
-        void visit(FunctionCall&) override { value_ = std::nullopt; }
-        void visit(AccessExpr&) override { value_ = std::nullopt; }
-        void visit(ConstantExpr&) override { value_ = std::nullopt; }
-        void visit(IntExpr& exp) override { value_ = exp.value(); }
-        void visit(RealExpr&) override { value_ = std::nullopt; }
-        void visit(ImagExpr&) override { value_ = std::nullopt; }
-        void visit(BoolExpr&) override { value_ = std::nullopt; }
-        void visit(VarExpr& exp) override { value_ = std::nullopt; }
-        void visit(StringExpr&) override { value_ = std::nullopt; }
-        void visit(TimeExpr&) override { value_ = std::nullopt; }
-        void visit(DurationGateExpr&) override { value_ = std::nullopt; }
-        void visit(DurationBlockExpr&) override { value_ = std::nullopt; }
-        // Statement components
-        void visit(QuantumMeasurement&) override {}
-        void visit(ProgramBlock&) override {}
-        void visit(QuantumBlock&) override {}
-        // Statements
-        void visit(MeasureStmt&) override {}
-        void visit(MeasureAsgnStmt&) override {}
-        void visit(ExprStmt&) override {}
-        void visit(ResetStmt&) override {}
-        void visit(BarrierStmt&) override {}
-        void visit(IfStmt&) override {}
-        void visit(BreakStmt&) override {}
-        void visit(ContinueStmt&) override {}
-        void visit(ReturnStmt&) override {}
-        void visit(EndStmt&) override {}
-        void visit(AliasStmt&) override {}
-        void visit(AssignmentStmt&) override {}
-        void visit(PragmaStmt&) override {}
-        // Gates
-        void visit(CtrlModifier&) override {}
-        void visit(InvModifier&) override {}
-        void visit(PowModifier&) override {}
-        void visit(UGate&) override {}
-        void visit(GPhase&) override {}
-        void visit(DeclaredGate&) override {}
-        // Loops
-        void visit(RangeSet&) override {}
-        void visit(ListSet&) override {}
-        void visit(VarSet&) override {}
-        void visit(ForStmt&) override {}
-        void visit(WhileStmt&) override {}
-        void visit(QuantumForStmt&) override {}
-        void visit(QuantumWhileStmt&) override {}
-        // Timing Statements
-        void visit(DelayStmt&) override {}
-        void visit(RotaryStmt&) override {}
-        void visit(BoxStmt&) override {}
-        // Declarations
-        void visit(ClassicalParam&) override {}
-        void visit(QubitParam&) override {}
-        void visit(SubroutineDecl&) override {}
-        void visit(ExternDecl&) override {}
-        void visit(GateDecl&) override {}
-        void visit(QuantumRegisterDecl&) override {}
-        void visit(ClassicalDecl&) override {}
-        void visit(CalGrammarDecl&) override {}
-        void visit(CalibrationDecl&) override {}
-        // Program
-        void visit(Program&) override {}
-    };
-
-    std::optional<int> evaluate(Expr& exp) {
-        return ConstIntEvaluator().evaluate(exp);
-    }
 };
 
 /**
  * \brief Checks a program for semantic errors
  */
 inline void check_source(Program& prog) {
-    if (ConstExprChecker().run(prog) || CallChecker().run(prog))
+    if (ConstExprChecker().run(prog) || TypeChecker().run(prog))
         throw SemanticError();
 }
 
