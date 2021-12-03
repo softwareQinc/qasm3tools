@@ -49,6 +49,13 @@ class Slice : public ASTNode {
     Slice(parser::Position pos) : ASTNode(pos) {}
     virtual ~Slice() = default;
 
+    /**
+     * \brief Get whether the index set is a single index
+     *
+     * return Whether the index set is a single index
+     */
+    virtual bool is_single_index() const = 0;
+
   protected:
     virtual Slice* clone() const = 0;
 };
@@ -117,6 +124,8 @@ class RangeSlice : public Slice {
      */
     std::optional<ptr<Expr>>& stop() { return stop_; }
 
+    bool is_single_index() const override { return false; }
+
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "[";
@@ -178,6 +187,8 @@ class ListSlice : public Slice {
      * \return Reference to the list of indices
      */
     std::vector<ptr<Expr>>& indices() { return indices_; }
+
+    bool is_single_index() const override { return indices_.size() == 1; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {

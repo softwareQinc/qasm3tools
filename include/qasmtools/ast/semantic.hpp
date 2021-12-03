@@ -972,9 +972,15 @@ class TypeChecker final : public Visitor {
             error_ = true;
             type_ = Types::None;
         } else if (std::holds_alternative<QuantumRegisterType>(*entry)) {
-            if (va.slice())
+            if (va.slice()) {
                 (**va.slice()).accept(*this);
-            type_ = Types::QuantumRegister;
+                if ((**va.slice()).is_single_index())
+                    type_ = Types::QuantumBit;
+                else
+                    type_ = Types::QuantumRegister;
+            } else {
+                type_ = Types::QuantumRegister;
+            }
         } else if (std::holds_alternative<QuantumBitType>(*entry)) {
             type_ = Types::QuantumBit;
             if (va.slice()) {
