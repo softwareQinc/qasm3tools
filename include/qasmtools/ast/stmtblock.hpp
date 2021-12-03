@@ -127,7 +127,15 @@ class BlockBase : public ASTNode {
 
   protected:
     std::list<T> body_; ///< the body of the block
-    virtual BlockBase<T, D>* clone() const override = 0;
+    BlockBase* clone() const override {
+        std::list<T> tmp;
+        for (auto& x : body_) {
+            std::visit(
+                [&tmp](auto& stmt) { tmp.emplace_back(object::clone(*stmt)); },
+                x);
+        }
+        return new D(pos_, std::move(tmp));
+    }
 };
 
 /**
@@ -140,17 +148,6 @@ class ProgramBlock : public BlockBase<ProgramBlockStmt, ProgramBlock> {
 
   public:
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-
-  protected:
-    ProgramBlock* clone() const override {
-        std::list<ProgramBlockStmt> tmp;
-        for (auto& x : body_) {
-            std::visit(
-                [&tmp](auto& stmt) { tmp.emplace_back(object::clone(*stmt)); },
-                x);
-        }
-        return new ProgramBlock(pos_, std::move(tmp));
-    }
 };
 
 /**
@@ -163,17 +160,6 @@ class QuantumBlock : public BlockBase<QuantumBlockStmt, QuantumBlock> {
 
   public:
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-
-  protected:
-    QuantumBlock* clone() const override {
-        std::list<QuantumBlockStmt> tmp;
-        for (auto& x : body_) {
-            std::visit(
-                [&tmp](auto& stmt) { tmp.emplace_back(object::clone(*stmt)); },
-                x);
-        }
-        return new QuantumBlock(pos_, std::move(tmp));
-    }
 };
 
 } // namespace ast
