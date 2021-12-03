@@ -451,7 +451,24 @@ class ConstExprChecker final : public Visitor {
             }
         }
     }
-    void visit(VarSet&) override {}
+    void visit(VarSet& set) override {
+        auto entry = lookup(set.var());
+        if (!entry) {
+            std::cerr << set.pos() << ": error : undefined identifier \""
+                      << set.var() << "\"\n";
+            error_ = true;
+        } else if (std::holds_alternative<ConstVar>(*entry)) {
+            std::cerr << set.pos()
+                      << ": error : cannot loop over constant variable \""
+                      << set.var() << "\"\n";
+            error_ = true;
+        } else if (std::holds_alternative<LoopVar>(*entry)) {
+            std::cerr << set.pos()
+                      << ": error : cannot loop over loop variable \""
+                      << set.var() << "\"\n";
+            error_ = true;
+        }
+    }
     void visit(ForStmt& stmt) override {
         stmt.index_set().accept(*this);
 

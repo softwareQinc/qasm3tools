@@ -124,3 +124,51 @@ TEST(Parsing, Idempotence) {
     EXPECT_EQ(ss.str(), src);
 }
 /******************************************************************************/
+
+/******************************************************************************/
+TEST(Parsing, Not_Const_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "int[32] n = 8;\n"
+                       "qubit[n] q;\n";
+
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "int[32] n = 8;\n"
+                       "float[n] fl;\n";
+
+    std::string src3 = "OPENQASM 3.0;\n"
+                       "int[32] n = 1;\n"
+                       "qubit q;\n"
+                       "ctrl(n) @ gphase(π) q;\n";
+
+    std::string src4 = "OPENQASM 3.0;\n"
+                       "int[32] n = 8;\n"
+                       "const int[64] cn = n;\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "not_const_error.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src2, "not_const_error.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src3, "not_const_error.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src4, "not_const_error.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
+
+/******************************************************************************/
+TEST(Parsing, Const_Assignment_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "const int[32] n = 8;\n"
+                       "n = 2;\n";
+
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "const bit[4] n = \"0110\";\n"
+                       "qubit[4] q;\n"
+                       "n = measure q;\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "const_assignment_error.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src2, "const_assignment_error.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
