@@ -556,6 +556,23 @@ class ConstExprChecker final : public Visitor {
     }
     void visit(QubitParam& param) override {
         visit_optional_expr(param.size());
+        if (param.size()) {
+            auto size = evaluate(**param.size());
+            if (size) {
+                if (*size <= 0) {
+                    std::cerr
+                        << param.pos()
+                        << ": error : quantum register size must be positive\n";
+                    error_ = true;
+                } else
+                    param.size() = ptr<Expr>(new IntExpr({}, *size));
+            } else {
+                std::cerr << param.pos()
+                          << ": error : quantum register size is not a "
+                             "compile-time constant\n";
+                error_ = true;
+            }
+        }
 
         set(param.id(), OtherVar{}, param.pos());
     }
@@ -899,22 +916,119 @@ class ConstExprChecker final : public Visitor {
  * \see qasmtools::ast::Visitor
  */
 class TypeChecker final : public Visitor {
-    enum class Types { None, Classical, QuantumBit, QuantumRegister };
+    enum class DataType {
+        None,
+        Bool,
+        Int,
+        Float,
+        Angle,
+        ClassicalBit,
+        ClassicalRegister,
+        Duration,
+        Complex,
+        QuantumBit,
+        QuantumRegister
+    };
 
-    /**
-     * \brief Data struct denoting a classical-type variable
-     */
-    struct ClassicalType {};
+    static bool is_quantum(const DataType& type) {
+        return type == DataType::QuantumBit ||
+               type == DataType::QuantumRegister;
+    }
 
-    /**
-     * \brief Data struct denoting a quantum bit variable
-     */
-    struct QuantumBitType {};
+    static bool is_castable(const DataType& source, const DataType& target) {
+        switch (source) {
+            case DataType::Bool:
+            case DataType::Int:
+                switch (target) {
+                    case DataType::Bool:
+                    case DataType::Int:
+                    case DataType::Float:
+                    case DataType::ClassicalBit:
+                    case DataType::ClassicalRegister:
+                    case DataType::Complex:
+                        return true;
+                    default:
+                        return false;
+                }
+            case DataType::Float:
+                switch (target) {
+                    case DataType::Bool:
+                    case DataType::Int:
+                    case DataType::Float:
+                    case DataType::Angle:
+                    case DataType::Complex:
+                        return true;
+                    default:
+                        return false;
+                }
+            case DataType::Angle:
+                switch (target) {
+                    case DataType::Bool:
+                    case DataType::Angle:
+                    case DataType::ClassicalBit:
+                    case DataType::ClassicalRegister:
+                    case DataType::Complex:
+                        return true;
+                    default:
+                        return false;
+                }
+            case DataType::ClassicalBit:
+            case DataType::ClassicalRegister:
+                switch (target) {
+                    case DataType::Bool:
+                    case DataType::Int:
+                    case DataType::Angle:
+                    case DataType::ClassicalBit:
+                    case DataType::ClassicalRegister:
+                        return true;
+                    default:
+                        return false;
+                }
+            case DataType::Duration:
+                switch (target) {
+                    case DataType::Duration:
+                        return true;
+                    default:
+                        return false;
+                }
+            case DataType::Complex:
+                switch (target) {
+                    case DataType::Complex:
+                        return true;
+                    default:
+                        return false;
+                }
+            case DataType::QuantumBit:
+                switch (target) {
+                    case DataType::QuantumBit:
+                        return true;
+                    default:
+                        return false;
+                }
+            case DataType::QuantumRegister:
+                switch (target) {
+                    case DataType::QuantumRegister:
+                        return true;
+                    default:
+                        return false;
+                }
+            default:
+                return false;
+        }
+    }
 
-    /**
-     * \brief Data struct denoting a quantum register variable
-     */
-    struct QuantumRegisterType {};
+    /* int subtype of float and complex; float is subtype of complex.
+     * any other combinations return false */
+    static bool is_numeric_subtype(const DataType& sub, const DataType& sup) {
+        if ((sub == DataType::Int &&
+             (sup == DataType::Int || sup == DataType::Float ||
+              sup == DataType::Complex)) ||
+            (sub == DataType::Float &&
+             (sup == DataType::Float || sup == DataType::Complex)) ||
+            (sub == DataType::Complex && sup == DataType::Complex))
+            return true;
+        return false;
+    }
 
     /**
      * \brief Data struct for quantum gate types
@@ -928,8 +1042,8 @@ class TypeChecker final : public Visitor {
      * \brief Data struct for subroutine types
      */
     struct SubroutineType {
-        std::vector<Types> param_types; ///< function signature
-        Types return_type; ///< whether the subroutine returns a value
+        std::vector<DataType> param_types; ///< function signature
+        DataType return_type;              ///< return type (None if no return)
     };
 
     /**
@@ -943,9 +1057,7 @@ class TypeChecker final : public Visitor {
      * Functional-style syntax trees in C++17 as a simpler alternative
      * to inheritance hierarchy. Support is still lacking for large-scale.
      */
-    using Type =
-        std::variant<ClassicalType, QuantumBitType, QuantumRegisterType,
-                     GateType, SubroutineType, OtherType>;
+    using Type = std::variant<DataType, GateType, SubroutineType, OtherType>;
 
   public:
     bool run(Program& prog) {
@@ -955,13 +1067,13 @@ class TypeChecker final : public Visitor {
 
     // Index identifiers
     void visit(RangeSlice& slice) override {
-        visit_optional_classical_expr(slice.start());
-        visit_optional_classical_expr(slice.step());
-        visit_optional_classical_expr(slice.stop());
+        visit_optional_classical_expr(slice.start(), DataType::Int);
+        visit_optional_classical_expr(slice.step(), DataType::Int);
+        visit_optional_classical_expr(slice.stop(), DataType::Int);
     }
     void visit(ListSlice& slice) override {
         for (auto& index : slice.indices()) {
-            visit_classical_expr(*index);
+            visit_classical_expr(*index, DataType::Int);
         }
     }
     void visit(VarAccess& va) override {
@@ -970,99 +1082,276 @@ class TypeChecker final : public Visitor {
             std::cerr << va.pos() << ": error : undefined identifier \""
                       << va.var() << "\"\n";
             error_ = true;
-            type_ = Types::None;
-        } else if (std::holds_alternative<QuantumRegisterType>(*entry)) {
-            if (va.slice()) {
-                (**va.slice()).accept(*this);
-                if ((**va.slice()).is_single_index())
-                    type_ = Types::QuantumBit;
-                else
-                    type_ = Types::QuantumRegister;
-            } else {
-                type_ = Types::QuantumRegister;
+            type_ = DataType::None;
+        } else if (std::holds_alternative<DataType>(*entry)) {
+            switch (std::get<DataType>(*entry)) {
+                case DataType::QuantumRegister:
+                    if (va.slice()) {
+                        (**va.slice()).accept(*this);
+                        if ((**va.slice()).is_single_index())
+                            type_ = DataType::QuantumBit;
+                        else
+                            type_ = DataType::QuantumRegister;
+                    } else {
+                        type_ = DataType::QuantumRegister;
+                    }
+                    return;
+                case DataType::QuantumBit:
+                    type_ = DataType::QuantumBit;
+                    if (va.slice()) {
+                        std::cerr << va.pos() << ": error : quantum bit \""
+                                  << va.var() << "\" cannnot be indexed\n";
+                        error_ = true;
+                    }
+                    return;
+                case DataType::Angle: // apparently allowed
+                case DataType::ClassicalRegister:
+                    if (va.slice()) {
+                        (**va.slice()).accept(*this);
+                        if ((**va.slice()).is_single_index())
+                            type_ = DataType::ClassicalBit;
+                        else
+                            type_ = DataType::ClassicalRegister;
+                    } else {
+                        type_ = DataType::ClassicalRegister;
+                    }
+                    return;
+                case DataType::ClassicalBit:
+                    type_ = DataType::ClassicalBit;
+                    if (va.slice()) {
+                        std::cerr << va.pos() << ": error : classical bit \""
+                                  << va.var() << "\" cannnot be indexed\n";
+                        error_ = true;
+                    }
+                    return;
+                default:;
             }
-        } else if (std::holds_alternative<QuantumBitType>(*entry)) {
-            type_ = Types::QuantumBit;
-            if (va.slice()) {
-                std::cerr << va.pos() << ": error : quantum bit \"" << va.var()
-                          << "\" cannnot be indexed\n";
-                error_ = true;
-                type_ = Types::None;
-            }
-        } else if (std::holds_alternative<ClassicalType>(*entry)) {
-            if (va.slice())
-                (**va.slice()).accept(*this);
-            type_ = Types::Classical;
-        } else {
-            std::cerr << va.pos() << ": error : identifier \"" << va.var()
-                      << "\" is not a quantum type\n";
-            error_ = true;
-            type_ = Types::None;
         }
+        std::cerr << va.pos() << ": error : identifier \"" << va.var()
+                  << "\" is not a register or bit type\n";
+        error_ = true;
+        type_ = DataType::None;
     }
     void visit(Concat& c) override {
         c.lreg().accept(*this);
         auto t1 = type_;
         c.rreg().accept(*this);
         auto t2 = type_;
-        if (t1 == Types::None || t2 == Types::None) {
-            type_ = Types::None;
-        } else if (t1 == Types::Classical && t2 == Types::Classical) {
-            type_ = Types::Classical;
-        } else if (t1 == Types::Classical || t2 == Types::Classical) {
+        if (t1 == DataType::None || t2 == DataType::None) {
+            type_ = DataType::None;
+        } else if ((t1 == DataType::ClassicalBit ||
+                    t1 == DataType::ClassicalRegister) &&
+                   (t2 == DataType::ClassicalBit ||
+                    t2 == DataType::ClassicalRegister)) {
+            type_ = DataType::ClassicalRegister;
+        } else if ((t1 == DataType::QuantumBit ||
+                    t1 == DataType::QuantumRegister) &&
+                   (t2 == DataType::QuantumBit ||
+                    t2 == DataType::QuantumRegister)) {
+            type_ = DataType::QuantumRegister;
+        } else {
             std::cerr << c.pos()
                       << ": error : concatenation of classical and quantum "
                          "register\n";
             error_ = true;
-            type_ = Types::None;
-        } else {
-            type_ = Types::QuantumRegister;
+            type_ = DataType::None;
         }
     }
     // Types
     void visit(SingleDesignatorType& type) override {
-        visit_classical_expr(type.size());
+        switch (type.type()) {
+            case SDType::Int:
+                type_ = DataType::Int;
+                break;
+            case SDType::Uint:
+                type_ = DataType::Int;
+                break;
+            case SDType::Float:
+                type_ = DataType::Float;
+                break;
+            case SDType::Angle:
+                type_ = DataType::Angle;
+                break;
+        }
     }
-    void visit(NoDesignatorType&) override {}
+    void visit(NoDesignatorType& type) override {
+        switch (type.type()) {
+            case NDType::Bool:
+                type_ = DataType::Bool;
+                break;
+            case NDType::Duration:
+                type_ = DataType::Duration;
+                break;
+            case NDType::Stretch:
+                type_ = DataType::Duration;
+                break;
+        }
+    }
     void visit(BitType& type) override {
-        visit_optional_classical_expr(type.size());
+        if (type.size()) {
+            type_ = DataType::ClassicalRegister;
+        } else {
+            type_ = DataType::ClassicalBit;
+        }
     }
-    void visit(ComplexType& type) override { type.subtype().accept(*this); }
+    void visit(ComplexType& type) override { type_ = DataType::Complex; }
     // Expressions
     void visit(BExpr& exp) override {
-        exp.lexp().accept(*this);
-        auto t1 = type_;
-        exp.rexp().accept(*this);
-        auto t2 = type_;
-        if (t1 != Types::Classical || t2 != Types::Classical) {
-            std::cerr << exp.pos()
-                      << ": error : binary expression expects classical type "
-                         "operands\n";
-            error_ = true;
+        switch (exp.op()) {
+            case BinaryOp::LogicalOr:
+            case BinaryOp::LogicalAnd:
+                visit_classical_expr(exp.lexp(), DataType::Bool);
+                visit_classical_expr(exp.rexp(), DataType::Bool);
+                type_ = DataType::Bool;
+                return;
+            case BinaryOp::BitOr:
+            case BinaryOp::XOr:
+            case BinaryOp::BitAnd:
+                visit_classical_expr(exp.lexp(), DataType::ClassicalRegister);
+                visit_classical_expr(exp.rexp(), DataType::ClassicalRegister);
+                type_ = DataType::ClassicalRegister;
+                return;
+            case BinaryOp::EQ:
+            case BinaryOp::NEQ:
+            case BinaryOp::GT:
+            case BinaryOp::LT:
+            case BinaryOp::GTE:
+            case BinaryOp::LTE:
+                visit_classical_expr(exp.lexp(), DataType::ClassicalRegister);
+                visit_classical_expr(exp.rexp(), DataType::ClassicalRegister);
+                type_ = DataType::Bool;
+                return;
+            case BinaryOp::LeftBitShift:
+            case BinaryOp::RightBitShift: {
+                visit_classical_expr(exp.lexp(), DataType::ClassicalRegister);
+                auto tmp = type_;
+                visit_classical_expr(exp.rexp(), DataType::Int);
+                type_ = tmp;
+                return;
+            }
+            case BinaryOp::Mod:
+                visit_classical_expr(exp.lexp(), DataType::Int);
+                visit_classical_expr(exp.rexp(), DataType::Int);
+                type_ = DataType::Int;
+                return;
+            default: { /* remaining cases */
+                exp.lexp().accept(*this);
+                auto t1 = type_;
+                exp.rexp().accept(*this);
+                auto t2 = type_;
+                switch (exp.op()) {
+                    case BinaryOp::Plus:
+                    case BinaryOp::Minus:
+                        if (t1 == DataType::Duration &&
+                            t2 == DataType::Duration) {
+                            type_ = DataType::Duration;
+                            return;
+                        } else if (is_numeric_subtype(t1, t2)) {
+                            type_ = t2;
+                            return;
+                        } else if (is_numeric_subtype(t2, t1)) {
+                            type_ = t1;
+                            return;
+                        }
+                    case BinaryOp::Times:
+                    case BinaryOp::Divide:
+                        if (t1 == DataType::Duration &&
+                            is_numeric_subtype(t2, DataType::Float)) {
+                            type_ = DataType::Duration;
+                            return;
+                        } else if (t2 == DataType::Duration &&
+                                   is_numeric_subtype(t1, DataType::Float)) {
+                            type_ = DataType::Duration;
+                            return;
+                        } else if (is_numeric_subtype(t1, t2)) {
+                            type_ = t2;
+                            return;
+                        } else if (is_numeric_subtype(t2, t1)) {
+                            type_ = t1;
+                            return;
+                        }
+                    case BinaryOp::Pow:
+                        if (is_numeric_subtype(t2, t1)) {
+                            type_ = t1;
+                            return;
+                        }
+                    default:;
+                }
+            }
         }
-        type_ = Types::Classical;
+        std::cerr << exp.pos() << ": error : " << exp.op()
+                  << " has incompatible operands\n";
+        error_ = true;
+        type_ = DataType::None;
     }
     void visit(UExpr& exp) override {
-        exp.subexp().accept(*this);
-        if (type_ != Types::Classical) {
-            std::cerr << exp.pos()
-                      << ": error : unary expression expects classical type "
-                         "operand\n";
-            error_ = true;
-            type_ = Types::None;
+        switch (exp.op()) {
+            case UnaryOp::BitNot:
+                visit_classical_expr(exp.subexp(), DataType::ClassicalRegister);
+                /* type of ~x is same as type of x */
+                break;
+            case UnaryOp::LogicalNot:
+                visit_classical_expr(exp.subexp(), DataType::Bool);
+                type_ = DataType::Bool;
+                break;
+            case UnaryOp::Neg:
+                visit_classical_expr(exp.subexp(), DataType::Float);
+                /* type of -x is same as type of x */
+                break;
         }
-        type_ = Types::Classical;
     }
     void visit(MathExpr& exp) override {
-        for (int i = 0; i < exp.num_args(); i++) {
-            visit_classical_expr(exp.arg(i));
+        switch (exp.op()) {
+            case MathOp::Arcsin:
+            case MathOp::Sin:
+            case MathOp::Arccos:
+            case MathOp::Cos:
+            case MathOp::Arctan:
+            case MathOp::Tan:
+            case MathOp::Exp:
+            case MathOp::Ln:
+            case MathOp::Sqrt:
+                if (exp.num_args() != 1) {
+                    std::cerr << exp.pos() << ": error : " << exp.op()
+                              << " expects one argument\n";
+                    error_ = true;
+                    type_ = DataType::None;
+                    return;
+                }
+                visit_classical_expr(exp.arg(0), DataType::Float);
+                type_ = DataType::Float; // assume we accept & return float
+                break;
+            case MathOp::Rotl:
+            case MathOp::Rotr:
+                if (exp.num_args() != 2) {
+                    std::cerr << exp.pos() << ": error : " << exp.op()
+                              << " expects two arguments\n";
+                    error_ = true;
+                    type_ = DataType::None;
+                    return;
+                }
+                visit_classical_expr(exp.arg(0), DataType::ClassicalRegister);
+                visit_classical_expr(exp.arg(1), DataType::Int);
+                type_ = DataType::ClassicalRegister;
+                break;
+            case MathOp::Popcount:
+                if (exp.num_args() != 1) {
+                    std::cerr << exp.pos() << ": error : " << exp.op()
+                              << " expects one argument\n";
+                    error_ = true;
+                    type_ = DataType::None;
+                    return;
+                }
+                visit_classical_expr(exp.arg(0), DataType::ClassicalRegister);
+                type_ = DataType::Int;
+                break;
         }
-        type_ = Types::Classical;
     }
     void visit(CastExpr& exp) override {
         exp.type().accept(*this);
-        visit_classical_expr(exp.subexp());
-        type_ = Types::Classical;
+        auto tmp = type_;
+        visit_classical_expr(exp.subexp(), tmp);
+        type_ = tmp;
     }
     void visit(FunctionCall& exp) override {
         auto entry = lookup(exp.name());
@@ -1070,7 +1359,7 @@ class TypeChecker final : public Visitor {
             std::cerr << exp.pos() << ": error : undefined identifier \""
                       << exp.name() << "\"\n";
             error_ = true;
-            type_ = Types::None;
+            type_ = DataType::None;
         } else if (std::holds_alternative<SubroutineType>(*entry)) {
             auto subrtn_type = std::get<SubroutineType>(*entry);
             if (subrtn_type.param_types.size() != exp.num_args()) {
@@ -1082,7 +1371,7 @@ class TypeChecker final : public Visitor {
             } else {
                 for (int i = 0; i < exp.num_args(); i++) {
                     exp.arg(i).accept(*this);
-                    if (type_ != subrtn_type.param_types[i]) {
+                    if (!is_castable(type_, subrtn_type.param_types[i])) {
                         std::cerr << exp.pos() << ": error : argument " << i
                                   << " is the wrong type\n";
                         error_ = true;
@@ -1094,51 +1383,48 @@ class TypeChecker final : public Visitor {
             std::cerr << exp.pos() << ": error : identifier \"" << exp.name()
                       << "\" is not a subroutine\n";
             error_ = true;
-            type_ = Types::None;
+            type_ = DataType::None;
         }
     }
     void visit(AccessExpr& exp) override {
         exp.exp().accept(*this);
         auto tmp = type_;
-        visit_classical_expr(exp.index());
-        if (tmp == Types::Classical) {
-            type_ = Types::Classical;
-        } else if (tmp == Types::QuantumRegister) {
-            type_ = Types::QuantumBit;
-        } else if (tmp == Types::QuantumBit) {
-            std::cerr << exp.exp().pos()
-                      << ": error : invalid access operator\n";
+        visit_classical_expr(exp.index(), DataType::Int);
+        if (tmp == DataType::ClassicalRegister || tmp == DataType::Int) {
+            type_ = DataType::ClassicalBit;
+        } else if (tmp == DataType::QuantumRegister) {
+            type_ = DataType::QuantumBit;
+        } else {
+            std::cerr << exp.pos() << ": error : invalid access operator\n";
             error_ = true;
-            type_ = Types::None;
+            type_ = DataType::None;
         }
     }
-    void visit(ConstantExpr&) override { type_ = Types::Classical; }
-    void visit(IntExpr&) override { type_ = Types::Classical; }
-    void visit(RealExpr&) override { type_ = Types::Classical; }
-    void visit(ImagExpr&) override { type_ = Types::Classical; }
-    void visit(BoolExpr&) override { type_ = Types::Classical; }
+    void visit(ConstantExpr&) override { type_ = DataType::Float; }
+    void visit(IntExpr&) override { type_ = DataType::Int; }
+    void visit(RealExpr&) override { type_ = DataType::Float; }
+    void visit(ImagExpr&) override { type_ = DataType::Complex; }
+    void visit(BoolExpr&) override { type_ = DataType::Bool; }
     void visit(VarExpr& exp) override {
         auto entry = lookup(exp.var());
         if (!entry) {
             std::cerr << exp.pos() << ": error : undefined identifier \""
                       << exp.var() << "\"\n";
             error_ = true;
-            type_ = Types::None;
-        } else if (std::holds_alternative<ClassicalType>(*entry)) {
-            type_ = Types::Classical;
-        } else if (std::holds_alternative<QuantumBitType>(*entry)) {
-            type_ = Types::QuantumBit;
-        } else if (std::holds_alternative<QuantumRegisterType>(*entry)) {
-            type_ = Types::QuantumRegister;
+            type_ = DataType::None;
+        } else if (std::holds_alternative<DataType>(*entry)) {
+            type_ = std::get<DataType>(*entry);
         } else {
             std::cerr << exp.pos() << ": error : invalid expression \""
                       << exp.var() << "\"\n";
             error_ = true;
-            type_ = Types::None;
+            type_ = DataType::None;
         }
     }
-    void visit(StringExpr&) override { type_ = Types::Classical; }
-    void visit(TimeExpr&) override { type_ = Types::Classical; }
+    void visit(StringExpr&) override {
+        type_ = DataType::ClassicalRegister; // assume string of 0s and 1s
+    }
+    void visit(TimeExpr&) override { type_ = DataType::Duration; }
     void visit(DurationGateExpr& exp) override {
         auto entry = lookup(exp.gate());
         if (!entry) {
@@ -1150,13 +1436,13 @@ class TypeChecker final : public Visitor {
                       << "\" is not a gate\n";
             error_ = true;
         }
-        type_ = Types::Classical;
+        type_ = DataType::Duration;
     }
     void visit(DurationBlockExpr& exp) override {
         push_scope();
         exp.block().accept(*this);
         pop_scope();
-        type_ = Types::Classical;
+        type_ = DataType::Duration;
     }
     // Statement components
     void visit(QuantumMeasurement& msmt) override {
@@ -1177,10 +1463,10 @@ class TypeChecker final : public Visitor {
     void visit(MeasureAsgnStmt& stmt) override {
         stmt.measurement().accept(*this);
         stmt.c_arg().accept(*this);
-        if (type_ == Types::QuantumBit || type_ == Types::QuantumRegister) {
+        if (type_ != DataType::ClassicalBit &&
+            type_ != DataType::ClassicalRegister) {
             std::cerr << stmt.c_arg().pos()
-                      << ": error : expected classical register, but got "
-                         "quantum type\n";
+                      << ": error : expected classical register\n";
             error_ = true;
         }
     }
@@ -1194,7 +1480,7 @@ class TypeChecker final : public Visitor {
             visit_quantum_indexid(stmt.arg(i));
     }
     void visit(IfStmt& stmt) override {
-        visit_classical_expr(stmt.cond());
+        visit_classical_expr(stmt.cond(), DataType::Bool);
 
         push_scope();
         stmt.then().accept(*this);
@@ -1207,31 +1493,121 @@ class TypeChecker final : public Visitor {
     void visit(BreakStmt&) override {}
     void visit(ContinueStmt&) override {}
     void visit(ReturnStmt& stmt) override {
-        std::visit(
-            utils::overloaded{
-                [this](ptr<QuantumMeasurement>& qm) { qm->accept(*this); },
-                [this](ptr<Expr>& exp) { visit_classical_expr(*exp); },
-                [](auto) {}},
-            stmt.value());
+        std::visit(utils::overloaded{
+                       [this](ptr<QuantumMeasurement>& qm) {
+                           qm->accept(*this);
+                           if (!is_castable(DataType::ClassicalRegister,
+                                            return_type_)) {
+                               std::cerr
+                                   << qm->pos()
+                                   << ": error : incompatible return type\n";
+                               error_ = true;
+                           }
+                       },
+                       [this](ptr<Expr>& exp) {
+                           visit_classical_expr(*exp, return_type_);
+                       },
+                       [this, &stmt](auto) {
+                           if (return_type_ != DataType::None) {
+                               std::cerr << stmt.pos()
+                                         << ": error : non-void subroutine "
+                                            "should return a value\n";
+                               error_ = true;
+                           }
+                       }},
+                   stmt.value());
     }
     void visit(EndStmt&) override {}
     void visit(AliasStmt& stmt) override {
         visit_quantum_indexid(stmt.qreg());
-        set(stmt.alias(), QuantumRegisterType{}, stmt.pos());
+        set(stmt.alias(), type_, stmt.pos());
     }
     void visit(AssignmentStmt& stmt) override {
+        /* first, replace 'x [op]= y' with 'x = x [op] y' */
+        if (stmt.op() != AssignOp::Equals) {
+            BinaryOp bop;
+            switch (stmt.op()) {
+                case AssignOp::Plus:
+                    bop = BinaryOp::Plus;
+                    break;
+                case AssignOp::Minus:
+                    bop = BinaryOp::Minus;
+                    break;
+                case AssignOp::Times:
+                    bop = BinaryOp::Times;
+                    break;
+                case AssignOp::Div:
+                    bop = BinaryOp::Divide;
+                    break;
+                case AssignOp::BitAnd:
+                    bop = BinaryOp::BitAnd;
+                    break;
+                case AssignOp::BitOr:
+                    bop = BinaryOp::BitOr;
+                    break;
+                case AssignOp::XOr:
+                    bop = BinaryOp::XOr;
+                    break;
+                case AssignOp::LeftBitShift:
+                    bop = BinaryOp::LeftBitShift;
+                    break;
+                case AssignOp::RightBitShift:
+                    bop = BinaryOp::RightBitShift;
+                    break;
+                case AssignOp::Mod:
+                    bop = BinaryOp::Mod;
+                    break;
+                case AssignOp::Pow:
+                    bop = BinaryOp::Pow;
+                    break;
+                case AssignOp::Tilde:
+                    std::cerr
+                        << stmt.pos()
+                        << ": error : unknown assignment operator \"~=\"\n";
+                    error_ = true;
+                    return;
+                default:;
+            }
+            auto lexp = ptr<Expr>(new VarExpr(stmt.pos(), stmt.var()));
+            if (stmt.index()) {
+                lexp = ptr<Expr>(new AccessExpr(stmt.pos(), std::move(lexp),
+                                                object::clone(**stmt.index())));
+            }
+            stmt.set_exp(ptr<Expr>(new BExpr(stmt.pos(), std::move(lexp), bop,
+                                             object::clone(stmt.exp()))));
+            stmt.set_op(AssignOp::Equals);
+        }
         auto entry = lookup(stmt.var());
         if (!entry) {
             std::cerr << stmt.pos() << ": error : undefined identifier \""
                       << stmt.var() << "\"\n";
             error_ = true;
-        } else if (!std::holds_alternative<ClassicalType>(*entry)) {
+        } else if (!std::holds_alternative<DataType>(*entry)) {
             std::cerr << stmt.pos() << ": error : identifier \"" << stmt.var()
                       << "\" is not a classical type\n";
             error_ = true;
+        } else {
+            DataType type = std::get<DataType>(*entry);
+            if (is_quantum(type)) {
+                std::cerr << stmt.pos() << ": error : identifier \""
+                          << stmt.var() << "\" is not a classical type\n";
+                error_ = true;
+                return;
+            }
+            if (stmt.index()) {
+                visit_optional_classical_expr(stmt.index(), DataType::Int);
+                if (type != DataType::ClassicalRegister) {
+                    std::cerr << stmt.pos() << ": error : identifier \""
+                              << stmt.var()
+                              << "\" cannot be indexed because it is not a "
+                                 "classical register type\n";
+                    error_ = true;
+                    return;
+                }
+                type = DataType::ClassicalBit;
+            }
+            visit_classical_expr(stmt.exp(), type);
         }
-        visit_optional_classical_expr(stmt.index());
-        visit_classical_expr(stmt.exp());
     }
     void visit(PragmaStmt& stmt) override {
         push_scope();
@@ -1248,7 +1624,9 @@ class TypeChecker final : public Visitor {
         }
     }
     void visit(InvModifier&) override {}
-    void visit(PowModifier& mod) override { visit_classical_expr(mod.r()); }
+    void visit(PowModifier& mod) override {
+        visit_classical_expr(mod.r(), DataType::Float);
+    }
     void visit(UGate& gate) override {
         int total_control_bits = 0;
         for (auto& mod : gate.modifiers()) {
@@ -1259,9 +1637,9 @@ class TypeChecker final : public Visitor {
             total_control_bits += control_bits_;
         }
 
-        visit_classical_expr(gate.theta());
-        visit_classical_expr(gate.phi());
-        visit_classical_expr(gate.lambda());
+        visit_numeric_expr(gate.theta());
+        visit_numeric_expr(gate.phi());
+        visit_numeric_expr(gate.lambda());
 
         if (gate.num_qargs() != 1 + total_control_bits) {
             std::cerr << gate.pos() << ": error : gate \"U\" expects " << 1
@@ -1286,7 +1664,7 @@ class TypeChecker final : public Visitor {
             total_control_bits += control_bits_;
         }
 
-        visit_classical_expr(gate.gamma());
+        visit_numeric_expr(gate.gamma());
 
         if (gate.num_qargs() != total_control_bits) {
             std::cerr << gate.pos() << ": error : gate \"gphase\" expects "
@@ -1328,8 +1706,7 @@ class TypeChecker final : public Visitor {
                 error_ = true;
                 return;
             }
-            gate.foreach_carg(
-                [this](Expr& carg) { visit_classical_expr(carg); });
+            gate.foreach_carg([this](Expr& carg) { visit_numeric_expr(carg); });
 
             if (gate.num_qargs() !=
                 gate_type.num_q_params + total_control_bits) {
@@ -1350,13 +1727,13 @@ class TypeChecker final : public Visitor {
     }
     // Loops
     void visit(RangeSet& set) override {
-        visit_optional_classical_expr(set.start());
-        visit_optional_classical_expr(set.step());
-        visit_optional_classical_expr(set.stop());
+        visit_optional_classical_expr(set.start(), DataType::Int);
+        visit_optional_classical_expr(set.step(), DataType::Int);
+        visit_optional_classical_expr(set.stop(), DataType::Int);
     }
     void visit(ListSet& set) override {
         for (auto& index : set.indices()) {
-            visit_classical_expr(*index);
+            visit_classical_expr(*index, DataType::Int);
         }
     }
     void visit(VarSet& vs) override {
@@ -1365,9 +1742,9 @@ class TypeChecker final : public Visitor {
             std::cerr << vs.pos() << ": error : undefined identifier \""
                       << vs.var() << "\"\n";
             error_ = true;
-        } else if (!std::holds_alternative<ClassicalType>(*entry)) {
-            std::cerr << vs.pos() << ": error : identifier \"" << vs.var()
-                      << "\" is not a classical type\n";
+        } else {
+            std::cerr << vs.pos() << ": error : looping over identifier \""
+                      << vs.var() << "\" is supported\n";
             error_ = true;
         }
     }
@@ -1375,12 +1752,12 @@ class TypeChecker final : public Visitor {
         stmt.index_set().accept(*this);
 
         push_scope();
-        set(stmt.var(), ClassicalType{}, stmt.pos());
+        set(stmt.var(), DataType::Int, stmt.pos());
         stmt.body().accept(*this);
         pop_scope();
     }
     void visit(WhileStmt& stmt) override {
-        visit_classical_expr(stmt.cond());
+        visit_classical_expr(stmt.cond(), DataType::Bool);
 
         push_scope();
         stmt.body().accept(*this);
@@ -1390,12 +1767,12 @@ class TypeChecker final : public Visitor {
         stmt.index_set().accept(*this);
 
         push_scope();
-        set(stmt.var(), ClassicalType{}, stmt.pos());
+        set(stmt.var(), DataType::Int, stmt.pos());
         stmt.body().accept(*this);
         pop_scope();
     }
     void visit(QuantumWhileStmt& stmt) override {
-        visit_classical_expr(stmt.cond());
+        visit_classical_expr(stmt.cond(), DataType::Bool);
 
         push_scope();
         stmt.body().accept(*this);
@@ -1404,24 +1781,24 @@ class TypeChecker final : public Visitor {
     // Timing Statements
     void visit(DelayStmt& delay) override {
         for (int i = 0; i < delay.num_cargs(); i++) {
-            visit_classical_expr(delay.carg(i));
+            visit_classical_expr(delay.carg(i), DataType::Float);
         }
-        delay.duration().accept(*this);
+        visit_classical_expr(delay.duration(), DataType::Duration);
         for (int i = 0; i < delay.num_qargs(); i++) {
             visit_quantum_indexid(delay.qarg(i));
         }
     }
     void visit(RotaryStmt& rotary) override {
         for (int i = 0; i < rotary.num_cargs(); i++) {
-            visit_classical_expr(rotary.carg(i));
+            visit_classical_expr(rotary.carg(i), DataType::Float);
         }
-        rotary.duration().accept(*this);
+        visit_classical_expr(rotary.duration(), DataType::Duration);
         for (int i = 0; i < rotary.num_qargs(); i++) {
             visit_quantum_indexid(rotary.qarg(i));
         }
     }
     void visit(BoxStmt& box) override {
-        visit_optional_classical_expr(box.duration());
+        visit_optional_classical_expr(box.duration(), DataType::Duration);
         push_scope();
         box.circuit().accept(*this);
         pop_scope();
@@ -1430,65 +1807,63 @@ class TypeChecker final : public Visitor {
     void visit(ClassicalParam& param) override {
         param.type().accept(*this);
 
-        set(param.id(), ClassicalType{}, param.pos());
-        type_ = Types::Classical;
+        set(param.id(), type_, param.pos());
     }
     void visit(QubitParam& param) override {
-        visit_optional_classical_expr(param.size());
         if (param.size()) {
-            set(param.id(), QuantumRegisterType{}, param.pos());
-            type_ = Types::QuantumRegister;
+            type_ = DataType::QuantumRegister;
         } else {
-            set(param.id(), QuantumBitType{}, param.pos());
-            type_ = Types::QuantumBit;
+            type_ = DataType::QuantumBit;
         }
+        set(param.id(), type_, param.pos());
     }
     void visit(SubroutineDecl& decl) override {
         push_scope();
-        std::vector<Types> param_types;
+        std::vector<DataType> param_types;
 
         for (auto& param : decl.params()) {
             param->accept(*this);
             param_types.push_back(type_);
         }
+
+        auto& ret_type = decl.return_type();
+        type_ = DataType::None;
+        if (ret_type) {
+            (**ret_type).accept(*this);
+        }
+
+        return_type_ = type_;
         decl.body().accept(*this);
 
         pop_scope();
 
-        auto& ret_type = decl.return_type();
-        Types return_type = Types::None;
-        if (ret_type) {
-            (**ret_type).accept(*this);
-            return_type = Types::Classical;
-        }
-
-        set(decl.id(), SubroutineType{param_types, return_type}, decl.pos());
+        set(decl.id(), SubroutineType{param_types, return_type_}, decl.pos());
+        return_type_ = DataType::None;
     }
     void visit(ExternDecl& decl) override {
-        std::vector<Types> param_types;
+        std::vector<DataType> param_types;
 
         for (auto& type : decl.param_types()) {
             type->accept(*this);
-            param_types.push_back(Types::Classical); // always classical
+            param_types.push_back(type_);
         }
 
         auto& ret_type = decl.return_type();
-        Types return_type = Types::None;
+        type_ = DataType::None;
         if (ret_type) {
             (**ret_type).accept(*this);
-            return_type = Types::Classical;
         }
 
-        set(decl.id(), SubroutineType{param_types, return_type}, decl.pos());
+        set(decl.id(), SubroutineType{param_types, type_}, decl.pos());
     }
     void visit(GateDecl& decl) override {
         push_scope();
 
         for (const ast::symbol& param : decl.c_params()) {
-            set(param, ClassicalType{}, decl.pos());
+            set(param, DataType::Float, decl.pos());
         }
         for (const ast::symbol& param : decl.q_params()) {
-            set(param, QuantumBitType{}, decl.pos());
+            set(param, DataType::QuantumBit, decl.pos());
         }
         decl.body().accept(*this);
 
@@ -1500,11 +1875,10 @@ class TypeChecker final : public Visitor {
             decl.pos());
     }
     void visit(QuantumRegisterDecl& decl) override {
-        visit_optional_classical_expr(decl.size());
         if (decl.size()) {
-            set(decl.id(), QuantumRegisterType{}, decl.pos());
+            set(decl.id(), DataType::QuantumRegister, decl.pos());
         } else {
-            set(decl.id(), QuantumBitType{}, decl.pos());
+            set(decl.id(), DataType::QuantumBit, decl.pos());
         }
     }
     void visit(ClassicalDecl& decl) override {
@@ -1513,8 +1887,9 @@ class TypeChecker final : public Visitor {
             set(decl.id(), OtherType{}, decl.pos());
         } else {
             decl.type().accept(*this);
-            visit_optional_classical_expr(decl.equalsexp());
-            set(decl.id(), ClassicalType{}, decl.pos());
+            set(decl.id(), type_, decl.pos());
+            auto tmp = type_;
+            visit_optional_classical_expr(decl.equalsexp(), tmp);
         }
     }
     void visit(CalGrammarDecl&) override {}
@@ -1535,7 +1910,8 @@ class TypeChecker final : public Visitor {
     int control_bits_ = 0; ///< number of control bits from control modifiers
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
         {}}; ///< a stack of symbol tables
-    Types type_ = Types::None;
+    DataType type_ = DataType::None;
+    DataType return_type_ = DataType::None;
 
     /**
      * \brief Enters a new scope
@@ -1604,13 +1980,15 @@ class TypeChecker final : public Visitor {
      * \brief Visit a classical expression in the AST
      *
      * \param exp Reference to the expression
+     * \param expected_type Expected type of the expression
      */
-    void visit_classical_expr(Expr& exp) {
+    void visit_classical_expr(Expr& exp, const DataType& expected_type) {
         exp.accept(*this);
-        if (type_ != Types::Classical) {
-            std::cerr << exp.pos()
-                      << ": error : expected classical expression, but got \""
-                      << exp << "\"\n";
+        if (!is_castable(type_, expected_type)) {
+            std::cerr
+                << exp.pos()
+                << ": error : expression not castable to correct type : \""
+                << exp << "\"\n";
             error_ = true;
         }
     }
@@ -1619,10 +1997,29 @@ class TypeChecker final : public Visitor {
      * \brief Visit an optional classical expression in the AST
      *
      * \param exp Reference to the optional expression
+     * \param expected_type Expected type of the expression
      */
-    void visit_optional_classical_expr(std::optional<ptr<Expr>>& exp) {
+    void visit_optional_classical_expr(std::optional<ptr<Expr>>& exp,
+                                       const DataType& expected_type) {
         if (exp)
-            visit_classical_expr(**exp);
+            visit_classical_expr(**exp, expected_type);
+    }
+
+    /**
+     * \brief Visit a classical expression in the AST with numeric type
+     *
+     * \param exp Reference to the expression
+     */
+    void visit_numeric_expr(Expr& exp) {
+        exp.accept(*this);
+        if (type_ != DataType::Int && type_ != DataType::Float &&
+            type_ != DataType::Angle) {
+            std::cerr
+                << exp.pos()
+                << ": error : expression not castable to correct type : \""
+                << exp << "\"\n";
+            error_ = true;
+        }
     }
 
     /**
@@ -1632,10 +2029,10 @@ class TypeChecker final : public Visitor {
      */
     void visit_quantum_indexid(IndexId& indexid) {
         indexid.accept(*this);
-        if (type_ == Types::Classical) {
+        if (!is_quantum(type_)) {
             std::cerr << indexid.pos()
-                      << ": error : expected quantum register, but got "
-                         "classical type\n";
+                      << ": error : index identifier is not a quantum type : \""
+                      << indexid << "\"\n";
             error_ = true;
         }
     }

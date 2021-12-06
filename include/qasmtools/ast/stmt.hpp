@@ -853,9 +853,16 @@ class AssignmentStmt final : public Stmt {
     /**
      * \brief Get the assignment operator
      *
-     * \return Ann assignment operator enum
+     * \return An assignment operator enum
      */
     AssignOp op() const { return op_; }
+
+    /**
+     * \brief Set the assignment operator
+     *
+     * \param op The new assignment operator
+     */
+    void set_op(AssignOp op) { op_ = op; }
 
     /**
      * \brief Get the expression

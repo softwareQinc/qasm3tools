@@ -185,8 +185,8 @@ enum class MathOp {
     Rotr,
     Popcount
 };
-inline std::ostream& operator<<(std::ostream& os, const MathOp& uop) {
-    switch (uop) {
+inline std::ostream& operator<<(std::ostream& os, const MathOp& mop) {
+    switch (mop) {
         case MathOp::Arcsin:
             os << "arcsin";
             break;
