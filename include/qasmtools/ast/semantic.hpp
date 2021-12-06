@@ -687,7 +687,7 @@ class ConstExprChecker final : public Visitor {
         false; ///< true when traversing a compile-time constant
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
         {}}; ///< a stack of symbol tables
-    std::optional<ptr<Expr>> replacement_expr_;
+    std::optional<ptr<Expr>> replacement_expr_; ///< replace current expression
 
     /**
      * \brief Enters a new scope
@@ -910,6 +910,12 @@ class ConstExprChecker final : public Visitor {
         void visit(Program&) override {}
     };
 
+    /**
+     * \brief Evaluate a constant integer expression
+     *
+     * \param exp Reference to the expression
+     * \return Optional integer value
+     */
     std::optional<int> evaluate(Expr& exp) {
         return ConstIntEvaluator().evaluate(exp);
     }
@@ -2006,8 +2012,8 @@ class TypeChecker final : public Visitor {
     int control_bits_ = 0; ///< number of control bits from control modifiers
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
         {}}; ///< a stack of symbol tables
-    DataType type_ = DataType::None;
-    DataType return_type_ = DataType::None;
+    DataType type_ = DataType::None; ///< type of current expression
+    DataType return_type_ = DataType::None; ///< return type of subroutine
 
     /**
      * \brief Enters a new scope

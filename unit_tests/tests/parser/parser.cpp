@@ -144,13 +144,13 @@ TEST(Parsing, Not_Const_Error) {
                        "int[32] n = 8;\n"
                        "const int[64] cn = n;\n";
 
-    EXPECT_THROW(parser::parse_string(src1, "not_const_error.qasm"),
+    EXPECT_THROW(parser::parse_string(src1, "not_const_error_1.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src2, "not_const_error.qasm"),
+    EXPECT_THROW(parser::parse_string(src2, "not_const_error_2.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src3, "not_const_error.qasm"),
+    EXPECT_THROW(parser::parse_string(src3, "not_const_error_3.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src4, "not_const_error.qasm"),
+    EXPECT_THROW(parser::parse_string(src4, "not_const_error_4.qasm"),
                  ast::SemanticError);
 }
 /******************************************************************************/
@@ -166,9 +166,9 @@ TEST(Parsing, Const_Assignment_Error) {
                        "qubit[4] q;\n"
                        "n = measure q;\n";
 
-    EXPECT_THROW(parser::parse_string(src1, "const_assignment_error.qasm"),
+    EXPECT_THROW(parser::parse_string(src1, "const_assignment_error_1.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src2, "const_assignment_error.qasm"),
+    EXPECT_THROW(parser::parse_string(src2, "const_assignment_error_2.qasm"),
                  ast::SemanticError);
 }
 /******************************************************************************/
