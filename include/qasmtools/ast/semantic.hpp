@@ -767,6 +767,11 @@ class ConstExprChecker final : public Visitor {
         }
     }
 
+    /**
+     * \class qasmtools::ast::ConstExprChecker::ConstIntEvaluator
+     * \brief Evaluates constant integer expressions
+     * \see qasmtools::ast::Visitor
+     */
     class ConstIntEvaluator final : public Visitor {
         std::optional<int> value_ = std::nullopt; ///< return value
         bool cast_is_int_ = false;
@@ -916,6 +921,10 @@ class ConstExprChecker final : public Visitor {
  * \see qasmtools::ast::Visitor
  */
 class TypeChecker final : public Visitor {
+  public:
+    /**
+     * \brief Classical and quantum types
+     */
     enum class DataType {
         None,
         Bool,
@@ -930,11 +939,70 @@ class TypeChecker final : public Visitor {
         QuantumRegister
     };
 
+    /**
+     * \brief Extraction operator overload for TypeChecker::DataType enum class
+     *
+     * \param os Output stream passed by reference
+     * \param data_type TypeChecker::DataType enum class
+     * \return Reference to the output stream
+     */
+    friend std::ostream& operator<<(std::ostream& os,
+                                    const DataType& data_type) {
+        switch (data_type) {
+            case DataType::None:
+                os << "None";
+                break;
+            case DataType::Bool:
+                os << "bool";
+                break;
+            case DataType::Int:
+                os << "int";
+                break;
+            case DataType::Float:
+                os << "float";
+                break;
+            case DataType::Angle:
+                os << "angle";
+                break;
+            case DataType::ClassicalBit:
+                os << "bit";
+                break;
+            case DataType::ClassicalRegister:
+                os << "bit[n]";
+                break;
+            case DataType::Duration:
+                os << "duration";
+                break;
+            case DataType::Complex:
+                os << "complex";
+                break;
+            case DataType::QuantumBit:
+                os << "qubit";
+                break;
+            case DataType::QuantumRegister:
+                os << "qubit[n]";
+                break;
+        }
+        return os;
+    }
+
+  private:
+    // static member functions
+    /**
+     * \brief Checks whether a data type is a quantum type
+     *
+     * \return True if the data type is a quantum type, false otherwise
+     */
     static bool is_quantum(const DataType& type) {
         return type == DataType::QuantumBit ||
                type == DataType::QuantumRegister;
     }
 
+    /**
+     * \brief Checks whether the source type is castable to the target type
+     *
+     * \return True if the source type is castable to the target type
+     */
     static bool is_castable(const DataType& source, const DataType& target) {
         switch (source) {
             case DataType::Bool:
@@ -1017,15 +1085,22 @@ class TypeChecker final : public Visitor {
         }
     }
 
-    /* int subtype of float and complex; float is subtype of complex.
-     * any other combinations return false */
+    /**
+     * \brief Checks whether two types are both numberic, and the first is
+     * a subtype of the second.
+     *
+     * int is subtype of float and complex; float is subtype of complex.
+     * int, float, complex, angle are subtypes of themselves.
+     * Any other combinations return false.
+     */
     static bool is_numeric_subtype(const DataType& sub, const DataType& sup) {
         if ((sub == DataType::Int &&
              (sup == DataType::Int || sup == DataType::Float ||
               sup == DataType::Complex)) ||
             (sub == DataType::Float &&
              (sup == DataType::Float || sup == DataType::Complex)) ||
-            (sub == DataType::Complex && sup == DataType::Complex))
+            (sub == DataType::Complex && sup == DataType::Complex) ||
+            (sub == DataType::Angle && sup == DataType::Angle))
             return true;
         return false;
     }
@@ -1197,90 +1272,102 @@ class TypeChecker final : public Visitor {
     void visit(ComplexType& type) override { type_ = DataType::Complex; }
     // Expressions
     void visit(BExpr& exp) override {
+        exp.lexp().accept(*this);
+        auto t1 = type_;
+        exp.rexp().accept(*this);
+        auto t2 = type_;
         switch (exp.op()) {
             case BinaryOp::LogicalOr:
             case BinaryOp::LogicalAnd:
-                visit_classical_expr(exp.lexp(), DataType::Bool);
-                visit_classical_expr(exp.rexp(), DataType::Bool);
-                type_ = DataType::Bool;
-                return;
+                if (is_castable(t1, DataType::Bool) &&
+                    is_castable(t2, DataType::Bool)) {
+                    type_ = DataType::Bool;
+                    return;
+                }
+                break;
             case BinaryOp::BitOr:
             case BinaryOp::XOr:
             case BinaryOp::BitAnd:
-                visit_classical_expr(exp.lexp(), DataType::ClassicalRegister);
-                visit_classical_expr(exp.rexp(), DataType::ClassicalRegister);
-                type_ = DataType::ClassicalRegister;
-                return;
+                if (is_castable(t1, DataType::ClassicalRegister) &&
+                    is_castable(t2, DataType::ClassicalRegister)) {
+                    type_ = t1;
+                    return;
+                }
+                break;
             case BinaryOp::EQ:
             case BinaryOp::NEQ:
             case BinaryOp::GT:
             case BinaryOp::LT:
             case BinaryOp::GTE:
             case BinaryOp::LTE:
-                visit_classical_expr(exp.lexp(), DataType::ClassicalRegister);
-                visit_classical_expr(exp.rexp(), DataType::ClassicalRegister);
-                type_ = DataType::Bool;
-                return;
+                if (is_castable(t1, DataType::ClassicalRegister) &&
+                    is_castable(t2, DataType::ClassicalRegister)) {
+                    type_ = DataType::Bool;
+                    return;
+                }
+                break;
             case BinaryOp::LeftBitShift:
             case BinaryOp::RightBitShift: {
-                visit_classical_expr(exp.lexp(), DataType::ClassicalRegister);
-                auto tmp = type_;
-                visit_classical_expr(exp.rexp(), DataType::Int);
-                type_ = tmp;
-                return;
-            }
-            case BinaryOp::Mod:
-                visit_classical_expr(exp.lexp(), DataType::Int);
-                visit_classical_expr(exp.rexp(), DataType::Int);
-                type_ = DataType::Int;
-                return;
-            default: { /* remaining cases */
-                exp.lexp().accept(*this);
-                auto t1 = type_;
-                exp.rexp().accept(*this);
-                auto t2 = type_;
-                switch (exp.op()) {
-                    case BinaryOp::Plus:
-                    case BinaryOp::Minus:
-                        if (t1 == DataType::Duration &&
-                            t2 == DataType::Duration) {
-                            type_ = DataType::Duration;
-                            return;
-                        } else if (is_numeric_subtype(t1, t2)) {
-                            type_ = t2;
-                            return;
-                        } else if (is_numeric_subtype(t2, t1)) {
-                            type_ = t1;
-                            return;
-                        }
-                    case BinaryOp::Times:
-                    case BinaryOp::Divide:
-                        if (t1 == DataType::Duration &&
-                            is_numeric_subtype(t2, DataType::Float)) {
-                            type_ = DataType::Duration;
-                            return;
-                        } else if (t2 == DataType::Duration &&
-                                   is_numeric_subtype(t1, DataType::Float)) {
-                            type_ = DataType::Duration;
-                            return;
-                        } else if (is_numeric_subtype(t1, t2)) {
-                            type_ = t2;
-                            return;
-                        } else if (is_numeric_subtype(t2, t1)) {
-                            type_ = t1;
-                            return;
-                        }
-                    case BinaryOp::Pow:
-                        if (is_numeric_subtype(t2, t1)) {
-                            type_ = t1;
-                            return;
-                        }
-                    default:;
+                if (is_castable(t1, DataType::ClassicalRegister) &&
+                    is_castable(t2, DataType::Int)) {
+                    type_ = t1;
+                    return;
                 }
+                break;
             }
+            case BinaryOp::Plus:
+            case BinaryOp::Minus:
+                if (t1 == DataType::Duration && t2 == DataType::Duration) {
+                    type_ = DataType::Duration;
+                    return;
+                } else if (is_numeric_subtype(t1, t2)) {
+                    type_ = t2;
+                    return;
+                } else if (is_numeric_subtype(t2, t1)) {
+                    type_ = t1;
+                    return;
+                }
+                break;
+            case BinaryOp::Times:
+            case BinaryOp::Divide:
+                if (t1 == DataType::Duration &&
+                    is_numeric_subtype(t2, DataType::Float)) {
+                    type_ = DataType::Duration;
+                    return;
+                } else if (t2 == DataType::Duration &&
+                           is_numeric_subtype(t1, DataType::Float)) {
+                    type_ = DataType::Duration;
+                    return;
+                } else if (exp.op() == BinaryOp::Divide &&
+                           t1 == DataType::Duration &&
+                           t2 == DataType::Duration) {
+                    type_ = DataType::Float;
+                    return;
+                } else if (is_numeric_subtype(t1, t2)) {
+                    type_ = t2;
+                    return;
+                } else if (is_numeric_subtype(t2, t1)) {
+                    type_ = t1;
+                    return;
+                }
+                break;
+            case BinaryOp::Mod:
+                if (is_castable(t1, DataType::Int) &&
+                    is_castable(t2, DataType::Int)) {
+                    type_ = DataType::Int;
+                    return;
+                }
+                break;
+            case BinaryOp::Pow:
+                if (is_numeric_subtype(t2, t1)) {
+                    type_ = t1;
+                    return;
+                }
+                break;
         }
-        std::cerr << exp.pos() << ": error : " << exp.op()
-                  << " has incompatible operands\n";
+        std::cerr << exp.pos()
+                  << ": error : invalid operands to binary operator "
+                  << exp.op() << " : '" << t1 << "' and '" << t2 << "' \n";
         error_ = true;
         type_ = DataType::None;
     }
@@ -1313,7 +1400,8 @@ class TypeChecker final : public Visitor {
             case MathOp::Sqrt:
                 if (exp.num_args() != 1) {
                     std::cerr << exp.pos() << ": error : " << exp.op()
-                              << " expects one argument\n";
+                              << " expects one argument, but got "
+                              << exp.num_args() << "\n";
                     error_ = true;
                     type_ = DataType::None;
                     return;
@@ -1325,7 +1413,8 @@ class TypeChecker final : public Visitor {
             case MathOp::Rotr:
                 if (exp.num_args() != 2) {
                     std::cerr << exp.pos() << ": error : " << exp.op()
-                              << " expects two arguments\n";
+                              << " expects two arguments, but got "
+                              << exp.num_args() << "\n";
                     error_ = true;
                     type_ = DataType::None;
                     return;
@@ -1337,7 +1426,8 @@ class TypeChecker final : public Visitor {
             case MathOp::Popcount:
                 if (exp.num_args() != 1) {
                     std::cerr << exp.pos() << ": error : " << exp.op()
-                              << " expects one argument\n";
+                              << " expects one argument, but got "
+                              << exp.num_args() << "\n";
                     error_ = true;
                     type_ = DataType::None;
                     return;
@@ -1373,7 +1463,9 @@ class TypeChecker final : public Visitor {
                     exp.arg(i).accept(*this);
                     if (!is_castable(type_, subrtn_type.param_types[i])) {
                         std::cerr << exp.pos() << ": error : argument " << i
-                                  << " is the wrong type\n";
+                                  << " is the wrong type : expected '"
+                                  << subrtn_type.param_types[i] << "', got '"
+                                  << type_ << "'\n";
                         error_ = true;
                     }
                 }
@@ -1395,7 +1487,8 @@ class TypeChecker final : public Visitor {
         } else if (tmp == DataType::QuantumRegister) {
             type_ = DataType::QuantumBit;
         } else {
-            std::cerr << exp.pos() << ": error : invalid access operator\n";
+            std::cerr << exp.pos() << ": error : expression of type '" << tmp
+                      << "' cannot be indexed\n";
             error_ = true;
             type_ = DataType::None;
         }
@@ -1493,29 +1586,32 @@ class TypeChecker final : public Visitor {
     void visit(BreakStmt&) override {}
     void visit(ContinueStmt&) override {}
     void visit(ReturnStmt& stmt) override {
-        std::visit(utils::overloaded{
-                       [this](ptr<QuantumMeasurement>& qm) {
-                           qm->accept(*this);
-                           if (!is_castable(DataType::ClassicalRegister,
-                                            return_type_)) {
-                               std::cerr
-                                   << qm->pos()
-                                   << ": error : incompatible return type\n";
-                               error_ = true;
-                           }
-                       },
-                       [this](ptr<Expr>& exp) {
-                           visit_classical_expr(*exp, return_type_);
-                       },
-                       [this, &stmt](auto) {
-                           if (return_type_ != DataType::None) {
-                               std::cerr << stmt.pos()
-                                         << ": error : non-void subroutine "
-                                            "should return a value\n";
-                               error_ = true;
-                           }
-                       }},
-                   stmt.value());
+        std::visit(
+            utils::overloaded{
+                [this](ptr<QuantumMeasurement>& qm) {
+                    qm->accept(*this);
+                    if (!is_castable(DataType::ClassicalRegister,
+                                     return_type_)) {
+                        std::cerr
+                            << qm->pos()
+                            << ": error : incompatible return type : expected '"
+                            << return_type_ << "', got '"
+                            << DataType::ClassicalRegister << "'\n";
+                        error_ = true;
+                    }
+                },
+                [this](ptr<Expr>& exp) {
+                    visit_classical_expr(*exp, return_type_);
+                },
+                [this, &stmt](auto) {
+                    if (return_type_ != DataType::None) {
+                        std::cerr << stmt.pos()
+                                  << ": error : non-void subroutine "
+                                     "should return a value\n";
+                        error_ = true;
+                    }
+                }},
+            stmt.value());
     }
     void visit(EndStmt&) override {}
     void visit(AliasStmt& stmt) override {
@@ -1642,8 +1738,8 @@ class TypeChecker final : public Visitor {
         visit_numeric_expr(gate.lambda());
 
         if (gate.num_qargs() != 1 + total_control_bits) {
-            std::cerr << gate.pos() << ": error : gate \"U\" expects " << 1
-                      << " quantum parameter";
+            std::cerr << gate.pos()
+                      << ": error : gate \"U\" expects 1 quantum parameter";
             if (total_control_bits > 0) {
                 std::cerr << " plus " << total_control_bits << " control bits";
             }
@@ -1744,7 +1840,7 @@ class TypeChecker final : public Visitor {
             error_ = true;
         } else {
             std::cerr << vs.pos() << ": error : looping over identifier \""
-                      << vs.var() << "\" is supported\n";
+                      << vs.var() << "\" is not supported\n";
             error_ = true;
         }
     }
@@ -1985,10 +2081,9 @@ class TypeChecker final : public Visitor {
     void visit_classical_expr(Expr& exp, const DataType& expected_type) {
         exp.accept(*this);
         if (!is_castable(type_, expected_type)) {
-            std::cerr
-                << exp.pos()
-                << ": error : expression not castable to correct type : \""
-                << exp << "\"\n";
+            std::cerr << exp.pos() << ": error : expected '" << expected_type
+                      << "' type, but got '" << type_ << "' type : \"" << exp
+                      << "\"\n";
             error_ = true;
         }
     }
@@ -2014,10 +2109,9 @@ class TypeChecker final : public Visitor {
         exp.accept(*this);
         if (type_ != DataType::Int && type_ != DataType::Float &&
             type_ != DataType::Angle) {
-            std::cerr
-                << exp.pos()
-                << ": error : expression not castable to correct type : \""
-                << exp << "\"\n";
+            std::cerr << exp.pos()
+                      << ": error : expected numeric type, but got '" << type_
+                      << "' type : \"" << exp << "\"\n";
             error_ = true;
         }
     }
@@ -2031,8 +2125,8 @@ class TypeChecker final : public Visitor {
         indexid.accept(*this);
         if (!is_quantum(type_)) {
             std::cerr << indexid.pos()
-                      << ": error : index identifier is not a quantum type : \""
-                      << indexid << "\"\n";
+                      << ": error : expected quantum type, but got '" << type_
+                      << "' type : \"" << indexid << "\"\n";
             error_ = true;
         }
     }
