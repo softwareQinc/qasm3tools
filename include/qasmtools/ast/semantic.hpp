@@ -583,9 +583,8 @@ class ConstExprChecker final : public Visitor {
             param->accept(*this);
         }
 
-        auto& ret_type = decl.return_type();
-        if (ret_type) {
-            (**ret_type).accept(*this);
+        if (decl.return_type()) {
+            (**decl.return_type()).accept(*this);
         }
 
         decl.body().accept(*this);
@@ -599,9 +598,8 @@ class ConstExprChecker final : public Visitor {
             type->accept(*this);
         }
 
-        auto& ret_type = decl.return_type();
-        if (ret_type) {
-            (**ret_type).accept(*this);
+        if (decl.return_type()) {
+            (**decl.return_type()).accept(*this);
         }
 
         set(decl.id(), OtherVar{}, decl.pos());
@@ -686,7 +684,7 @@ class ConstExprChecker final : public Visitor {
     bool expect_const_ =
         false; ///< true when traversing a compile-time constant
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
-        {}}; ///< a stack of symbol tables
+        {}};                                    ///< a stack of symbol tables
     std::optional<ptr<Expr>> replacement_expr_; ///< replace current expression
 
     /**
@@ -774,7 +772,7 @@ class ConstExprChecker final : public Visitor {
      */
     class ConstIntEvaluator final : public Visitor {
         std::optional<int> value_ = std::nullopt; ///< return value
-        bool cast_is_int_ = false;
+        bool cast_is_int_ = false; ///< whether explicit cast is to int or uint
 
       public:
         std::optional<int> evaluate(Expr& exp) {
@@ -827,14 +825,8 @@ class ConstExprChecker final : public Visitor {
         void visit(UExpr& exp) override {
             exp.subexp().accept(*this);
             auto subexp = value_;
-            if (subexp) {
-                switch (exp.op()) {
-                    case UnaryOp::Neg:
-                        value_ = -(*subexp);
-                        break;
-                    default:
-                        value_ = std::nullopt;
-                }
+            if (subexp && exp.op() == UnaryOp::Neg) {
+                value_ = -(*subexp);
             } else
                 value_ = std::nullopt;
         }
@@ -1041,7 +1033,6 @@ class TypeChecker final : public Visitor {
                     case DataType::Angle:
                     case DataType::ClassicalBit:
                     case DataType::ClassicalRegister:
-                    case DataType::Complex:
                         return true;
                     default:
                         return false;
@@ -1092,7 +1083,7 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Checks whether two types are both numberic, and the first is
+     * \brief Checks whether two types are both numeric, and the first is
      * a subtype of the second.
      *
      * int is subtype of float and complex; float is subtype of complex.
@@ -1185,7 +1176,7 @@ class TypeChecker final : public Visitor {
                         error_ = true;
                     }
                     return;
-                case DataType::Angle: // apparently allowed
+                case DataType::Angle: // apparently allowed (see ipe.qasm)
                 case DataType::ClassicalRegister:
                     if (va.slice()) {
                         (**va.slice()).accept(*this);
@@ -1225,10 +1216,7 @@ class TypeChecker final : public Visitor {
                    (t2 == DataType::ClassicalBit ||
                     t2 == DataType::ClassicalRegister)) {
             type_ = DataType::ClassicalRegister;
-        } else if ((t1 == DataType::QuantumBit ||
-                    t1 == DataType::QuantumRegister) &&
-                   (t2 == DataType::QuantumBit ||
-                    t2 == DataType::QuantumRegister)) {
+        } else if (is_quantum(t1) && is_quantum(t2)) {
             type_ = DataType::QuantumRegister;
         } else {
             std::cerr << c.pos()
@@ -1378,20 +1366,29 @@ class TypeChecker final : public Visitor {
         type_ = DataType::None;
     }
     void visit(UExpr& exp) override {
+        exp.subexp().accept(*this);
         switch (exp.op()) {
             case UnaryOp::BitNot:
-                visit_classical_expr(exp.subexp(), DataType::ClassicalRegister);
-                /* type of ~x is same as type of x */
+                if (is_castable(type_, DataType::ClassicalRegister)) {
+                    return; // type of ~x is same as type of x
+                }
                 break;
             case UnaryOp::LogicalNot:
-                visit_classical_expr(exp.subexp(), DataType::Bool);
-                type_ = DataType::Bool;
+                if (is_castable(type_, DataType::Bool)) {
+                    type_ = DataType::Bool;
+                    return;
+                }
                 break;
             case UnaryOp::Neg:
-                visit_classical_expr(exp.subexp(), DataType::Float);
-                /* type of -x is same as type of x */
+                if (is_numeric_subtype(type_, DataType::Complex)) {
+                    return; // type of -x is same as type of x
+                }
                 break;
         }
+        std::cerr << exp.pos() << ": error : invalid operand to unary operator "
+                  << exp.op() << " : '" << type_ << "' \n";
+        error_ = true;
+        type_ = DataType::None;
     }
     void visit(MathExpr& exp) override {
         switch (exp.op()) {
@@ -1446,7 +1443,12 @@ class TypeChecker final : public Visitor {
     void visit(CastExpr& exp) override {
         exp.type().accept(*this);
         auto tmp = type_;
-        visit_classical_expr(exp.subexp(), tmp);
+        exp.subexp().accept(*this);
+        if (!is_castable(type_, tmp)) {
+            std::cerr << exp.pos() << ": error : cannot cast '" << type_
+                      << "' to '" << tmp << "' \n";
+            error_ = true;
+        }
         type_ = tmp;
     }
     void visit(FunctionCall& exp) override {
@@ -1565,7 +1567,8 @@ class TypeChecker final : public Visitor {
         if (type_ != DataType::ClassicalBit &&
             type_ != DataType::ClassicalRegister) {
             std::cerr << stmt.c_arg().pos()
-                      << ": error : expected classical register\n";
+                      << ": error : expected classical register : \""
+                      << stmt.c_arg() << "\"\n";
             error_ = true;
         }
     }
@@ -1734,8 +1737,6 @@ class TypeChecker final : public Visitor {
         for (auto& mod : gate.modifiers()) {
             control_bits_ = 0;
             mod->accept(*this);
-            if (error_)
-                return;
             total_control_bits += control_bits_;
         }
 
@@ -1761,8 +1762,6 @@ class TypeChecker final : public Visitor {
         for (auto& mod : gate.modifiers()) {
             control_bits_ = 0;
             mod->accept(*this);
-            if (error_)
-                return;
             total_control_bits += control_bits_;
         }
 
@@ -1795,8 +1794,6 @@ class TypeChecker final : public Visitor {
             for (auto& mod : gate.modifiers()) {
                 control_bits_ = 0;
                 mod->accept(*this);
-                if (error_)
-                    return;
                 total_control_bits += control_bits_;
             }
 
@@ -1928,10 +1925,9 @@ class TypeChecker final : public Visitor {
             param_types.push_back(type_);
         }
 
-        auto& ret_type = decl.return_type();
         type_ = DataType::None;
-        if (ret_type) {
-            (**ret_type).accept(*this);
+        if (decl.return_type()) {
+            (**decl.return_type()).accept(*this);
         }
 
         return_type_ = type_;
@@ -1950,10 +1946,9 @@ class TypeChecker final : public Visitor {
             param_types.push_back(type_);
         }
 
-        auto& ret_type = decl.return_type();
         type_ = DataType::None;
-        if (ret_type) {
-            (**ret_type).accept(*this);
+        if (decl.return_type()) {
+            (**decl.return_type()).accept(*this);
         }
 
         set(decl.id(), SubroutineType{param_types, type_}, decl.pos());
@@ -1990,8 +1985,7 @@ class TypeChecker final : public Visitor {
         } else {
             decl.type().accept(*this);
             set(decl.id(), type_, decl.pos());
-            auto tmp = type_;
-            visit_optional_classical_expr(decl.equalsexp(), tmp);
+            visit_optional_classical_expr(decl.equalsexp(), type_);
         }
     }
     void visit(CalGrammarDecl&) override {}
@@ -2011,8 +2005,8 @@ class TypeChecker final : public Visitor {
     bool error_ = false;   ///< whether errors have occurred
     int control_bits_ = 0; ///< number of control bits from control modifiers
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
-        {}}; ///< a stack of symbol tables
-    DataType type_ = DataType::None; ///< type of current expression
+        {}};                                ///< a stack of symbol tables
+    DataType type_ = DataType::None;        ///< type of current expression
     DataType return_type_ = DataType::None; ///< return type of subroutine
 
     /**
@@ -2084,7 +2078,7 @@ class TypeChecker final : public Visitor {
      * \param exp Reference to the expression
      * \param expected_type Expected type of the expression
      */
-    void visit_classical_expr(Expr& exp, const DataType& expected_type) {
+    void visit_classical_expr(Expr& exp, DataType expected_type) {
         exp.accept(*this);
         if (!is_castable(type_, expected_type)) {
             std::cerr << exp.pos() << ": error : expected '" << expected_type
