@@ -172,3 +172,188 @@ TEST(Parsing, Const_Assignment_Error) {
                  ast::SemanticError);
 }
 /******************************************************************************/
+
+/******************************************************************************/
+TEST(Parsing, Operand_Type_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "float[32] n = 9;\n"
+                       "~n;\n";
+
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "1.2^2;\n";
+
+    std::string src3 = "OPENQASM 3.0;\n"
+                       "extern f() -> int[32];\n"
+                       "true*f();\n";
+
+    std::string src4 = "OPENQASM 3.0;\n"
+                       "extern f();\n"
+                       "f()+1;\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "operand_type_error_1.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src2, "operand_type_error_2.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src3, "operand_type_error_3.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src4, "operand_type_error_4.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
+
+/******************************************************************************/
+TEST(Parsing, Cast_Type_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "bit[32](3.14);\n";
+
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "angle[64] theta;\n"
+                       "float[64](theta);\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "cast_type_error_1.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src2, "cast_type_error_2.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
+
+/******************************************************************************/
+TEST(Parsing, Param_Type_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "extern f(angle[32]);\n"
+                       "f(true);\n";
+
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "extern f(bit);\n"
+                       "qubit q;\n"
+                       "f(q);\n";
+
+    std::string src3 = "OPENQASM 3.0;\n"
+                       "def f(qubit q) {}\n"
+                       "bit b;\n"
+                       "f(b);\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "param_type_error_1.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src2, "param_type_error_2.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src3, "param_type_error_3.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
+
+/******************************************************************************/
+TEST(Parsing, Return_Type_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "def f() -> int[32] {\n"
+                       "\treturn;\n"
+                       "}\n";
+
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "def f() {\n"
+                       "\treturn 0;\n"
+                       "}\n";
+
+    std::string src3 = "OPENQASM 3.0;\n"
+                       "def f(qubit q) -> float[32] {\n"
+                       "\treturn measure q;\n"
+                       "}\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "return_type_error_1.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src2, "return_type_error_2.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src3, "return_type_error_3.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
+
+/******************************************************************************/
+TEST(Parsing, Register_Type_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "bit[1] x;\n"
+                       "U(0,0,0) x[0];\n";
+
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "bit x;\n"
+                       "barrier x;\n";
+
+    std::string src3 = "OPENQASM 3.0;\n"
+                       "bit[10] x;\n"
+                       "let q = x[1:2:9];\n";
+
+    std::string src4 = "OPENQASM 3.0;\n"
+                       "qubit[2] x;\n"
+                       "qubit y;\n"
+                       "x[1] = measure y;\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "register_type_error_1.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src2, "register_type_error_2.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src3, "register_type_error_3.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src4, "register_type_error_4.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
+
+/******************************************************************************/
+TEST(Parsing, Miscellaneous_Type_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "angle[32] x = π;\n"
+                       "qubit[10] q;\n"
+                       "measure q[x];\n";
+
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "for i in [1im:] {}\n";
+
+    std::string src3 = "OPENQASM 3.0;\n"
+                       "bit[10] x;\n"
+                       "x[3ns];\n";
+
+    std::string src4 = "OPENQASM 3.0;\n"
+                       "popcount(2.72);\n";
+
+    std::string src5 = "OPENQASM 3.0;\n"
+                       "qubit q;\n"
+                       "if (q) {}\n";
+
+    std::string src6 = "OPENQASM 3.0;\n"
+                       "extern f();\n"
+                       "while (f()) {}\n";
+
+    std::string src7 = "OPENQASM 3.0;\n"
+                       "qubit[1] q;\n"
+                       "bit[32] x;\n"
+                       "pow(x) @ U(0,0,0) q;\n";
+
+    std::string src8 = "OPENQASM 3.0;\n"
+                       "float[32] x;\n"
+                       "bit[32] y;\n"
+                       "x = y;\n";
+
+    std::string src9 = "OPENQASM 3.0;\n"
+                       "extern f();\n"
+                       "float[32] x = f();\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "miscellaneous_type_error_1.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src2, "miscellaneous_type_error_2.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src3, "miscellaneous_type_error_3.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src4, "miscellaneous_type_error_4.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src5, "miscellaneous_type_error_5.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src6, "miscellaneous_type_error_6.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src7, "miscellaneous_type_error_7.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src8, "miscellaneous_type_error_8.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src9, "miscellaneous_type_error_9.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
