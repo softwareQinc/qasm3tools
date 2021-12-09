@@ -31,9 +31,8 @@
 *.out
 *.app
 
-# vim
+# Vim
 *.swp
-out.tmp
 
 # MSVC 
 .vs/
@@ -44,3 +43,6 @@ CMakeSettings.json
 .idea/
 build/
 cmake-build*/
+
+# Misc
+.DS_Store
