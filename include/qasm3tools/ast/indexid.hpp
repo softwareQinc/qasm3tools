@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/indexid.hpp
+ * \file qasm3tools/ast/indexid.hpp
  * \brief OpenQASM index identifiers
  */
 
@@ -37,11 +37,11 @@
 #include <optional>
 #include <vector>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasmtools::ast::Slice
+ * \class qasm3tools::ast::Slice
  * \brief Class for register slices
  */
 class Slice : public ASTNode {
@@ -61,7 +61,7 @@ class Slice : public ASTNode {
 };
 
 /**
- * \class qasmtools::ast::RangeSlice
+ * \class qasm3tools::ast::RangeSlice
  * \brief Class for range slices
  */
 class RangeSlice : public Slice {
@@ -157,7 +157,7 @@ class RangeSlice : public Slice {
 };
 
 /**
- * \class qasmtools::ast::ListSlice
+ * \class qasm3tools::ast::ListSlice
  * \brief Class for list slices
  */
 class ListSlice : public Slice {
@@ -209,7 +209,7 @@ class ListSlice : public Slice {
 };
 
 /**
- * \class qasmtools::ast::IndexId
+ * \class qasm3tools::ast::IndexId
  * \brief Class for index identifiers
  */
 class IndexId : public ASTNode {
@@ -222,9 +222,9 @@ class IndexId : public ASTNode {
 };
 
 /**
- * \class qasmtools::ast::VarAccess
+ * \class qasm3tools::ast::VarAccess
  * \brief Class for variable accesses
- * \see qasmtools::ast::IndexId
+ * \see qasm3tools::ast::IndexId
  *
  * Represents accesses into a register by the register name and an optional
  * range or list slicing.
@@ -286,9 +286,9 @@ class VarAccess final : public IndexId {
 };
 
 /**
- * \class qasmtools::ast::Concat
+ * \class qasm3tools::ast::Concat
  * \brief Class for register concatenation
- * \see qasmtools::ast::IndexId
+ * \see qasm3tools::ast::IndexId
  */
 class Concat final : public IndexId {
     ptr<IndexId> lreg_; ///< the left sub-register
@@ -354,4 +354,4 @@ class Concat final : public IndexId {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

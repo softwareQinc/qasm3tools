@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/timing.hpp
+ * \file qasm3tools/ast/timing.hpp
  * \brief Classes for timing expressions and statements
  */
 
@@ -39,7 +39,7 @@
 #include <iomanip>
 #include <optional>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 /**
@@ -71,9 +71,9 @@ inline std::ostream& operator<<(std::ostream& os, const TimeUnit& tu) {
 }
 
 /**
- * \class qasmtools::ast::TimeExpr
+ * \class qasm3tools::ast::TimeExpr
  * \brief Class for time expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class TimeExpr final : public Expr {
     double value_;   ///< the floating point value
@@ -132,9 +132,9 @@ class TimeExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::DurationGateExpr
+ * \class qasm3tools::ast::DurationGateExpr
  * \brief Class for durationof(gate) expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class DurationGateExpr final : public Expr {
     symbol gate_; // the gate indentifier
@@ -180,9 +180,9 @@ class DurationGateExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::DurationBlockExpr
+ * \class qasm3tools::ast::DurationBlockExpr
  * \brief Class for durationof({...}) expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class DurationBlockExpr final : public Expr {
     ptr<QuantumBlock> block_; // the quantum block
@@ -229,7 +229,7 @@ class DurationBlockExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::TimingStmt
+ * \class qasm3tools::ast::TimingStmt
  * \brief Statement sub-class for timing statements
  */
 class TimingStmt : public QuantumStmt {
@@ -242,9 +242,9 @@ class TimingStmt : public QuantumStmt {
 };
 
 /**
- * \class qasmtools::ast::DelayStmt
+ * \class qasm3tools::ast::DelayStmt
  * \brief Class for delay statements
- * \see qasmtools::ast::Stmt
+ * \see qasm3tools::ast::Stmt
  */
 class DelayStmt final : public TimingStmt {
     std::vector<ptr<Expr>> c_args_;    ///< list of classical arguments
@@ -394,9 +394,9 @@ class DelayStmt final : public TimingStmt {
 };
 
 /**
- * \class qasmtools::ast::RotaryStmt
+ * \class qasm3tools::ast::RotaryStmt
  * \brief Class for rotary statements
- * \see qasmtools::ast::Stmt
+ * \see qasm3tools::ast::Stmt
  */
 class RotaryStmt final : public TimingStmt {
     std::vector<ptr<Expr>> c_args_;    ///< list of classical arguments
@@ -546,9 +546,9 @@ class RotaryStmt final : public TimingStmt {
 };
 
 /**
- * \class qasmtools::ast::BoxStmt
+ * \class qasm3tools::ast::BoxStmt
  * \brief Class for box statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class BoxStmt final : public TimingStmt {
     std::optional<ptr<Expr>> duration_; ///< box duration
@@ -618,4 +618,4 @@ class BoxStmt final : public TimingStmt {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

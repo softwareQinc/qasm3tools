@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/program.hpp
+ * \file qasm3tools/ast/program.hpp
  * \brief OpenQASM programs
  */
 
@@ -33,11 +33,11 @@
 
 #include "stmtblock.hpp"
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasmtools::ast::Program
+ * \class qasm3tools::ast::Program
  * \brief Program class
  */
 
@@ -108,4 +108,4 @@ class Program : public BlockBase<ProgramStmt, Program> {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

@@ -1,9 +1,9 @@
-#include "qasmtools/parser/parser.hpp"
+#include "qasm3tools/parser/parser.hpp"
 #include "gtest/gtest.h"
 
 #include <sstream>
 
-using namespace qasmtools;
+using namespace qasm3tools;
 
 // Parsing & semantic analysis unit tests
 /******************************************************************************/

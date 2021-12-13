@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/expr.hpp
+ * \file qasm3tools/ast/expr.hpp
  * \brief OpenQASM expressions
  */
 
@@ -40,7 +40,7 @@
 #include <iomanip>
 #include <vector>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 /**
@@ -228,9 +228,9 @@ inline std::ostream& operator<<(std::ostream& os, const MathOp& mop) {
 }
 
 /**
- * \class qasmtools::ast::BExpr
+ * \class qasm3tools::ast::BExpr
  * \brief Class for binary operator expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class BExpr final : public Expr {
     ptr<Expr> lexp_; ///< the left sub-expression
@@ -344,9 +344,9 @@ class BExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::UExpr
+ * \class qasm3tools::ast::UExpr
  * \brief Class for unary operator expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class UExpr final : public Expr {
     UnaryOp op_;    ///< the unary operator
@@ -421,9 +421,9 @@ class UExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::MathExpr
+ * \class qasm3tools::ast::MathExpr
  * \brief Class for math operator expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class MathExpr final : public Expr {
     MathOp op_;                   ///< the math operator
@@ -532,9 +532,9 @@ class MathExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::CastExpr
+ * \class qasm3tools::ast::CastExpr
  * \brief Class for typecast expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class CastExpr final : public Expr {
     ptr<ClassicalType> type_; ///< the type specifier
@@ -606,9 +606,9 @@ class CastExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::FunctionCall
+ * \class qasm3tools::ast::FunctionCall
  * \brief Class for subroutine-call expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class FunctionCall final : public Expr {
     symbol name_;                 ///< the subroutine identifier
@@ -689,9 +689,9 @@ class FunctionCall final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::AccessExpr
+ * \class qasm3tools::ast::AccessExpr
  * \brief Class for access expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class AccessExpr final : public Expr {
     ptr<Expr> exp_;   ///< the expression
@@ -768,9 +768,9 @@ class AccessExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::ConstantExpr
+ * \class qasm3tools::ast::ConstantExpr
  * \brief Class for defined constant expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class ConstantExpr final : public Expr {
     Constant constant_;
@@ -826,9 +826,9 @@ class ConstantExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::IntExpr
+ * \class qasm3tools::ast::IntExpr
  * \brief Class for integer literal expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class IntExpr final : public Expr {
     int value_; ///< the integer value
@@ -872,9 +872,9 @@ class IntExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::RealExpr
+ * \class qasm3tools::ast::RealExpr
  * \brief Class for floating point literal expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class RealExpr final : public Expr {
     double value_; ///< the floating point value
@@ -919,9 +919,9 @@ class RealExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::ImagExpr
+ * \class qasm3tools::ast::ImagExpr
  * \brief Class for imaginary literal expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class ImagExpr final : public Expr {
     double value_; ///< the floating point value (which is multiplied by i)
@@ -966,9 +966,9 @@ class ImagExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::BoolExpr
+ * \class qasm3tools::ast::BoolExpr
  * \brief Class for boolean literal expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class BoolExpr final : public Expr {
     bool value_; ///< the boolean value
@@ -1012,9 +1012,9 @@ class BoolExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::VarExpr
+ * \class qasm3tools::ast::VarExpr
  * \brief Class for variable expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class VarExpr final : public Expr {
     symbol var_; ///< the identifier
@@ -1057,9 +1057,9 @@ class VarExpr final : public Expr {
 };
 
 /**
- * \class qasmtools::ast::StringExpr
+ * \class qasm3tools::ast::StringExpr
  * \brief Class for string expressions
- * \see qasmtools::ast::Expr
+ * \see qasm3tools::ast::Expr
  */
 class StringExpr final : public Expr {
     std::string text_; ///< the string
@@ -1137,4 +1137,4 @@ inline ptr<Expr> angle_to_expr(const utils::Angle& theta) {
 }
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

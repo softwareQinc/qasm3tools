@@ -1,10 +1,9 @@
 /*
- * Covariance and smart pointers. Adapted from
- * https://github.com/CppCodeReviewers/Covariant-Return-Types-and-Smart-Pointers
+ * This file is part of qasm3tools.
  *
- * The MIT License (MIT)
+ * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
- * Copyright (c) 2014 C++ Code Revievers
+ * MIT License
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,39 +24,18 @@
  * SOFTWARE.
  */
 
+/**
+ * \file qasm3tools/ast/ast.hpp
+ */
+
 #pragma once
 
-#include <memory>
-
-namespace qasmtools {
-namespace ast {
-
-template <typename T>
-using ptr = std::unique_ptr<T>;
-
-namespace object {
-template <typename T>
-inline ptr<T> clone(const T& object) {
-    using base_type = typename T::base_type;
-    static_assert(std::is_base_of<base_type, T>::value,
-                  "T object has to derived from T::base_type");
-    auto ptrr = static_cast<const base_type&>(object).clone();
-    return ptr<T>(static_cast<T*>(ptrr));
-}
-
-template <typename T>
-struct cloneable {
-    using base_type = T;
-
-    virtual ~cloneable() = default;
-
-  protected:
-    virtual T* clone() const = 0;
-
-    template <typename X>
-    friend ptr<X> object::clone(const X&);
-};
-} // namespace object
-
-} // namespace ast
-} // namespace qasmtools
+#include "base.hpp"
+#include "decl.hpp"
+#include "expr.hpp"
+#include "gate.hpp"
+#include "loop.hpp"
+#include "program.hpp"
+#include "stmt.hpp"
+#include "timing.hpp"
+#include "visitor.hpp"

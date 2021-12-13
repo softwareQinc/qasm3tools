@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/semantic.hpp
+ * \file qasm3tools/ast/semantic.hpp
  * \brief Visitor interface for syntax trees
  */
 
@@ -37,11 +37,11 @@
 
 #include <unordered_map>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasmtools::ast::SemanticError
+ * \class qasm3tools::ast::SemanticError
  * \brief Exception class for semantic errors
  */
 class SemanticError : public std::exception {
@@ -52,7 +52,7 @@ class SemanticError : public std::exception {
 };
 
 /**
- * \class qasmtools::ast::ConstExprChecker
+ * \class qasm3tools::ast::ConstExprChecker
  * \brief Checks that const expressions are only defined in terms of other
  * const expressions, and that const variables are not assigned to. Also
  * replaces occurences of const expressions with their values, e.g.
@@ -63,7 +63,7 @@ class SemanticError : public std::exception {
  *   const int[32] n = 8;
  *   qubit[7] q;
  *   int[16] i = int[32](8);
- * \see qasmtools::ast::Visitor
+ * \see qasm3tools::ast::Visitor
  */
 class ConstExprChecker final : public Visitor {
     /**
@@ -766,9 +766,9 @@ class ConstExprChecker final : public Visitor {
     }
 
     /**
-     * \class qasmtools::ast::ConstExprChecker::ConstIntEvaluator
+     * \class qasm3tools::ast::ConstExprChecker::ConstIntEvaluator
      * \brief Evaluates constant integer expressions
-     * \see qasmtools::ast::Visitor
+     * \see qasm3tools::ast::Visitor
      */
     class ConstIntEvaluator final : public Visitor {
         std::optional<int> value_ = std::nullopt; ///< return value
@@ -914,9 +914,9 @@ class ConstExprChecker final : public Visitor {
 };
 
 /**
- * \class qasmtools::ast::TypeChecker
+ * \class qasm3tools::ast::TypeChecker
  * \brief Type checking
- * \see qasmtools::ast::Visitor
+ * \see qasm3tools::ast::Visitor
  */
 class TypeChecker final : public Visitor {
   public:
@@ -2141,4 +2141,4 @@ inline void check_source(Program& prog) {
 }
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

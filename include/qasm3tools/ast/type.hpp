@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/type.hpp
+ * \file qasm3tools/ast/type.hpp
  * \brief OpenQASM classical types
  */
 
@@ -36,7 +36,7 @@
 
 #include <optional>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 /**
@@ -81,7 +81,7 @@ inline std::ostream& operator<<(std::ostream& os, const NDType& t) {
 }
 
 /**
- * \class qasmtools::ast::ClassicalType
+ * \class qasm3tools::ast::ClassicalType
  * \brief Class for classical types
  */
 class ClassicalType : public ASTNode {
@@ -94,7 +94,7 @@ class ClassicalType : public ASTNode {
 };
 
 /**
- * \class qasmtools::ast::SingleDesignatorType
+ * \class qasm3tools::ast::SingleDesignatorType
  * \brief Type sub-class for single-designator types
  */
 class SingleDesignatorType : public ClassicalType {
@@ -155,7 +155,7 @@ class SingleDesignatorType : public ClassicalType {
 };
 
 /**
- * \class qasmtools::ast::NoDesignatorType
+ * \class qasm3tools::ast::NoDesignatorType
  * \brief Type sub-class for no-designator types
  */
 class NoDesignatorType : public ClassicalType {
@@ -198,7 +198,7 @@ class NoDesignatorType : public ClassicalType {
 };
 
 /**
- * \class qasmtools::ast::BitType
+ * \class qasm3tools::ast::BitType
  * \brief Type sub-class for bit types
  */
 class BitType : public ClassicalType {
@@ -248,7 +248,7 @@ class BitType : public ClassicalType {
 };
 
 /**
- * \class qasmtools::ast::ComplexType
+ * \class qasm3tools::ast::ComplexType
  * \brief Type sub-class for complex types
  */
 class ComplexType : public ClassicalType {
@@ -292,4 +292,4 @@ class ComplexType : public ClassicalType {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

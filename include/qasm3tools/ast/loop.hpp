@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/loop.hpp
+ * \file qasm3tools/ast/loop.hpp
  * \brief OpenQASM loop statements
  */
 
@@ -39,11 +39,11 @@
 #include <optional>
 #include <vector>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasmtools::ast::IndexSet
+ * \class qasm3tools::ast::IndexSet
  * \brief Class for index sets
  */
 class IndexSet : public ASTNode {
@@ -56,7 +56,7 @@ class IndexSet : public ASTNode {
 };
 
 /**
- * \class qasmtools::ast::RangeSet
+ * \class qasm3tools::ast::RangeSet
  * \brief Class for range index sets
  */
 class RangeSet : public IndexSet {
@@ -151,7 +151,7 @@ class RangeSet : public IndexSet {
 };
 
 /**
- * \class qasmtools::ast::ListSet
+ * \class qasm3tools::ast::ListSet
  * \brief Class for list index sets
  */
 class ListSet : public IndexSet {
@@ -201,7 +201,7 @@ class ListSet : public IndexSet {
 };
 
 /**
- * \class qasmtools::ast::VarSet
+ * \class qasm3tools::ast::VarSet
  * \brief Class for variable index sets
  */
 class VarSet : public IndexSet {
@@ -241,9 +241,9 @@ class VarSet : public IndexSet {
 };
 
 /**
- * \class qasmtools::ast::ForStmt
+ * \class qasm3tools::ast::ForStmt
  * \brief Class for for-loops
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class ForStmt final : public Stmt {
     symbol var_;              ///< the loop variable
@@ -311,9 +311,9 @@ class ForStmt final : public Stmt {
 };
 
 /**
- * \class qasmtools::ast::WhileStmt
+ * \class qasm3tools::ast::WhileStmt
  * \brief Class for while loops
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class WhileStmt final : public Stmt {
     ptr<Expr> cond_;         ///< boolean expression to check
@@ -376,9 +376,9 @@ class WhileStmt final : public Stmt {
 };
 
 /**
- * \class qasmtools::ast::QuantumForStmt
+ * \class qasm3tools::ast::QuantumForStmt
  * \brief Class for quantum for-loops
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class QuantumForStmt final : public QuantumStmt {
     symbol var_;              ///< the loop variable
@@ -446,9 +446,9 @@ class QuantumForStmt final : public QuantumStmt {
 };
 
 /**
- * \class qasmtools::ast::QuantumWhileStmt
+ * \class qasm3tools::ast::QuantumWhileStmt
  * \brief Class for quantum while loops
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class QuantumWhileStmt final : public QuantumStmt {
     ptr<Expr> cond_;         ///< boolean expression to check
@@ -512,4 +512,4 @@ class QuantumWhileStmt final : public QuantumStmt {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

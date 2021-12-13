@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/gate.hpp
+ * \file qasm3tools/ast/gate.hpp
  * \brief OpenQASM gates
  */
 
@@ -39,11 +39,11 @@
 #include <list>
 #include <vector>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasmtools::ast::GateModifier
+ * \class qasm3tools::ast::GateModifier
  * \brief Class for gate modifiers
  */
 class GateModifier : public ASTNode {
@@ -56,7 +56,7 @@ class GateModifier : public ASTNode {
 };
 
 /**
- * \class qasmtools::ast::CtrlModifier
+ * \class qasm3tools::ast::CtrlModifier
  * \brief Class for control modifiers
  */
 class CtrlModifier : public GateModifier {
@@ -116,7 +116,7 @@ class CtrlModifier : public GateModifier {
 };
 
 /**
- * \class qasmtools::ast::InvModifier
+ * \class qasm3tools::ast::InvModifier
  * \brief Class for inversion modifiers
  */
 class InvModifier : public GateModifier {
@@ -146,7 +146,7 @@ class InvModifier : public GateModifier {
 };
 
 /**
- * \class qasmtools::ast::PowModifier
+ * \class qasm3tools::ast::PowModifier
  * \brief Class for powering modifiers
  */
 class PowModifier : public GateModifier {
@@ -196,7 +196,7 @@ class PowModifier : public GateModifier {
 };
 
 /**
- * \class qasmtools::ast::Gate
+ * \class qasm3tools::ast::Gate
  * \brief Statement sub-class for gate
  */
 class Gate : public QuantumStmt {
@@ -273,9 +273,9 @@ class Gate : public QuantumStmt {
 };
 
 /**
- * \class qasmtools::ast::UGate
+ * \class qasm3tools::ast::UGate
  * \brief Class for U gates
- * \see qasmtools::ast::Gate
+ * \see qasm3tools::ast::Gate
  */
 class UGate final : public Gate {
     ptr<Expr> theta_;  ///< theta angle
@@ -378,9 +378,9 @@ class UGate final : public Gate {
 };
 
 /**
- * \class qasmtools::ast::GPhase
+ * \class qasm3tools::ast::GPhase
  * \brief Class for global phase gates
- * \see qasmtools::ast::Gate
+ * \see qasm3tools::ast::Gate
  */
 class GPhase final : public Gate {
     ptr<Expr> gamma_; ///< gamma angle
@@ -447,9 +447,9 @@ class GPhase final : public Gate {
 };
 
 /**
- * \class qasmtools::ast::DeclaredGate
+ * \class qasm3tools::ast::DeclaredGate
  * \brief Class for declared gate applications
- * \see qasmtools::ast::Gate
+ * \see qasm3tools::ast::Gate
  */
 class DeclaredGate final : public Gate {
     symbol name_;                   ///< gate identifier
@@ -557,4 +557,4 @@ class DeclaredGate final : public Gate {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

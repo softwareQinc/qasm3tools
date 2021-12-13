@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/stmt.hpp
+ * \file qasm3tools/ast/stmt.hpp
  * \brief OpenQASM statements
  */
 
@@ -43,11 +43,11 @@
 #include <variant>
 #include <vector>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasmtools::ast::QuantumMeasurement
+ * \class qasm3tools::ast::QuantumMeasurement
  * \brief Class for quantum measurements
  */
 class QuantumMeasurement final : public ASTNode {
@@ -91,9 +91,9 @@ class QuantumMeasurement final : public ASTNode {
 };
 
 /**
- * \class qasmtools::ast::MeasureStmt
+ * \class qasm3tools::ast::MeasureStmt
  * \brief Class for quantum measurement statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class MeasureStmt final : public QuantumStmt {
     ptr<QuantumMeasurement> measurement_; ///< the quantum measurement
@@ -145,9 +145,9 @@ class MeasureStmt final : public QuantumStmt {
 };
 
 /**
- * \class qasmtools::ast::MeasureAsgnStmt
+ * \class qasm3tools::ast::MeasureAsgnStmt
  * \brief Class for measurement assignment statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class MeasureAsgnStmt final : public Stmt {
     ptr<QuantumMeasurement> measurement_; ///< the quantum measurement
@@ -219,9 +219,9 @@ class MeasureAsgnStmt final : public Stmt {
 };
 
 /**
- * \class qasmtools::ast::ExprStmt
+ * \class qasm3tools::ast::ExprStmt
  * \brief Class for expression statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class ExprStmt final : public Stmt {
     ptr<Expr> exp_; ///< the expression
@@ -270,9 +270,9 @@ class ExprStmt final : public Stmt {
 };
 
 /**
- * \class qasmtools::ast::ResetStmt
+ * \class qasm3tools::ast::ResetStmt
  * \brief Class for reset statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class ResetStmt final : public QuantumStmt {
     std::vector<ptr<IndexId>> args_; ///< list of quantum bits|registers
@@ -353,9 +353,9 @@ class ResetStmt final : public QuantumStmt {
 };
 
 /**
- * \class qasmtools::ast::BarrierStmt
+ * \class qasm3tools::ast::BarrierStmt
  * \brief Class for barrier statement
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class BarrierStmt final : public QuantumStmt {
     std::vector<ptr<IndexId>> args_; ///< list of quantum bits|registers
@@ -437,9 +437,9 @@ class BarrierStmt final : public QuantumStmt {
 };
 
 /**
- * \class qasmtools::ast::IfStmt
+ * \class qasm3tools::ast::IfStmt
  * \brief Class for if statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class IfStmt final : public Stmt {
     ptr<Expr> cond_;         ///< boolean expression to check
@@ -519,9 +519,9 @@ class IfStmt final : public Stmt {
 };
 
 /**
- * \class qasmtools::ast::BreakStmt
+ * \class qasm3tools::ast::BreakStmt
  * \brief Class for "break" statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class BreakStmt final : public ControlStmt {
 
@@ -551,9 +551,9 @@ class BreakStmt final : public ControlStmt {
 };
 
 /**
- * \class qasmtools::ast::ContinueStmt
+ * \class qasm3tools::ast::ContinueStmt
  * \brief Class for "continue" statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class ContinueStmt final : public ControlStmt {
 
@@ -583,9 +583,9 @@ class ContinueStmt final : public ControlStmt {
 };
 
 /**
- * \class qasmtools::ast::ReturnStmt
+ * \class qasm3tools::ast::ReturnStmt
  * \brief Class for "return" statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class ReturnStmt final : public ControlStmt {
     using RetType =
@@ -645,9 +645,9 @@ class ReturnStmt final : public ControlStmt {
 };
 
 /**
- * \class qasmtools::ast::EndStmt
+ * \class qasm3tools::ast::EndStmt
  * \brief Class for "end" statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class EndStmt final : public Stmt {
 
@@ -677,9 +677,9 @@ class EndStmt final : public Stmt {
 };
 
 /**
- * \class qasmtools::ast::AliasStmt
+ * \class qasm3tools::ast::AliasStmt
  * \brief Class for alias statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class AliasStmt final : public Stmt {
     symbol alias_;      ///< the alias name
@@ -794,9 +794,9 @@ inline std::ostream& operator<<(std::ostream& os, const AssignOp& aop) {
 }
 
 /**
- * \class qasmtools::ast::AssignmentStmt
+ * \class qasm3tools::ast::AssignmentStmt
  * \brief Class for assignment statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class AssignmentStmt final : public Stmt {
     symbol var_;                     ///< the variable being assigned to
@@ -898,9 +898,9 @@ class AssignmentStmt final : public Stmt {
 };
 
 /**
- * \class qasmtools::ast::PragmaStmt
+ * \class qasm3tools::ast::PragmaStmt
  * \brief Class for pragma statements
- * \see qasmtools::ast::StmtBase
+ * \see qasm3tools::ast::StmtBase
  */
 class PragmaStmt final : public GlobalStmt {
     std::list<ptr<Stmt>> body_; ///< list of statements
@@ -961,4 +961,4 @@ class PragmaStmt final : public GlobalStmt {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

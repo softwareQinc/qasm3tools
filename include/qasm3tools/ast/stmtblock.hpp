@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/stmtblock.hpp
+ * \file qasm3tools/ast/stmtblock.hpp
  * \brief OpenQASM block statements
  */
 
@@ -39,11 +39,11 @@
 #include <list>
 #include <variant>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasmtools::ast::BlockBase
+ * \class qasm3tools::ast::BlockBase
  * \brief Base class for statement blocks
  * T is std::variant of allowed statement types
  * D is derived class
@@ -139,7 +139,7 @@ class BlockBase : public ASTNode {
 };
 
 /**
- * \class qasmtools::ast::ProgramBlock
+ * \class qasm3tools::ast::ProgramBlock
  * \brief Class for program blocks
  */
 using ProgramBlockStmt = std::variant<ptr<Stmt>, ptr<ControlStmt>>;
@@ -151,7 +151,7 @@ class ProgramBlock : public BlockBase<ProgramBlockStmt, ProgramBlock> {
 };
 
 /**
- * \class qasmtools::ast::QuantumBlock
+ * \class qasm3tools::ast::QuantumBlock
  * \brief Class for quantum program blocks
  */
 using QuantumBlockStmt = std::variant<ptr<QuantumStmt>>;
@@ -163,4 +163,4 @@ class QuantumBlock : public BlockBase<QuantumBlockStmt, QuantumBlock> {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

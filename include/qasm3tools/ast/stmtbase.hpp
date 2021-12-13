@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/stmtbase.hpp
+ * \file qasm3tools/ast/stmtbase.hpp
  * \brief Base classes for OpenQASM statements
  */
 
@@ -33,11 +33,11 @@
 
 #include "base.hpp"
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasmtools::ast::StmtBase
+ * \class qasm3tools::ast::StmtBase
  * \brief Base class for OpenQASM statements
  */
 class StmtBase : public ASTNode {
@@ -67,7 +67,7 @@ class StmtBase : public ASTNode {
     virtual StmtBase* clone() const override = 0;
 };
 /**
- * \class qasmtools::ast::GlobalStmt
+ * \class qasm3tools::ast::GlobalStmt
  * \brief Statement sub-class for global statements
  */
 class GlobalStmt : public StmtBase {
@@ -79,7 +79,7 @@ class GlobalStmt : public StmtBase {
     virtual GlobalStmt* clone() const = 0;
 };
 /**
- * \class qasmtools::ast::Stmt
+ * \class qasm3tools::ast::Stmt
  * \brief Statement sub-class for local statements
  */
 class Stmt : public StmtBase {
@@ -91,7 +91,7 @@ class Stmt : public StmtBase {
     virtual Stmt* clone() const = 0;
 };
 /**
- * \class qasmtools::ast::QuantumStmt
+ * \class qasm3tools::ast::QuantumStmt
  * \brief Statement sub-class for quantum statements
  */
 class QuantumStmt : public Stmt {
@@ -103,7 +103,7 @@ class QuantumStmt : public Stmt {
     virtual QuantumStmt* clone() const = 0;
 };
 /**
- * \class qasmtools::ast::ControlStmt
+ * \class qasm3tools::ast::ControlStmt
  * \brief Statement sub-class for control statements
  */
 class ControlStmt : public StmtBase {
@@ -115,7 +115,7 @@ class ControlStmt : public StmtBase {
     virtual ControlStmt* clone() const = 0;
 };
 /**
- * \class qasmtools::ast::QuantumLoop
+ * \class qasm3tools::ast::QuantumLoop
  * \brief Statement sub-class for quantum loops
  */
 class QuantumLoop : public StmtBase {
@@ -128,4 +128,4 @@ class QuantumLoop : public StmtBase {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

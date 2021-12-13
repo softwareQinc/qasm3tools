@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/parser/position.hpp
+ * \file qasm3tools/parser/position.hpp
  */
 
 #pragma once
@@ -33,11 +33,11 @@
 #include <iostream>
 #include <string>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace parser {
 
 /**
- * \class qasmtools::parser::Position
+ * \class qasm3tools::parser::Position
  * \brief Positions in source code
  */
 class Position {
@@ -65,7 +65,7 @@ class Position {
      * \brief Extraction operator overload
      *
      * \param os Output stream
-     * \param pos qasmtools::parser::Position
+     * \param pos qasm3tools::parser::Position
      * \return Reference to the output stream
      */
     friend std::ostream& operator<<(std::ostream& os, const Position& pos) {
@@ -115,4 +115,4 @@ class Position {
 };
 
 } // namespace parser
-} // namespace qasmtools
+} // namespace qasm3tools

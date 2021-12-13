@@ -1,7 +1,7 @@
+#include "qasm3tools/utils/angle.hpp"
 #include "gtest/gtest.h"
-#include <qasmtools/utils/angle.hpp>
 
-using namespace qasmtools::utils;
+using namespace qasm3tools::utils;
 
 // Tiny unit tests for angles
 

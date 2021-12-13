@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/decl.hpp
+ * \file qasm3tools/ast/decl.hpp
  * \brief OpenQASM declarations
  */
 
@@ -39,7 +39,7 @@
 #include <variant>
 #include <vector>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 static const std::set<std::string_view> stdgates{
@@ -59,7 +59,7 @@ inline bool is_std_gate(const std::string& id) {
 }
 
 /**
- * \class qasmtools::ast::Decl
+ * \class qasm3tools::ast::Decl
  * \brief Base class for OpenQASM declarations
  *
  * Declarations are attribute classes as they can occur in different
@@ -83,7 +83,7 @@ class Decl {
 };
 
 /**
- * \class qasmtools::ast::Param
+ * \class qasm3tools::ast::Param
  * \brief Class for subroutine parameters
  */
 class Param : public ASTNode {
@@ -104,7 +104,7 @@ class Param : public ASTNode {
 };
 
 /**
- * \class qasmtools::ast::ClassicalParam
+ * \class qasm3tools::ast::ClassicalParam
  * \brief Class for subroutine classical parameters
  */
 class ClassicalParam : public Param {
@@ -149,7 +149,7 @@ class ClassicalParam : public Param {
 };
 
 /**
- * \class qasmtools::ast::QubitParam
+ * \class qasm3tools::ast::QubitParam
  * \brief Class for subroutine qubit parameters
  */
 class QubitParam : public Param {
@@ -201,10 +201,10 @@ class QubitParam : public Param {
 };
 
 /**
- * \class qasmtools::ast::SubroutineDecl
+ * \class qasm3tools::ast::SubroutineDecl
  * \brief Class for subroutine declarations
- * \see qasmtools::ast::Stmt
- * \see qasmtools::ast::Decl
+ * \see qasm3tools::ast::Stmt
+ * \see qasm3tools::ast::Decl
  */
 class SubroutineDecl final : public GlobalStmt, public Decl {
     std::vector<ptr<Param>> params_;                ///< parameters
@@ -300,10 +300,10 @@ class SubroutineDecl final : public GlobalStmt, public Decl {
 };
 
 /**
- * \class qasmtools::ast::ExternDecl
+ * \class qasm3tools::ast::ExternDecl
  * \brief Class for external subroutine declarations
- * \see qasmtools::ast::Stmt
- * \see qasmtools::ast::Decl
+ * \see qasm3tools::ast::Stmt
+ * \see qasm3tools::ast::Decl
  */
 class ExternDecl final : public GlobalStmt, public Decl {
     std::vector<ptr<ClassicalType>> param_types_;   ///< parameter types
@@ -376,10 +376,10 @@ class ExternDecl final : public GlobalStmt, public Decl {
 };
 
 /**
- * \class qasmtools::ast::GateDecl
+ * \class qasm3tools::ast::GateDecl
  * \brief Class for gate declarations
- * \see qasmtools::ast::Stmt
- * \see qasmtools::ast::Decl
+ * \see qasm3tools::ast::Stmt
+ * \see qasm3tools::ast::Decl
  */
 class GateDecl final : public GlobalStmt, public Decl {
     std::vector<symbol> c_params_; ///< classical parameters
@@ -480,9 +480,9 @@ class GateDecl final : public GlobalStmt, public Decl {
 };
 
 /**
- * \class qasmtools::ast::QuantumRegisterDecl
+ * \class qasm3tools::ast::QuantumRegisterDecl
  * \brief Class for quantum register declarations
- * \see qasmtools::ast::Decl
+ * \see qasm3tools::ast::Decl
  */
 class QuantumRegisterDecl final : public GlobalStmt, public Decl {
     std::optional<ptr<Expr>> size_; ///< the size of the register
@@ -534,9 +534,9 @@ class QuantumRegisterDecl final : public GlobalStmt, public Decl {
 };
 
 /**
- * \class qasmtools::ast::ClassicalDecl
+ * \class qasm3tools::ast::ClassicalDecl
  * \brief Class for classical type declarations
- * \see qasmtools::ast::Decl
+ * \see qasm3tools::ast::Decl
  */
 class ClassicalDecl final : public Stmt, public Decl {
     ptr<ClassicalType> type_;            ///< the type
@@ -613,9 +613,9 @@ class ClassicalDecl final : public Stmt, public Decl {
 };
 
 /**
- * \class qasmtools::ast::CalGrammarDecl
+ * \class qasm3tools::ast::CalGrammarDecl
  * \brief Class for calibration grammar declarations
- * \see qasmtools::ast::Stmt
+ * \see qasm3tools::ast::Stmt
  */
 class CalGrammarDecl final : public GlobalStmt {
     std::string name_; ///< the name of the grammar (with quotation marks)
@@ -657,10 +657,10 @@ class CalGrammarDecl final : public GlobalStmt {
 };
 
 /**
- * \class qasmtools::ast::CalibrationDecl
+ * \class qasm3tools::ast::CalibrationDecl
  * \brief Class for calibration declarations
- * \see qasmtools::ast::Stmt
- * \see qasmtools::ast::Decl
+ * \see qasm3tools::ast::Stmt
+ * \see qasm3tools::ast::Decl
  */
 class CalibrationDecl final : public GlobalStmt, public Decl {
   public:
@@ -793,4 +793,4 @@ class CalibrationDecl final : public GlobalStmt, public Decl {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

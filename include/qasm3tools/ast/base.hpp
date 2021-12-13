@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/ast/base.hpp
+ * \file qasm3tools/ast/base.hpp
  * \brief OpenQASM syntax trees
  */
 
@@ -39,7 +39,7 @@
 #include <memory>
 #include <string>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 template <typename T>
@@ -48,7 +48,7 @@ using ptr = std::unique_ptr<T>;
 using symbol = std::string;
 
 /**
- * \class qasmtools::ast::ASTNode
+ * \class qasm3tools::ast::ASTNode
  * \brief Base class for AST nodes
  */
 class ASTNode : public object::cloneable<ASTNode> {
@@ -105,4 +105,4 @@ class ASTNode : public object::cloneable<ASTNode> {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

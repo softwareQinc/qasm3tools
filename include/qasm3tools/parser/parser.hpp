@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasmtools/parser/parser.hpp
+ * \file qasm3tools/parser/parser.hpp
  */
 
 #pragma once
@@ -42,7 +42,7 @@
 #include <fstream>
 #include <tuple>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace parser {
 
 /**
@@ -1662,4 +1662,4 @@ inline ast::ptr<ast::Program> parse_string(const std::string& str,
 }
 
 } // namespace parser
-} // namespace qasmtools
+} // namespace qasm3tools

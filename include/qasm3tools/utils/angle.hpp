@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -27,7 +27,7 @@
  */
 
 /**
- * \file qasmtools/utils/angle.hpp
+ * \file qasm3tools/utils/angle.hpp
  * \brief Either symbolic or concrete representation of rotation angles
  */
 
@@ -41,7 +41,7 @@
 #include <optional>
 #include <variant>
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace utils {
 
 /**
@@ -267,4 +267,4 @@ constexpr Angle pi(1, 1);
 } // namespace angles
 
 } // namespace utils
-} // namespace qasmtools
+} // namespace qasm3tools

@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,13 +25,13 @@
  */
 
 /**
- * \file qasmtools/ast/visitor.hpp
+ * \file qasm3tools/ast/visitor.hpp
  * \brief Visitor interface for syntax trees
  */
 
 #pragma once
 
-namespace qasmtools {
+namespace qasm3tools {
 namespace ast {
 
 class RangeSlice;
@@ -102,7 +102,7 @@ class CalibrationDecl;
 class Program;
 
 /**
- * \class qasmtools::ast::Visitor
+ * \class qasm3tools::ast::Visitor
  * \brief Base visitor interface
  *
  * Classic visitor via (virtual) double dispatch. Standard usage is to
@@ -195,4 +195,4 @@ class Visitor {
 };
 
 } // namespace ast
-} // namespace qasmtools
+} // namespace qasm3tools

@@ -1,5 +1,5 @@
 /*
- * This file is part of qasmtools.
+ * This file is part of qasm3tools.
  *
  * Copyright (c) 2019 - 2021 softwareQ Inc. All rights reserved.
  *
@@ -25,23 +25,52 @@
  */
 
 /**
- * \file qasmtools/utils/templates.hpp
- * \brief Helper templates
+ * \file qasm3tools/ast/exprbase.hpp
+ * \brief Base class for OpenQASM expressions
  */
 
 #pragma once
 
-namespace qasmtools {
-namespace utils {
-/**
- * \brief Convenience template for variant visitors
- */
-template <class... Ts>
-struct overloaded : Ts... {
-    using Ts::operator()...;
-};
-template <class... Ts>
-overloaded(Ts...) -> overloaded<Ts...>;
+#include "base.hpp"
 
-} // namespace utils
-} // namespace qasmtools
+#include <complex>
+#include <optional>
+
+namespace qasm3tools {
+namespace ast {
+
+/**
+ * \class qasm3tools::ast::Expr
+ * \brief Base class for OpenQASM expressions
+ */
+class Expr : public ASTNode {
+  public:
+    Expr(parser::Position pos) : ASTNode(pos) {}
+    virtual ~Expr() = default;
+
+    /**
+     * \brief Evaluate constant expressions
+     *
+     * All sub-classes must override this
+     *
+     * \return Returns the value of the expression if it
+     *         is constant, or nullopt otherwise
+     */
+    virtual std::optional<std::complex<double>> constant_eval() const = 0;
+
+    /**
+     * \brief Internal pretty-printer with associative context
+     *
+     * \param ctx Whether the current associative context is ambiguous
+     */
+    virtual std::ostream& pretty_print(std::ostream& os, bool ctx) const = 0;
+    std::ostream& pretty_print(std::ostream& os) const override {
+        return pretty_print(os, false);
+    }
+
+  protected:
+    virtual Expr* clone() const override = 0;
+};
+
+} // namespace ast
+} // namespace qasm3tools
