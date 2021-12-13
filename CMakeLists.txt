@@ -26,5 +26,11 @@ set(PARSER "parser")
 add_executable(${PARSER} parser.cpp)
 target_link_libraries(${PARSER} PUBLIC libqasm3tools)
 
+#### interpreter
+option(WITH_INTERPRETER "Build interpreter. Must have Quantum++ installed" OFF)
+if (${WITH_INTERPRETER})
+    include(cmake/interpreter.cmake)
+endif ()
+
 #### Unit testing
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/unit_tests/)
