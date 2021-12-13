@@ -26,7 +26,7 @@
 
 /**
  * \file qasm3tools/ast/semantic.hpp
- * \brief Visitor interface for syntax trees
+ * \brief Semantic analysis for syntax trees
  */
 
 #pragma once
@@ -169,7 +169,26 @@ class ConstExprChecker final : public Visitor {
         }
     }
     void visit(NoDesignatorType&) override {}
-    void visit(BitType& type) override { visit_optional_expr(type.size()); }
+    void visit(BitType& type) override {
+        visit_optional_expr(type.size());
+        if (type.size()) {
+            auto size = evaluate(**type.size());
+            if (size) {
+                if (*size <= 0) {
+                    std::cerr << type.pos()
+                              << ": error : classical register size must be "
+                                 "positive\n";
+                    error_ = true;
+                } else
+                    type.size() = ptr<Expr>(new IntExpr({}, *size));
+            } else {
+                std::cerr << type.pos()
+                          << ": error : classical register size is not a "
+                             "compile-time constant\n";
+                error_ = true;
+            }
+        }
+    }
     void visit(ComplexType& type) override { type.subtype().accept(*this); }
     // Expressions
     void visit(BExpr& exp) override {
