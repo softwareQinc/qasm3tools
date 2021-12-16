@@ -1138,17 +1138,12 @@ class TypeChecker final : public Visitor {
     };
 
     /**
-     * \brief Data struct denoting all other types
-     */
-    struct OtherType {};
-
-    /**
      * \brief OpenQASM types as a std::variant
      *
      * Functional-style syntax trees in C++17 as a simpler alternative
      * to inheritance hierarchy. Support is still lacking for large-scale.
      */
-    using Type = std::variant<DataType, GateType, SubroutineType, OtherType>;
+    using Type = std::variant<DataType, GateType, SubroutineType>;
 
   public:
     bool run(Program& prog) {
@@ -2000,7 +1995,7 @@ class TypeChecker final : public Visitor {
     void visit(ClassicalDecl& decl) override {
         if (decl.is_const()) {
             // assume constants have already been substituted
-            set(decl.id(), OtherType{}, decl.pos());
+            set(decl.id(), DataType::None, decl.pos());
         } else {
             decl.type().accept(*this);
             set(decl.id(), type_, decl.pos());
