@@ -359,11 +359,23 @@ TEST(Parsing, Miscellaneous_Type_Error) {
 /******************************************************************************/
 
 /******************************************************************************/
-TEST(Parsing, Unexpected_Return_Error) {
-    std::string src = "OPENQASM 3.0;\n"
-                      "if (true) return;\n";
+TEST(Parsing, Unexpected_Control_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "if (true) return;\n";
 
-    EXPECT_THROW(parser::parse_string(src, "unexpected_return_error.qasm"),
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "if (true) break;\n";
+
+    std::string src3 = "OPENQASM 3.0;\n"
+                       "if (true) continue;\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "unexpected_control_error_1.qasm"),
+                 ast::SemanticError);
+
+    EXPECT_THROW(parser::parse_string(src2, "unexpected_control_error_2.qasm"),
+                 ast::SemanticError);
+
+    EXPECT_THROW(parser::parse_string(src3, "unexpected_control_error_3.qasm"),
                  ast::SemanticError);
 }
 /******************************************************************************/

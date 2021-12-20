@@ -872,6 +872,12 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::FunctionCall& exp) override {
         auto& entry = std::get<SubroutineType>(lookup(exp.name()));
+
+        // store local symbols; subroutine body can only refer to globals
+        std::list<std::unordered_map<ast::symbol, Type>> local_symbols;
+        local_symbols.splice(local_symbols.begin(), symbol_table_,
+                             symbol_table_.begin(), --symbol_table_.end());
+
         push_scope();
 
         // pass in arguments by value
@@ -882,11 +888,13 @@ class Executor final : ast::Visitor {
         }
 
         // execute body and obtain return value
+        return_value_ = types::QASM_none();
         entry.body->accept(*this);
         value_ = types::QASM_cast(return_value_, entry.return_type);
-        return_value_ = types::QASM_none();
 
         pop_scope();
+        // put back local symbols
+        symbol_table_.splice(symbol_table_.begin(), local_symbols);
     }
     void visit(ast::AccessExpr& exp) override {
         exp.exp().accept(*this);

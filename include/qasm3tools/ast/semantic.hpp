@@ -1607,8 +1607,20 @@ class TypeChecker final : public Visitor {
         stmt.els().accept(*this);
         pop_scope();
     }
-    void visit(BreakStmt&) override {}
-    void visit(ContinueStmt&) override {}
+    void visit(BreakStmt& stmt) override {
+        if (!in_loop_) {
+            std::cerr << stmt.pos()
+                      << ": error : unexpected break statement\n";
+            error_ = true;
+        }
+    }
+    void visit(ContinueStmt& stmt) override {
+        if (!in_loop_) {
+            std::cerr << stmt.pos()
+                      << ": error : unexpected continue statement\n";
+            error_ = true;
+        }
+    }
     void visit(ReturnStmt& stmt) override {
         if (!return_type_) {
             std::cerr << stmt.pos()
@@ -1871,32 +1883,52 @@ class TypeChecker final : public Visitor {
     void visit(ForStmt& stmt) override {
         stmt.index_set().accept(*this);
 
+        bool was_in_loop = in_loop_;
+        in_loop_ = true;
+
         push_scope();
         set(stmt.var(), DataType::Int, stmt.pos());
         stmt.body().accept(*this);
         pop_scope();
+
+        in_loop_ = was_in_loop;
     }
     void visit(WhileStmt& stmt) override {
         visit_classical_expr(stmt.cond(), DataType::Bool);
 
+        bool was_in_loop = in_loop_;
+        in_loop_ = true;
+
         push_scope();
         stmt.body().accept(*this);
         pop_scope();
+
+        in_loop_ = was_in_loop;
     }
     void visit(QuantumForStmt& stmt) override {
         stmt.index_set().accept(*this);
+
+        bool was_in_loop = in_loop_;
+        in_loop_ = true;
 
         push_scope();
         set(stmt.var(), DataType::Int, stmt.pos());
         stmt.body().accept(*this);
         pop_scope();
+
+        in_loop_ = was_in_loop;
     }
     void visit(QuantumWhileStmt& stmt) override {
         visit_classical_expr(stmt.cond(), DataType::Bool);
 
+        bool was_in_loop = in_loop_;
+        in_loop_ = true;
+
         push_scope();
         stmt.body().accept(*this);
         pop_scope();
+
+        in_loop_ = was_in_loop;
     }
     // Timing Statements
     void visit(DelayStmt& delay) override {
@@ -2018,6 +2050,7 @@ class TypeChecker final : public Visitor {
 
   private:
     bool error_ = false;   ///< whether errors have occurred
+    bool in_loop_ = false; ///< whether we are in the body of a loop
     int control_bits_ = 0; ///< number of control bits from control modifiers
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
         {}};                         ///< a stack of symbol tables
