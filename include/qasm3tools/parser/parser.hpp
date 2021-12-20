@@ -645,7 +645,7 @@ class ASTConstructor : public qasm3Visitor {
 
     virtual antlrcpp::Any
     visitQuantumBlock(qasm3Parser::QuantumBlockContext* ctx) override {
-        std::list<ast::QuantumBlockStmt> body;
+        std::list<ast::ptr<ast::QuantumStmt>> body;
         for (auto& child : ctx->children) {
             auto a = child->accept(this);
             if (a.isNotNull())
@@ -681,7 +681,7 @@ class ASTConstructor : public qasm3Visitor {
     visitQuantumLoopBlock(qasm3Parser::QuantumLoopBlockContext* ctx) override {
         // quantumLoopBlock : quantumStatement
         //                  | LBRACE quantumStatement* RBRACE
-        std::list<ast::QuantumBlockStmt> body;
+        std::list<ast::ptr<ast::QuantumStmt>> body;
         for (auto& qstmt : ctx->quantumStatement())
             body.emplace_back(std::move(
                 qstmt->accept(this).as<ast::ptr<ast::QuantumStmt>>()));
@@ -1263,7 +1263,7 @@ class ASTConstructor : public qasm3Visitor {
     visitProgramBlock(qasm3Parser::ProgramBlockContext* ctx) override {
         // programBlock : statement | controlDirective
         //              | LBRACE ( statement | controlDirective )* RBRACE
-        std::list<ast::ProgramBlockStmt> body;
+        std::list<ast::ptr<ast::Stmt>> body;
         for (auto& child : ctx->children) {
             auto a = child->accept(this);
             if (a.is<ast::ptr<ast::Stmt>>())
@@ -1425,7 +1425,7 @@ class ASTConstructor : public qasm3Visitor {
     virtual antlrcpp::Any
     visitSubroutineBlock(qasm3Parser::SubroutineBlockContext* ctx) override {
         // subroutineBlock : LBRACE statement* returnStatement? RBRACE
-        std::list<ast::ProgramBlockStmt> body;
+        std::list<ast::ptr<ast::Stmt>> body;
         for (auto& stmt : ctx->statement())
             body.emplace_back(
                 std::move(stmt->accept(this).as<ast::ptr<ast::Stmt>>()));
@@ -1443,8 +1443,9 @@ class ASTConstructor : public qasm3Visitor {
         for (auto& stmt : ctx->statement())
             body.emplace_back(
                 std::move(stmt->accept(this).as<ast::ptr<ast::Stmt>>()));
+        auto tmp = ast::ProgramBlock::create(get_pos(ctx), std::move(body));
         return ast::ptr<ast::GlobalStmt>(
-            new ast::PragmaStmt(get_pos(ctx), std::move(body)));
+            new ast::PragmaStmt(get_pos(ctx), std::move(tmp)));
     }
 
     virtual antlrcpp::Any

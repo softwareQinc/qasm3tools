@@ -431,7 +431,7 @@ class GateDecl final : public GlobalStmt, public Decl {
      *
      * \return std::list iterator
      */
-    std::list<QuantumBlockStmt>::iterator begin() {
+    std::list<ptr<QuantumStmt>>::iterator begin() {
         return body_->body().begin();
     }
 
@@ -440,7 +440,7 @@ class GateDecl final : public GlobalStmt, public Decl {
      *
      * \return std::list iterator
      */
-    std::list<QuantumBlockStmt>::iterator end() { return body_->body().end(); }
+    std::list<ptr<QuantumStmt>>::iterator end() { return body_->body().end(); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool suppress_std,

@@ -308,14 +308,10 @@ class ConstExprChecker final : public Visitor {
         msmt.q_arg().accept(*this);
     }
     void visit(ProgramBlock& block) override {
-        block.foreach_stmt([this](ProgramBlockStmt& pbstmt) {
-            std::visit([this](auto& stmt) { stmt->accept(*this); }, pbstmt);
-        });
+        block.foreach_stmt([this](Stmt& stmt) { stmt.accept(*this); });
     }
     void visit(QuantumBlock& block) override {
-        block.foreach_stmt([this](QuantumBlockStmt& qbstmt) {
-            std::visit([this](auto& stmt) { stmt->accept(*this); }, qbstmt);
-        });
+        block.foreach_stmt([this](QuantumStmt& stmt) { stmt.accept(*this); });
     }
     // Statements
     void visit(MeasureStmt& stmt) override { stmt.measurement().accept(*this); }
@@ -401,7 +397,7 @@ class ConstExprChecker final : public Visitor {
     }
     void visit(PragmaStmt& stmt) override {
         push_scope();
-        stmt.foreach_stmt([this](Stmt& s) { s.accept(*this); });
+        stmt.body().accept(*this);
         pop_scope();
     }
     // Gates
@@ -672,15 +668,11 @@ class ConstExprChecker final : public Visitor {
         }
     }
     void visit(CalGrammarDecl&) override {}
-    void visit(CalibrationDecl&) override {} // need to implement when finalized
+    void visit(CalibrationDecl&) override {}
     // Program
     void visit(Program& prog) override {
         push_scope();
-
-        prog.foreach_stmt([this](ProgramStmt& pstmt) {
-            std::visit([this](auto& stmt) { stmt->accept(*this); }, pstmt);
-        });
-
+        prog.foreach_stmt([this](GlobalStmt& stmt) { stmt.accept(*this); });
         pop_scope();
     }
 
@@ -1565,14 +1557,10 @@ class TypeChecker final : public Visitor {
         visit_quantum_indexid(msmt.q_arg());
     }
     void visit(ProgramBlock& block) override {
-        block.foreach_stmt([this](ProgramBlockStmt& pbstmt) {
-            std::visit([this](auto& stmt) { stmt->accept(*this); }, pbstmt);
-        });
+        block.foreach_stmt([this](Stmt& stmt) { stmt.accept(*this); });
     }
     void visit(QuantumBlock& block) override {
-        block.foreach_stmt([this](QuantumBlockStmt& qbstmt) {
-            std::visit([this](auto& stmt) { stmt->accept(*this); }, qbstmt);
-        });
+        block.foreach_stmt([this](QuantumStmt& stmt) { stmt.accept(*this); });
     }
     // Statements
     void visit(MeasureStmt& stmt) override { stmt.measurement().accept(*this); }
@@ -1609,8 +1597,7 @@ class TypeChecker final : public Visitor {
     }
     void visit(BreakStmt& stmt) override {
         if (!in_loop_) {
-            std::cerr << stmt.pos()
-                      << ": error : unexpected break statement\n";
+            std::cerr << stmt.pos() << ": error : unexpected break statement\n";
             error_ = true;
         }
     }
@@ -1755,7 +1742,7 @@ class TypeChecker final : public Visitor {
     }
     void visit(PragmaStmt& stmt) override {
         push_scope();
-        stmt.foreach_stmt([this](Stmt& s) { s.accept(*this); });
+        stmt.body().accept(*this);
         pop_scope();
     }
     // Gates
@@ -2042,15 +2029,11 @@ class TypeChecker final : public Visitor {
         }
     }
     void visit(CalGrammarDecl&) override {}
-    void visit(CalibrationDecl&) override {} // need to implement when finalized
+    void visit(CalibrationDecl&) override {}
     // Program
     void visit(Program& prog) override {
         push_scope();
-
-        prog.foreach_stmt([this](ProgramStmt& pstmt) {
-            std::visit([this](auto& stmt) { stmt->accept(*this); }, pstmt);
-        });
-
+        prog.foreach_stmt([this](GlobalStmt& stmt) { stmt.accept(*this); });
         pop_scope();
     }
 

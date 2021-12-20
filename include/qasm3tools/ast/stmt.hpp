@@ -903,60 +903,44 @@ class AssignmentStmt final : public Stmt {
  * \see qasm3tools::ast::StmtBase
  */
 class PragmaStmt final : public GlobalStmt {
-    std::list<ptr<Stmt>> body_; ///< list of statements
+    ptr<ProgramBlock> body_; ///< pragma body
 
   public:
     /**
      * \brief Constructs a pragma statement
      *
      * \param pos The source position
-     * \param arg Rvalue reference to the list of statements
+     * \param body The pragma body
      */
-    PragmaStmt(parser::Position pos, std::list<ptr<Stmt>>&& body)
+    PragmaStmt(parser::Position pos, ptr<ProgramBlock> body)
         : GlobalStmt(pos), body_(std::move(body)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<PragmaStmt> create(parser::Position pos,
-                                  std::list<ptr<Stmt>>&& body) {
+                                  ptr<ProgramBlock> body) {
         return std::make_unique<PragmaStmt>(pos, std::move(body));
     }
 
     /**
-     * \brief Get the list of statements
+     * \brief Get the pragma body
      *
-     * \return Reference to the list of statements
+     * \return Reference to the body
      */
-    std::list<ptr<Stmt>>& body() { return body_; }
-
-    /**
-     * \brief Apply a function to each statement
-     *
-     * \param f Void function accepting a reference to the statement
-     */
-    void foreach_stmt(std::function<void(Stmt&)> f) {
-        for (auto& x : body_)
-            f(*x);
-    }
+    ProgramBlock& body() { return *body_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        os << "#pragma {\n";
-        for (auto& x : body_) {
-            os << "\t";
-            x->pretty_print(os, false, 1);
-        }
-        os << "}\n";
+    std::ostream& pretty_print(std::ostream& os, bool,
+                               size_t indents) const override {
+        os << "#pragma ";
+        body_->pretty_print(os, indents);
         return os;
     }
 
   protected:
     PragmaStmt* clone() const override {
-        std::list<ptr<Stmt>> tmp;
-        for (auto& x : body_)
-            tmp.emplace_back(object::clone(*x));
-        return new PragmaStmt(pos_, std::move(tmp));
+        return new PragmaStmt(pos_, object::clone(*body_));
     }
 };
 

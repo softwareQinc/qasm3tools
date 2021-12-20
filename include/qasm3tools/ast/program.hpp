@@ -40,9 +40,7 @@ namespace ast {
  * \class qasm3tools::ast::Program
  * \brief Program class
  */
-
-using ProgramStmt = std::variant<ptr<GlobalStmt>, ptr<Stmt>>;
-class Program : public BlockBase<ProgramStmt, Program> {
+class Program : public BlockBase<GlobalStmt, Program> {
     bool std_include_;
 
   public:
@@ -53,7 +51,7 @@ class Program : public BlockBase<ProgramStmt, Program> {
      * \param std_include Whether the standard library has been included
      * \param body The program body
      */
-    Program(parser::Position pos, std::list<ProgramStmt>&& body,
+    Program(parser::Position pos, std::list<ptr<GlobalStmt>>&& body,
             bool std_include = false)
         : BlockBase(pos, std::move(body)), std_include_(std_include) {}
 
@@ -61,7 +59,7 @@ class Program : public BlockBase<ProgramStmt, Program> {
      * \brief Protected heap-allocated construction
      */
     static ptr<Program> create(parser::Position pos,
-                               std::list<ProgramStmt>&& body,
+                               std::list<ptr<GlobalStmt>>&& body,
                                bool std_include = false) {
         return std::make_unique<Program>(pos, std::move(body), std_include);
     }
@@ -85,11 +83,7 @@ class Program : public BlockBase<ProgramStmt, Program> {
             os << "include \"stdgates.inc\";\n";
         os << "\n";
         for (auto& x : body_) {
-            std::visit(
-                [&os, this](auto& stmt) {
-                    stmt->pretty_print(os, std_include_);
-                },
-                x);
+            x->pretty_print(os, std_include_);
         }
 
         return os;
@@ -97,11 +91,9 @@ class Program : public BlockBase<ProgramStmt, Program> {
 
   protected:
     Program* clone() const override {
-        std::list<ProgramStmt> tmp;
+        std::list<ptr<GlobalStmt>> tmp;
         for (auto& x : body_) {
-            std::visit(
-                [&tmp](auto& stmt) { tmp.emplace_back(object::clone(*stmt)); },
-                x);
+            tmp.emplace_back(object::clone(*x));
         }
         return new Program(pos_, std::move(tmp), std_include_);
     }

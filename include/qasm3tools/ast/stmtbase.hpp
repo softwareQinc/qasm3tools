@@ -37,13 +37,13 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::StmtBase
+ * \class qasm3tools::ast::GlobalStmt
  * \brief Base class for OpenQASM statements
  */
-class StmtBase : public ASTNode {
+class GlobalStmt : public ASTNode {
   public:
-    StmtBase(parser::Position pos) : ASTNode(pos) {}
-    virtual ~StmtBase() = default;
+    GlobalStmt(parser::Position pos) : ASTNode(pos) {}
+    virtual ~GlobalStmt() = default;
 
     /**
      * \brief Internal pretty-printer which can suppress the output of the
@@ -64,27 +64,15 @@ class StmtBase : public ASTNode {
     }
 
   protected:
-    virtual StmtBase* clone() const override = 0;
-};
-/**
- * \class qasm3tools::ast::GlobalStmt
- * \brief Statement sub-class for global statements
- */
-class GlobalStmt : public StmtBase {
-  public:
-    GlobalStmt(parser::Position pos) : StmtBase(pos) {}
-    virtual ~GlobalStmt() = default;
-
-  protected:
-    virtual GlobalStmt* clone() const = 0;
+    virtual GlobalStmt* clone() const override = 0;
 };
 /**
  * \class qasm3tools::ast::Stmt
- * \brief Statement sub-class for local statements
+ * \brief Statement sub-class for non-global statements
  */
-class Stmt : public StmtBase {
+class Stmt : public GlobalStmt {
   public:
-    Stmt(parser::Position pos) : StmtBase(pos) {}
+    Stmt(parser::Position pos) : GlobalStmt(pos) {}
     virtual ~Stmt() = default;
 
   protected:
@@ -106,25 +94,13 @@ class QuantumStmt : public Stmt {
  * \class qasm3tools::ast::ControlStmt
  * \brief Statement sub-class for control statements
  */
-class ControlStmt : public StmtBase {
+class ControlStmt : public Stmt {
   public:
-    ControlStmt(parser::Position pos) : StmtBase(pos) {}
+    ControlStmt(parser::Position pos) : Stmt(pos) {}
     virtual ~ControlStmt() = default;
 
   protected:
     virtual ControlStmt* clone() const = 0;
-};
-/**
- * \class qasm3tools::ast::QuantumLoop
- * \brief Statement sub-class for quantum loops
- */
-class QuantumLoop : public StmtBase {
-  public:
-    QuantumLoop(parser::Position pos) : StmtBase(pos) {}
-    virtual ~QuantumLoop() = default;
-
-  protected:
-    virtual QuantumLoop* clone() const = 0;
 };
 
 } // namespace ast

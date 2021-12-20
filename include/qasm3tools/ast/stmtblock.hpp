@@ -57,13 +57,13 @@ class BlockBase : public ASTNode {
      * \param pos The source position
      * \param body The block body
      */
-    BlockBase(parser::Position pos, std::list<T>&& body)
+    BlockBase(parser::Position pos, std::list<ptr<T>>&& body)
         : ASTNode(pos), body_(std::move(body)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<D> create(parser::Position pos, std::list<T>&& body) {
+    static ptr<D> create(parser::Position pos, std::list<ptr<T>>&& body) {
         return std::make_unique<D>(pos, std::move(body));
     }
 
@@ -72,7 +72,7 @@ class BlockBase : public ASTNode {
      *
      * \return Reference to the body as a list of statements
      */
-    typename std::list<T>& body() { return body_; }
+    typename std::list<ptr<T>>& body() { return body_; }
 
     /**
      * \brief Apply a function to each stetement
@@ -81,7 +81,7 @@ class BlockBase : public ASTNode {
      */
     void foreach_stmt(std::function<void(T&)> f) {
         for (auto& x : body_)
-            f(x);
+            f(*x);
     }
 
     /**
@@ -89,14 +89,14 @@ class BlockBase : public ASTNode {
      *
      * \return std::list iterator
      */
-    typename std::list<T>::iterator begin() { return body_.begin(); }
+    typename std::list<ptr<T>>::iterator begin() { return body_.begin(); }
 
     /**
      * \brief Get an iterator to the end of the body
      *
      * \return std::list iterator
      */
-    typename std::list<T>::iterator end() { return body_.end(); }
+    typename std::list<ptr<T>>::iterator end() { return body_.end(); }
 
     /**
      * \brief Internal pretty-printer which adds indentation to each line
@@ -108,11 +108,7 @@ class BlockBase : public ASTNode {
         for (auto& x : body_) {
             for (size_t i = 0; i <= indents; i++)
                 os << "\t";
-            std::visit(
-                [&os, &indents](auto& stmt) {
-                    stmt->pretty_print(os, false, indents + 1);
-                },
-                x);
+            x->pretty_print(os, false, indents + 1);
         }
         for (size_t i = 0; i < indents; i++)
             os << "\t";
@@ -126,13 +122,11 @@ class BlockBase : public ASTNode {
     }
 
   protected:
-    std::list<T> body_; ///< the body of the block
+    std::list<ptr<T>> body_; ///< the body of the block
     BlockBase* clone() const override {
-        std::list<T> tmp;
+        std::list<ptr<T>> tmp;
         for (auto& x : body_) {
-            std::visit(
-                [&tmp](auto& stmt) { tmp.emplace_back(object::clone(*stmt)); },
-                x);
+            tmp.emplace_back(object::clone(*x));
         }
         return new D(pos_, std::move(tmp));
     }
@@ -142,9 +136,8 @@ class BlockBase : public ASTNode {
  * \class qasm3tools::ast::ProgramBlock
  * \brief Class for program blocks
  */
-using ProgramBlockStmt = std::variant<ptr<Stmt>, ptr<ControlStmt>>;
-class ProgramBlock : public BlockBase<ProgramBlockStmt, ProgramBlock> {
-    using BlockBase<ProgramBlockStmt, ProgramBlock>::BlockBase;
+class ProgramBlock final : public BlockBase<Stmt, ProgramBlock> {
+    using BlockBase<Stmt, ProgramBlock>::BlockBase;
 
   public:
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -154,9 +147,8 @@ class ProgramBlock : public BlockBase<ProgramBlockStmt, ProgramBlock> {
  * \class qasm3tools::ast::QuantumBlock
  * \brief Class for quantum program blocks
  */
-using QuantumBlockStmt = std::variant<ptr<QuantumStmt>>;
-class QuantumBlock : public BlockBase<QuantumBlockStmt, QuantumBlock> {
-    using BlockBase<QuantumBlockStmt, QuantumBlock>::BlockBase;
+class QuantumBlock final : public BlockBase<QuantumStmt, QuantumBlock> {
+    using BlockBase<QuantumStmt, QuantumBlock>::BlockBase;
 
   public:
     void accept(Visitor& visitor) override { visitor.visit(*this); }

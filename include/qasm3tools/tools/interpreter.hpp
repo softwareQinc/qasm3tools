@@ -414,9 +414,9 @@ class Executor final : ast::Visitor {
      * \brief Data struct for quantum gate types
      */
     struct GateType {
-        int num_c_params;
-        int num_q_params;
-        ast::GateDecl* decl;
+        std::vector<ast::symbol> c_param_names; ///< parameter names
+        std::vector<ast::symbol> q_param_names; ///< parameter names
+        ast::QuantumBlock* body;
     };
 
     /**
@@ -440,12 +440,7 @@ class Executor final : ast::Visitor {
     /**
      * \brief Enum class for control statements
      */
-    enum class ControlFlow {
-        Break,
-        Continue,
-        Return,
-        End
-    };
+    enum class ControlFlow { Break, Continue, Return, End };
 
   public:
     void run(ast::Program& prog) { prog.accept(*this); }
@@ -1007,23 +1002,15 @@ class Executor final : ast::Visitor {
         throw RuntimeError();
     }
     void visit(ast::ProgramBlock& block) override {
-        block.foreach_stmt([this](ast::ProgramBlockStmt& pbstmt) {
-            std::visit(
-                [this](auto& stmt) {
-                    if (!control_flow_)
-                        stmt->accept(*this);
-                },
-                pbstmt);
+        block.foreach_stmt([this](ast::Stmt& stmt) {
+            if (!control_flow_)
+                stmt.accept(*this);
         });
     }
     void visit(ast::QuantumBlock& block) override {
-        block.foreach_stmt([this](ast::QuantumBlockStmt& qbstmt) {
-            std::visit(
-                    [this](auto& stmt) {
-                        if (!control_flow_)
-                            stmt->accept(*this);
-                    },
-                    qbstmt);
+        block.foreach_stmt([this](ast::QuantumStmt& stmt) {
+            if (!control_flow_)
+                stmt.accept(*this);
         });
     }
     // Statements
@@ -1032,31 +1019,36 @@ class Executor final : ast::Visitor {
     void visit(ast::ExprStmt& stmt) override { stmt.exp().accept(*this); }
     void visit(ast::ResetStmt&) override {}
     void visit(ast::BarrierStmt&) override {}
-    void visit(ast::IfStmt&) override {}
-    void visit(ast::BreakStmt&) override {
-        control_flow_ = ControlFlow::Break;
+    void visit(ast::IfStmt& stmt) override {
+        stmt.cond().accept(*this);
+        auto cond = types::smart_cast(value_, types::QASM_bool());
+
+        push_scope();
+        if (cond.value)
+            stmt.then().accept(*this);
+        else
+            stmt.els().accept(*this);
+        pop_scope();
     }
+    void visit(ast::BreakStmt&) override { control_flow_ = ControlFlow::Break; }
     void visit(ast::ContinueStmt&) override {
         control_flow_ = ControlFlow::Continue;
     }
     void visit(ast::ReturnStmt& stmt) override {
-        std::visit(
-            utils::overloaded{
-                [this](ast::ptr<ast::QuantumMeasurement>& qm) {
-                    qm->accept(*this);
-                    return_value_ = value_;
-                },
-                [this](ast::ptr<ast::Expr>& exp) {
-                    exp->accept(*this);
-                    return_value_ = value_;
-                },
-                [this](auto) { return_value_ = types::QASM_none(); }},
-            stmt.value());
+        std::visit(utils::overloaded{
+                       [this](ast::ptr<ast::QuantumMeasurement>& qm) {
+                           qm->accept(*this);
+                           return_value_ = value_;
+                       },
+                       [this](ast::ptr<ast::Expr>& exp) {
+                           exp->accept(*this);
+                           return_value_ = value_;
+                       },
+                       [this](auto) { return_value_ = types::QASM_none(); }},
+                   stmt.value());
         control_flow_ = ControlFlow::Return;
     }
-    void visit(ast::EndStmt&) override {
-        control_flow_ = ControlFlow::End;
-    }
+    void visit(ast::EndStmt&) override { control_flow_ = ControlFlow::End; }
     void visit(ast::AliasStmt&) override {}
     void visit(ast::AssignmentStmt& stmt) override {
         auto& entry = std::get<QASM_type>(lookup(stmt.var()));
@@ -1200,7 +1192,10 @@ class Executor final : ast::Visitor {
         /* not implemented */
         throw RuntimeError();
     }
-    void visit(ast::GateDecl&) override {}
+    void visit(ast::GateDecl& decl) override {
+        set(decl.id(), GateType{decl.c_params(), decl.q_params(),
+                                std::addressof(decl.body())});
+    }
     void visit(ast::QuantumDecl& decl) override {
         decl.type().accept(*this);
         if (std::holds_alternative<types::QASM_qreg>(value_)) {
@@ -1237,13 +1232,9 @@ class Executor final : ast::Visitor {
     void visit(ast::Program& prog) override {
         push_scope();
 
-        prog.foreach_stmt([this](ast::ProgramStmt& pstmt) {
-            std::visit(
-                [this](auto& stmt) {
-                    if (!control_flow_)
-                        stmt->accept(*this);
-                },
-                pstmt);
+        prog.foreach_stmt([this](ast::GlobalStmt& stmt) {
+            if (!control_flow_)
+                stmt.accept(*this);
         });
 
         print_global_vars();
@@ -1254,8 +1245,9 @@ class Executor final : ast::Visitor {
   private:
     bool expect_float_div_ =
         false; ///< true when float (not integer) division is required
-    std::optional<ControlFlow> control_flow_ = std::nullopt; ///< signifies when a control statment is executed
-    QASM_type value_ = types::QASM_none();        ///< stores intermediate values
+    std::optional<ControlFlow> control_flow_ =
+        std::nullopt; ///< signifies when a control statment is executed
+    QASM_type value_ = types::QASM_none(); ///< stores intermediate values
     QASM_type return_value_ = types::QASM_none(); ///< stores return values
     std::vector<qpp::ket> qubits_{};              ///< all quantum bits
     std::list<std::unordered_map<ast::symbol, Type>>
@@ -1396,9 +1388,7 @@ class Executor final : ast::Visitor {
 /**
  * \brief Executes a program
  */
-inline void execute(ast::Program& prog) {
-    Executor().run(prog);
-}
+inline void execute(ast::Program& prog) { Executor().run(prog); }
 
 } // namespace tools
 } // namespace qasm3tools
