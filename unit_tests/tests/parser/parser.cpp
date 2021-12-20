@@ -367,7 +367,14 @@ TEST(Parsing, Unexpected_Control_Error) {
                        "if (true) break;\n";
 
     std::string src3 = "OPENQASM 3.0;\n"
-                       "if (true) continue;\n";
+                       "def foo() {\n"
+                       "\tif (true) continue;\n"
+                       "}\n";
+
+    std::string src4 = "OPENQASM 3.0;\n"
+                       "def foo() {\n"
+                       "\tif (true) end;\n"
+                       "}\n";
 
     EXPECT_THROW(parser::parse_string(src1, "unexpected_control_error_1.qasm"),
                  ast::SemanticError);
@@ -376,6 +383,9 @@ TEST(Parsing, Unexpected_Control_Error) {
                  ast::SemanticError);
 
     EXPECT_THROW(parser::parse_string(src3, "unexpected_control_error_3.qasm"),
+                 ast::SemanticError);
+
+    EXPECT_THROW(parser::parse_string(src4, "unexpected_control_error_4.qasm"),
                  ast::SemanticError);
 }
 /******************************************************************************/

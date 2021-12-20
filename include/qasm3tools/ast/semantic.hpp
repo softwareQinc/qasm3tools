@@ -1655,7 +1655,13 @@ class TypeChecker final : public Visitor {
                 }},
             stmt.value());
     }
-    void visit(EndStmt&) override {}
+    void visit(EndStmt& stmt) override {
+        if (return_type_) {
+            std::cerr << stmt.pos()
+                      << ": error : cannot end program inside a subroutine\n";
+            error_ = true;
+        }
+    }
     void visit(AliasStmt& stmt) override {
         visit_quantum_indexid(stmt.qreg());
         set(stmt.alias(), type_, stmt.pos());

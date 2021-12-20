@@ -44,6 +44,8 @@
 #include <unordered_map>
 #include <vector>
 
+#define WHILE_ITERATION_LIMIT 1000
+
 namespace qasm3tools {
 namespace tools {
 
@@ -57,12 +59,6 @@ class RuntimeError : public std::exception {
     ~RuntimeError() = default;
     const char* what() const noexcept { return "Error(s) occurred"; }
 };
-
-/**
- * \class qasm3tools::tools::ProgramTerminated
- * \brief Thrown when program is stopped by 'end' statement
- */
-struct ProgramTerminated final {};
 
 namespace types {
 
@@ -440,6 +436,16 @@ class Executor final : ast::Visitor {
      * to inheritance hierarchy. Support is still lacking for large-scale.
      */
     using Type = std::variant<QASM_type, GateType, SubroutineType>;
+
+    /**
+     * \brief Enum class for control statements
+     */
+    enum class ControlFlow {
+        Break,
+        Continue,
+        Return,
+        End
+    };
 
   public:
     void run(ast::Program& prog) { prog.accept(*this); }
@@ -890,6 +896,7 @@ class Executor final : ast::Visitor {
         // execute body and obtain return value
         return_value_ = types::QASM_none();
         entry.body->accept(*this);
+        control_flow_ = std::nullopt;
         value_ = types::QASM_cast(return_value_, entry.return_type);
 
         pop_scope();
@@ -995,9 +1002,30 @@ class Executor final : ast::Visitor {
         throw RuntimeError();
     }
     // Statement components
-    void visit(ast::QuantumMeasurement&) override {}
-    void visit(ast::ProgramBlock&) override {}
-    void visit(ast::QuantumBlock&) override {}
+    void visit(ast::QuantumMeasurement&) override {
+        /* not implemented */
+        throw RuntimeError();
+    }
+    void visit(ast::ProgramBlock& block) override {
+        block.foreach_stmt([this](ast::ProgramBlockStmt& pbstmt) {
+            std::visit(
+                [this](auto& stmt) {
+                    if (!control_flow_)
+                        stmt->accept(*this);
+                },
+                pbstmt);
+        });
+    }
+    void visit(ast::QuantumBlock& block) override {
+        block.foreach_stmt([this](ast::QuantumBlockStmt& qbstmt) {
+            std::visit(
+                    [this](auto& stmt) {
+                        if (!control_flow_)
+                            stmt->accept(*this);
+                    },
+                    qbstmt);
+        });
+    }
     // Statements
     void visit(ast::MeasureStmt&) override {}
     void visit(ast::MeasureAsgnStmt&) override {}
@@ -1005,12 +1033,29 @@ class Executor final : ast::Visitor {
     void visit(ast::ResetStmt&) override {}
     void visit(ast::BarrierStmt&) override {}
     void visit(ast::IfStmt&) override {}
-    void visit(ast::BreakStmt&) override {}
-    void visit(ast::ContinueStmt&) override {}
-    void visit(ast::ReturnStmt&) override {}
+    void visit(ast::BreakStmt&) override {
+        control_flow_ = ControlFlow::Break;
+    }
+    void visit(ast::ContinueStmt&) override {
+        control_flow_ = ControlFlow::Continue;
+    }
+    void visit(ast::ReturnStmt& stmt) override {
+        std::visit(
+            utils::overloaded{
+                [this](ast::ptr<ast::QuantumMeasurement>& qm) {
+                    qm->accept(*this);
+                    return_value_ = value_;
+                },
+                [this](ast::ptr<ast::Expr>& exp) {
+                    exp->accept(*this);
+                    return_value_ = value_;
+                },
+                [this](auto) { return_value_ = types::QASM_none(); }},
+            stmt.value());
+        control_flow_ = ControlFlow::Return;
+    }
     void visit(ast::EndStmt&) override {
-        print_global_vars();
-        throw ProgramTerminated{};
+        control_flow_ = ControlFlow::End;
     }
     void visit(ast::AliasStmt&) override {}
     void visit(ast::AssignmentStmt& stmt) override {
@@ -1059,9 +1104,67 @@ class Executor final : ast::Visitor {
     void visit(ast::ListSet&) override {}
     void visit(ast::VarSet&) override {}
     void visit(ast::ForStmt&) override {}
-    void visit(ast::WhileStmt&) override {}
+    void visit(ast::WhileStmt& stmt) override {
+        int iterations = 0;
+        while (true) {
+            stmt.cond().accept(*this);
+            auto cond = types::smart_cast(value_, types::QASM_bool());
+            if (cond.value) {
+                if (iterations >= WHILE_ITERATION_LIMIT) {
+                    std::cerr << stmt.pos()
+                              << ": error : iteration limit reached\n";
+                    break;
+                }
+                push_scope();
+                stmt.body().accept(*this);
+                ++iterations;
+                pop_scope();
+                if (control_flow_) {
+                    if (*control_flow_ == ControlFlow::Break) {
+                        control_flow_ = std::nullopt;
+                        break;
+                    } else if (*control_flow_ == ControlFlow::Continue) {
+                        control_flow_ = std::nullopt;
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+            } else
+                break;
+        }
+    }
     void visit(ast::QuantumForStmt&) override {}
-    void visit(ast::QuantumWhileStmt&) override {}
+    void visit(ast::QuantumWhileStmt& stmt) override {
+        int iterations = 0;
+        while (true) {
+            stmt.cond().accept(*this);
+            auto cond = types::smart_cast(value_, types::QASM_bool());
+            if (cond.value) {
+                if (iterations >= WHILE_ITERATION_LIMIT) {
+                    std::cerr << stmt.pos()
+                              << ": error : iteration limit reached\n";
+                    break;
+                }
+                push_scope();
+                stmt.body().accept(*this);
+                ++iterations;
+                pop_scope();
+                if (control_flow_) {
+                    if (*control_flow_ == ControlFlow::Break) {
+                        control_flow_ = std::nullopt;
+                        break;
+                    } else if (*control_flow_ == ControlFlow::Continue) {
+                        control_flow_ = std::nullopt;
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+            } else
+                break;
+        }
+    }
     // Timing Statements
     void visit(ast::DelayStmt&) override {}
     void visit(ast::RotaryStmt&) override {}
@@ -1135,7 +1238,12 @@ class Executor final : ast::Visitor {
         push_scope();
 
         prog.foreach_stmt([this](ast::ProgramStmt& pstmt) {
-            std::visit([this](auto& stmt) { stmt->accept(*this); }, pstmt);
+            std::visit(
+                [this](auto& stmt) {
+                    if (!control_flow_)
+                        stmt->accept(*this);
+                },
+                pstmt);
         });
 
         print_global_vars();
@@ -1146,9 +1254,10 @@ class Executor final : ast::Visitor {
   private:
     bool expect_float_div_ =
         false; ///< true when float (not integer) division is required
-    QASM_type value_ = types::QASM_none();        /// stores intermediate values
-    QASM_type return_value_ = types::QASM_none(); /// stores return values
-    std::vector<qpp::ket> qubits_{};              /// all quantum bits
+    std::optional<ControlFlow> control_flow_ = std::nullopt; ///< signifies when a control statment is executed
+    QASM_type value_ = types::QASM_none();        ///< stores intermediate values
+    QASM_type return_value_ = types::QASM_none(); ///< stores return values
+    std::vector<qpp::ket> qubits_{};              ///< all quantum bits
     std::list<std::unordered_map<ast::symbol, Type>>
         symbol_table_{}; ///< a stack of symbol tables
 
@@ -1288,10 +1397,7 @@ class Executor final : ast::Visitor {
  * \brief Executes a program
  */
 inline void execute(ast::Program& prog) {
-    try {
-        Executor().run(prog);
-    } catch (const ProgramTerminated&) {
-    }
+    Executor().run(prog);
 }
 
 } // namespace tools
