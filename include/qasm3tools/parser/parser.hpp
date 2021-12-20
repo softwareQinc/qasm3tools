@@ -229,30 +229,34 @@ class ASTConstructor : public qasm3Visitor {
         qasm3Parser::QuantumDeclarationContext* ctx) override {
         // quantumDeclaration : 'qreg' Identifier designator?
         //                    | 'qubit' designator? Identifier
+        ast::ptr<ast::QuantumType> tmp;
         if (ctx->designator()) {
             auto size = std::move(
                 ctx->designator()->accept(this).as<ast::ptr<ast::Expr>>());
-            return ast::ptr<ast::GlobalStmt>(new ast::QuantumRegisterDecl(
-                get_pos(ctx), ctx->Identifier()->getText(), std::move(size)));
+            tmp = ast::ptr<ast::QuantumType>(
+                new ast::QubitType(get_pos(ctx), std::move(size)));
         } else {
-            return ast::ptr<ast::GlobalStmt>(new ast::QuantumRegisterDecl(
-                get_pos(ctx), ctx->Identifier()->getText()));
+            tmp = ast::ptr<ast::QuantumType>(new ast::QubitType(get_pos(ctx)));
         }
+        return ast::ptr<ast::GlobalStmt>(new ast::QuantumDecl(
+            get_pos(ctx), ctx->Identifier()->getText(), std::move(tmp)));
     }
 
     virtual antlrcpp::Any
     visitQuantumArgument(qasm3Parser::QuantumArgumentContext* ctx) override {
         // quantumArgument : 'qreg' Identifier designator?
         //                 | 'qubit' designator? Identifier
+        ast::ptr<ast::QuantumType> tmp;
         if (ctx->designator()) {
             auto size = std::move(
                 ctx->designator()->accept(this).as<ast::ptr<ast::Expr>>());
-            return ast::QubitParam::create(
-                get_pos(ctx), ctx->Identifier()->getText(), std::move(size));
+            tmp = ast::ptr<ast::QuantumType>(
+                new ast::QubitType(get_pos(ctx), std::move(size)));
         } else {
-            return ast::QubitParam::create(get_pos(ctx),
-                                           ctx->Identifier()->getText());
+            tmp = ast::ptr<ast::QuantumType>(new ast::QubitType(get_pos(ctx)));
         }
+        return ast::QuantumParam::create(
+            get_pos(ctx), ctx->Identifier()->getText(), std::move(tmp));
     }
 
     virtual antlrcpp::Any visitQuantumArgumentList(
@@ -514,7 +518,7 @@ class ASTConstructor : public qasm3Visitor {
             return ast::ptr<ast::Param>(
                 std::move(ctx->quantumArgument()
                               ->accept(this)
-                              .as<ast::ptr<ast::QubitParam>>()));
+                              .as<ast::ptr<ast::QuantumParam>>()));
     }
 
     virtual antlrcpp::Any visitAnyTypeArgumentList(

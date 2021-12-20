@@ -494,6 +494,15 @@ class Executor final : ast::Visitor {
         /* not implemented */
         throw RuntimeError();
     }
+    void visit(ast::QubitType& type) override {
+        if (type.size()) {
+            (**type.size()).accept(*this);
+            int n = std::get<types::QASM_int>(value_).value;
+            value_ = types::QASM_qreg{n};
+        } else {
+            value_ = types::QASM_qubit();
+        }
+    }
     // Expressions
     void visit(ast::BExpr& exp) override {
         exp.lexp().accept(*this);
@@ -1053,14 +1062,8 @@ class Executor final : ast::Visitor {
     void visit(ast::ClassicalParam& param) override {
         param.type().accept(*this);
     }
-    void visit(ast::QubitParam& param) override {
-        if (param.size()) {
-            (**param.size()).accept(*this);
-            int n = std::get<types::QASM_int>(value_).value;
-            value_ = types::QASM_qreg{n};
-        } else {
-            value_ = types::QASM_qubit();
-        }
+    void visit(ast::QuantumParam& param) override {
+        param.type().accept(*this);
     }
     void visit(ast::SubroutineDecl& decl) override {
         std::vector<QASM_type> param_types;
@@ -1087,17 +1090,17 @@ class Executor final : ast::Visitor {
         throw RuntimeError();
     }
     void visit(ast::GateDecl&) override {}
-    void visit(ast::QuantumRegisterDecl& decl) override {
-        if (decl.size()) {
-            (**decl.size()).accept(*this);
-            int n = std::get<types::QASM_int>(value_).value;
-            // new ids are N, N+1, ..., N+n-1
-            std::vector<int> ids(n);
+    void visit(ast::QuantumDecl& decl) override {
+        decl.type().accept(*this);
+        if (std::holds_alternative<types::QASM_qreg>(value_)) {
+            auto reg = std::get<types::QASM_qreg>(value_);
+            // new ids are N, N+1, ..., N+width-1
+            std::vector<int> ids(reg.width);
             std::iota(ids.begin(), ids.end(), qubits_.size());
             set(decl.id(), types::QASM_qreg(std::move(ids)));
             // add kets
-            qubits_.resize(qubits_.size() + n, qpp::st.z0);
-        } else {
+            qubits_.resize(qubits_.size() + reg.width, qpp::st.z0);
+        } else { // qubit
             // new id is N
             set(decl.id(), types::QASM_qubit{(int) qubits_.size()});
             // add ket

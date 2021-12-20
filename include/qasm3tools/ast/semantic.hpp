@@ -190,6 +190,26 @@ class ConstExprChecker final : public Visitor {
         }
     }
     void visit(ComplexType& type) override { type.subtype().accept(*this); }
+    void visit(QubitType& type) override {
+        visit_optional_expr(type.size());
+        if (type.size()) {
+            auto size = evaluate(**type.size());
+            if (size) {
+                if (*size <= 0) {
+                    std::cerr << type.pos()
+                              << ": error : quantum register size must be "
+                                 "positive\n";
+                    error_ = true;
+                } else
+                    type.size() = ptr<Expr>(new IntExpr({}, *size));
+            } else {
+                std::cerr << type.pos()
+                          << ": error : quantum register size is not a "
+                             "compile-time constant\n";
+                error_ = true;
+            }
+        }
+    }
     // Expressions
     void visit(BExpr& exp) override {
         exp.lexp().accept(*this);
@@ -573,25 +593,8 @@ class ConstExprChecker final : public Visitor {
 
         set(param.id(), OtherVar{}, param.pos());
     }
-    void visit(QubitParam& param) override {
-        visit_optional_expr(param.size());
-        if (param.size()) {
-            auto size = evaluate(**param.size());
-            if (size) {
-                if (*size <= 0) {
-                    std::cerr
-                        << param.pos()
-                        << ": error : quantum register size must be positive\n";
-                    error_ = true;
-                } else
-                    param.size() = ptr<Expr>(new IntExpr({}, *size));
-            } else {
-                std::cerr << param.pos()
-                          << ": error : quantum register size is not a "
-                             "compile-time constant\n";
-                error_ = true;
-            }
-        }
+    void visit(QuantumParam& param) override {
+        param.type().accept(*this);
 
         set(param.id(), OtherVar{}, param.pos());
     }
@@ -638,25 +641,8 @@ class ConstExprChecker final : public Visitor {
 
         set(decl.id(), OtherVar{}, decl.pos());
     }
-    void visit(QuantumRegisterDecl& decl) override {
-        visit_optional_expr(decl.size());
-        if (decl.size()) {
-            auto size = evaluate(**decl.size());
-            if (size) {
-                if (*size <= 0) {
-                    std::cerr
-                        << decl.pos()
-                        << ": error : quantum register size must be positive\n";
-                    error_ = true;
-                } else
-                    decl.size() = ptr<Expr>(new IntExpr({}, *size));
-            } else {
-                std::cerr << decl.pos()
-                          << ": error : quantum register size is not a "
-                             "compile-time constant\n";
-                error_ = true;
-            }
-        }
+    void visit(QuantumDecl& decl) override {
+        decl.type().accept(*this);
         set(decl.id(), OtherVar{}, decl.pos());
     }
     void visit(ClassicalDecl& decl) override {
@@ -812,6 +798,7 @@ class ConstExprChecker final : public Visitor {
         void visit(NoDesignatorType&) override { cast_is_int_ = false; }
         void visit(BitType&) override { cast_is_int_ = false; }
         void visit(ComplexType&) override { cast_is_int_ = false; }
+        void visit(QubitType&) override {}
         // Expressions
         void visit(BExpr& exp) override {
             exp.lexp().accept(*this);
@@ -909,11 +896,11 @@ class ConstExprChecker final : public Visitor {
         void visit(BoxStmt&) override {}
         // Declarations
         void visit(ClassicalParam&) override {}
-        void visit(QubitParam&) override {}
+        void visit(QuantumParam&) override {}
         void visit(SubroutineDecl&) override {}
         void visit(ExternDecl&) override {}
         void visit(GateDecl&) override {}
-        void visit(QuantumRegisterDecl&) override {}
+        void visit(QuantumDecl&) override {}
         void visit(ClassicalDecl&) override {}
         void visit(CalGrammarDecl&) override {}
         void visit(CalibrationDecl&) override {}
@@ -1278,6 +1265,13 @@ class TypeChecker final : public Visitor {
         }
     }
     void visit(ComplexType& type) override { type_ = DataType::Complex; }
+    void visit(QubitType& type) override {
+        if (type.size()) {
+            type_ = DataType::QuantumRegister;
+        } else {
+            type_ = DataType::QuantumBit;
+        }
+    }
     // Expressions
     void visit(BExpr& exp) override {
         exp.lexp().accept(*this);
@@ -1935,12 +1929,9 @@ class TypeChecker final : public Visitor {
 
         set(param.id(), type_, param.pos());
     }
-    void visit(QubitParam& param) override {
-        if (param.size()) {
-            type_ = DataType::QuantumRegister;
-        } else {
-            type_ = DataType::QuantumBit;
-        }
+    void visit(QuantumParam& param) override {
+        param.type().accept(*this);
+
         set(param.id(), type_, param.pos());
     }
     void visit(SubroutineDecl& decl) override {
@@ -1998,12 +1989,9 @@ class TypeChecker final : public Visitor {
                      (int) decl.q_params().size()},
             decl.pos());
     }
-    void visit(QuantumRegisterDecl& decl) override {
-        if (decl.size()) {
-            set(decl.id(), DataType::QuantumRegister, decl.pos());
-        } else {
-            set(decl.id(), DataType::QuantumBit, decl.pos());
-        }
+    void visit(QuantumDecl& decl) override {
+        decl.type().accept(*this);
+        set(decl.id(), type_, decl.pos());
     }
     void visit(ClassicalDecl& decl) override {
         if (decl.is_const()) {

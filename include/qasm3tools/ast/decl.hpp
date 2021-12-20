@@ -149,54 +149,47 @@ class ClassicalParam : public Param {
 };
 
 /**
- * \class qasm3tools::ast::QubitParam
- * \brief Class for subroutine qubit parameters
+ * \class qasm3tools::ast::QuantumParam
+ * \brief Class for subroutine quantum parameters
  */
-class QubitParam : public Param {
-    std::optional<ptr<Expr>> size_;
+class QuantumParam : public Param {
+    ptr<QuantumType> type_;
 
   public:
     /**
-     * \brief Constructs a qubit type
+     * \brief Constructs a quantum parameter
      *
      * \param pos The source position
-     * \param size The size
+     * \param id The parameter identifier
+     * \param type The parameter type
      */
-    QubitParam(parser::Position pos, symbol id,
-               std::optional<ptr<Expr>>&& size = std::nullopt)
-        : Param(pos, id), size_(std::move(size)) {}
+    QuantumParam(parser::Position pos, symbol id, ptr<QuantumType> type)
+        : Param(pos, id), type_(std::move(type)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<QubitParam>
-    create(parser::Position pos, symbol id,
-           std::optional<ptr<Expr>>&& size = std::nullopt) {
-        return std::make_unique<QubitParam>(pos, id, std::move(size));
+    static ptr<QuantumParam> create(parser::Position pos, symbol id,
+                                    ptr<QuantumType> type) {
+        return std::make_unique<QuantumParam>(pos, id, std::move(type));
     }
 
     /**
-     * \brief Get the size
+     * \brief Get the parmeter type
      *
-     * \return Optional expr size
+     * \return Reference to the type
      */
-    std::optional<ptr<Expr>>& size() { return size_; }
+    QuantumType& type() { return *type_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << "qubit";
-        if (size_)
-            os << "[" << **size_ << "]";
-        os << " " << id_;
+        os << *type_ << " " << id_;
         return os;
     }
 
   protected:
-    QubitParam* clone() const override {
-        std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (size_)
-            tmp = object::clone(**size_);
-        return new QubitParam(pos_, id_, std::move(tmp));
+    QuantumParam* clone() const override {
+        return new QuantumParam(pos_, id_, object::clone(*type_));
     }
 };
 
@@ -480,56 +473,48 @@ class GateDecl final : public GlobalStmt, public Decl {
 };
 
 /**
- * \class qasm3tools::ast::QuantumRegisterDecl
- * \brief Class for quantum register declarations
+ * \class qasm3tools::ast::QuantumDecl
+ * \brief Class for quantum declarations
  * \see qasm3tools::ast::Decl
  */
-class QuantumRegisterDecl final : public GlobalStmt, public Decl {
-    std::optional<ptr<Expr>> size_; ///< the size of the register
+class QuantumDecl final : public GlobalStmt, public Decl {
+    ptr<QuantumType> type_; ///< the type
 
   public:
     /**
-     * \brief Constructs a register declaration
+     * \brief Constructs a quantum declaration
      *
      * \param pos The source position
      * \param id The register identifier
-     * \param size the size of the register
+     * \param type The quantum type
      */
-    QuantumRegisterDecl(parser::Position pos, symbol id,
-                        std::optional<ptr<Expr>>&& size = std::nullopt)
-        : GlobalStmt(pos), Decl(id), size_(std::move(size)) {}
+    QuantumDecl(parser::Position pos, symbol id, ptr<QuantumType> type)
+        : GlobalStmt(pos), Decl(id), type_(std::move(type)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<QuantumRegisterDecl>
-    create(parser::Position pos, symbol id,
-           std::optional<ptr<Expr>>&& size = std::nullopt) {
-        return std::make_unique<QuantumRegisterDecl>(pos, id, std::move(size));
+    static ptr<QuantumDecl> create(parser::Position pos, symbol id,
+                                   ptr<QuantumType> type) {
+        return std::make_unique<QuantumDecl>(pos, id, std::move(type));
     }
 
     /**
-     * \brief Get the size of the register
+     * \brief Get the type
      *
-     * \return Optional expr size of the register
+     * \return Reference to the type
      */
-    std::optional<ptr<Expr>>& size() { return size_; }
+    QuantumType& type() { return *type_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        os << "qubit";
-        if (size_)
-            os << "[" << **size_ << "]";
-        os << " " << id_ << ";\n";
+        os << *type_ << " " << id_ << ";\n";
         return os;
     }
 
   protected:
-    QuantumRegisterDecl* clone() const override {
-        std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (size_)
-            tmp = object::clone(**size_);
-        return new QuantumRegisterDecl(pos_, id_, std::move(tmp));
+    QuantumDecl* clone() const override {
+        return new QuantumDecl(pos_, id_, object::clone(*type_));
     }
 };
 
