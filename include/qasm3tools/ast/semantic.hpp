@@ -1296,8 +1296,7 @@ class TypeChecker final : public Visitor {
             case BinaryOp::BitOr:
             case BinaryOp::XOr:
             case BinaryOp::BitAnd:
-                if (is_castable(t1, DataType::ClassicalRegister) &&
-                    is_castable(t2, DataType::ClassicalRegister)) {
+                if (is_castable(t1, DataType::ClassicalRegister) && t1 == t2) {
                     type_ = t1;
                     return;
                 }
@@ -1308,8 +1307,10 @@ class TypeChecker final : public Visitor {
             case BinaryOp::LT:
             case BinaryOp::GTE:
             case BinaryOp::LTE:
-                if (is_castable(t1, DataType::ClassicalRegister) &&
-                    is_castable(t2, DataType::ClassicalRegister)) {
+                if ((is_castable(t1, DataType::ClassicalRegister) ||
+                     t1 == DataType::Float) &&
+                    (is_castable(t2, DataType::ClassicalRegister) ||
+                     t2 == DataType::Float)) {
                     type_ = DataType::Bool;
                     return;
                 }
@@ -1342,7 +1343,8 @@ class TypeChecker final : public Visitor {
                     is_numeric_subtype(t2, DataType::Float)) {
                     type_ = DataType::Duration;
                     return;
-                } else if (t2 == DataType::Duration &&
+                } else if (exp.op() == BinaryOp::Times &&
+                           t2 == DataType::Duration &&
                            is_numeric_subtype(t1, DataType::Float)) {
                     type_ = DataType::Duration;
                     return;
@@ -1423,7 +1425,7 @@ class TypeChecker final : public Visitor {
                     type_ = DataType::None;
                     return;
                 }
-                visit_classical_expr(exp.arg(0), DataType::Float);
+                visit_numeric_expr(exp.arg(0));
                 type_ = DataType::Float; // assume we accept & return float
                 break;
             case MathOp::Rotl:
@@ -1504,15 +1506,20 @@ class TypeChecker final : public Visitor {
         exp.exp().accept(*this);
         auto tmp = type_;
         visit_classical_expr(exp.index(), DataType::Int);
-        if (tmp == DataType::ClassicalRegister || tmp == DataType::Int) {
-            type_ = DataType::ClassicalBit;
-        } else if (tmp == DataType::QuantumRegister) {
-            type_ = DataType::QuantumBit;
-        } else {
-            std::cerr << exp.pos() << ": error : expression of type '" << tmp
-                      << "' cannot be indexed\n";
-            error_ = true;
-            type_ = DataType::None;
+        switch (tmp) {
+            case DataType::Int: // apparently allowed (see adder.qasm)
+            case DataType::ClassicalRegister:
+                type_ = DataType::ClassicalBit;
+                break;
+            case DataType::QuantumRegister:
+                type_ = DataType::QuantumBit;
+                break;
+            default:
+                std::cerr << exp.pos() << ": error : expression of type '"
+                          << tmp << "' cannot be indexed\n";
+                error_ = true;
+                type_ = DataType::None;
+                break;
         }
     }
     void visit(ConstantExpr&) override { type_ = DataType::Float; }
@@ -1609,25 +1616,31 @@ class TypeChecker final : public Visitor {
     void visit(BreakStmt&) override {}
     void visit(ContinueStmt&) override {}
     void visit(ReturnStmt& stmt) override {
+        if (!return_type_) {
+            std::cerr << stmt.pos()
+                      << ": error : unexpected return statement\n";
+            error_ = true;
+            return;
+        }
         std::visit(
             utils::overloaded{
                 [this](ptr<QuantumMeasurement>& qm) {
                     qm->accept(*this);
                     if (!is_castable(DataType::ClassicalRegister,
-                                     return_type_)) {
+                                     *return_type_)) {
                         std::cerr
                             << qm->pos()
                             << ": error : incompatible return type : expected '"
-                            << return_type_ << "', got '"
+                            << *return_type_ << "', got '"
                             << DataType::ClassicalRegister << "'\n";
                         error_ = true;
                     }
                 },
                 [this](ptr<Expr>& exp) {
-                    visit_classical_expr(*exp, return_type_);
+                    visit_classical_expr(*exp, *return_type_);
                 },
                 [this, &stmt](auto) {
-                    if (return_type_ != DataType::None) {
+                    if (*return_type_ != DataType::None) {
                         std::cerr << stmt.pos()
                                   << ": error : non-void subroutine "
                                      "should return a value\n";
@@ -1949,8 +1962,8 @@ class TypeChecker final : public Visitor {
 
         pop_scope();
 
-        set(decl.id(), SubroutineType{param_types, return_type_}, decl.pos());
-        return_type_ = DataType::None;
+        set(decl.id(), SubroutineType{param_types, *return_type_}, decl.pos());
+        return_type_ = std::nullopt;
     }
     void visit(ExternDecl& decl) override {
         std::vector<DataType> param_types;
@@ -2019,9 +2032,10 @@ class TypeChecker final : public Visitor {
     bool error_ = false;   ///< whether errors have occurred
     int control_bits_ = 0; ///< number of control bits from control modifiers
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
-        {}};                                ///< a stack of symbol tables
-    DataType type_ = DataType::None;        ///< type of current expression
-    DataType return_type_ = DataType::None; ///< return type of subroutine
+        {}};                         ///< a stack of symbol tables
+    DataType type_ = DataType::None; ///< type of current expression
+    std::optional<DataType> return_type_ =
+        std::nullopt; ///< return type of subroutine
 
     /**
      * \brief Enters a new scope

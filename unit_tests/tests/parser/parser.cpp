@@ -103,7 +103,7 @@ TEST(Parsing, Idempotence) {
                       "\tfor i in [1:5] {\n"
                       "\t\tif (bool(c[i])) {\n"
                       "\t\t}\n"
-                      "\t\tc[i-1] = c[i-1]&1;\n"
+                      "\t\tc[i-1] = c[i-1]&c[i+1];\n"
                       "\t\tdo_nothing(c[3],q,false);\n"
                       "\t\tcontinue;\n"
                       "\t}\n"
@@ -354,6 +354,16 @@ TEST(Parsing, Miscellaneous_Type_Error) {
     EXPECT_THROW(parser::parse_string(src8, "miscellaneous_type_error_8.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src9, "miscellaneous_type_error_9.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
+
+/******************************************************************************/
+TEST(Parsing, Unexpected_Return_Error) {
+    std::string src = "OPENQASM 3.0;\n"
+                      "if (true) return;\n";
+
+    EXPECT_THROW(parser::parse_string(src, "unexpected_return_error.qasm"),
                  ast::SemanticError);
 }
 /******************************************************************************/
