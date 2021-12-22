@@ -50,6 +50,45 @@
 
 namespace qasm3tools {
 namespace tools {
+inline namespace literals {
+/**
+ * \brief User-defined literal for complex \f$i=\sqrt{-1}\f$ (integer overload)
+ *
+ * Example: \code cplx z = 4_i; // type of z is std::complex<double> \endcode
+ */
+inline constexpr qpp::cplx operator"" _i(unsigned long long int x) noexcept {
+    return {0., static_cast<double>(x)};
+}
+
+/**
+ * \brief User-defined literal for complex \f$i=\sqrt{-1}\f$ (real overload)
+ *
+ * Example: \code cplx z = 4.5_i; // type of z is std::complex<double> \endcode
+ */
+inline constexpr qpp::cplx operator"" _i(long double x) noexcept {
+    return {0., static_cast<double>(x)};
+}
+
+/**
+ * \brief User-defined literal for complex \f$i=\sqrt{-1}\f$ (integer overload)
+ *
+ * Example: \code auto z = 4_if; // type of z is std::complex<double> \endcode
+ */
+inline constexpr std::complex<float>
+operator"" _if(unsigned long long int x) noexcept {
+    return {0., static_cast<float>(x)};
+}
+
+/**
+ * \brief User-defined literal for complex \f$i=\sqrt{-1}\f$ (real overload)
+ *
+ * Example: \code auto z = 4.5_if; // type of z is std::complex<float> \endcode
+ */
+inline constexpr std::complex<float> operator"" _if(long double x) noexcept {
+    return {0., static_cast<float>(x)};
+}
+
+} /* namespace literals */
 
 using idx = qpp::idx;
 
@@ -286,6 +325,9 @@ inline QASM_type QASM_cast(const QASM_type& source, const QASM_type& target) {
                         return QASM_bool{true};
                 }
                 return QASM_bool{false};
+            },
+            [](const QASM_angle& s, const QASM_float&) -> QASM_type {
+                return QASM_float{s.to_float()};
             },
             [](const QASM_angle& s, const QASM_angle& t) -> QASM_type {
                 if (s.width == t.width)
@@ -1015,7 +1057,7 @@ class Executor final : ast::Visitor {
         value_ = types::QASM_cast(value_, tmp);
     }
     void visit(ast::FunctionCall& exp) override {
-        auto& entry = std::get<SubroutineType>(lookup(exp.name()));
+        auto func = std::get<SubroutineType>(lookup(exp.name()));
 
         // store local symbols; subroutine body can only refer to globals
         std::list<std::unordered_map<ast::symbol, Type>> local_symbols;
@@ -1025,17 +1067,17 @@ class Executor final : ast::Visitor {
         push_scope();
 
         // pass in arguments by value
-        for (int i = 0; i < entry.param_types.size(); i++) {
+        for (int i = 0; i < func.param_types.size(); i++) {
             exp.arg(i).accept(*this);
-            set(entry.param_names[i],
-                types::QASM_cast(value_, entry.param_types[i]));
+            set(func.param_names[i],
+                types::QASM_cast(value_, func.param_types[i]));
         }
 
         // execute body and obtain return value
         return_value_ = types::QASM_none();
-        entry.body->accept(*this);
+        func.body->accept(*this);
         control_flow_ = std::nullopt;
-        value_ = types::QASM_cast(return_value_, entry.return_type);
+        value_ = types::QASM_cast(return_value_, func.return_type);
 
         pop_scope();
         // put back local symbols
@@ -1291,9 +1333,115 @@ class Executor final : ast::Visitor {
     void visit(ast::CtrlModifier&) override {}
     void visit(ast::InvModifier&) override {}
     void visit(ast::PowModifier&) override {}
-    void visit(ast::UGate&) override {}
-    void visit(ast::GPhase&) override {}
-    void visit(ast::DeclaredGate&) override {}
+    void visit(ast::UGate& gate) override {
+        if (!gate.modifiers().empty()) {
+            /* not implemented */
+            throw RuntimeError();
+        } // no modifiers -> there must be exactly one quantum argument
+
+        gate.theta().accept(*this);
+        double theta = types::smart_cast(value_, types::QASM_float()).value;
+        gate.phi().accept(*this);
+        double phi = types::smart_cast(value_, types::QASM_float()).value;
+        gate.lambda().accept(*this);
+        double lambda = types::smart_cast(value_, types::QASM_float()).value;
+
+        gate.qarg(0).accept(*this);
+        std::vector<idx> args;
+        std::transform(register_.begin(), register_.end(),
+                       std::back_inserter(args),
+                       [](BitReference b) -> idx { return std::get<idx>(b); });
+
+        // generate the matrix
+        qpp::cmat u{qpp::cmat::Zero(2, 2)};
+
+        u << std::cos(theta / 2),
+            -(std::sin(theta / 2)) * std::exp(1_i * lambda),
+            std::sin(theta / 2) * std::exp(1_i * phi),
+            std::cos(theta / 2) * std::exp(1_i * (phi + lambda));
+
+        // apply the gate
+        for (auto i : args) {
+            psi_ = qpp::apply(psi_, u, {i});
+        }
+    }
+    void visit(ast::GPhase&) override {
+        /* not implemented */
+        throw RuntimeError();
+    }
+    void visit(ast::DeclaredGate& dgate) override {
+        if (!dgate.modifiers().empty()) {
+            /* not implemented */
+            throw RuntimeError();
+        } // no modifiers -> there must be exactly one quantum argument
+
+        auto gate = std::get<GateType>(lookup(dgate.name()));
+
+        // evaluate arguments
+        std::vector<double> c_args(dgate.num_cargs());
+        std::vector<std::vector<idx>> q_args(dgate.num_qargs());
+        for (int i = 0; i < dgate.num_cargs(); i++) {
+            dgate.carg(i).accept(*this);
+            c_args[i] = types::smart_cast(value_, types::QASM_float()).value;
+        }
+        for (int i = 0; i < dgate.num_qargs(); i++) {
+            dgate.qarg(i).accept(*this);
+            std::transform(
+                register_.begin(), register_.end(),
+                std::back_inserter(q_args[i]),
+                [](BitReference b) -> idx { return std::get<idx>(b); });
+        }
+
+        // map gate across registers
+        idx mapping_size = 1;
+        std::vector<bool> mapped(q_args.size(), false);
+        for (idx i = 0; i < q_args.size(); i++) {
+            if (q_args[i].size() > 1) {
+                mapped[i] = true;
+                mapping_size = q_args[i].size();
+            }
+        }
+
+        auto it = qpp::qasm::known_matrices.find(dgate.name());
+        if (it != qpp::qasm::known_matrices.end()) {
+            // apply the known matrix directly
+            auto mat = it->second(c_args);
+
+            // map the gate accross registers
+            for (idx j = 0; j < mapping_size; j++) {
+                // map virtual qubits to physical qubits
+                std::vector<idx> mapped_args(q_args.size());
+                for (idx i = 0; i < q_args.size(); i++) {
+                    mapped_args[i] = mapped[i] ? q_args[i][j] : q_args[i][0];
+                }
+
+                // apply gate
+                psi_ = qpp::apply(psi_, mat, mapped_args);
+            }
+        } else {
+            // push classical arguments onto a new scope
+            push_scope();
+            for (idx i = 0; i < c_args.size(); i++) {
+                set(gate.c_param_names[i], types::QASM_float{c_args[i]});
+            }
+
+            // map the gate
+            for (idx j = 0; j < mapping_size; j++) {
+                push_scope();
+                for (idx i = 0; i < q_args.size(); i++) {
+                    set(gate.q_param_names[i],
+                        types::QASM_qubit{mapped[i] ? q_args[i][j]
+                                                    : q_args[i][0]});
+                }
+
+                // evaluate the gate
+                gate.body->accept(*this);
+
+                pop_scope();
+            }
+            pop_scope();
+        }
+    }
     // Loops
     void visit(ast::RangeSet& set) override {
         (**set.start()).accept(*this);
@@ -1588,8 +1736,7 @@ class Executor final : ast::Visitor {
     QASM_type value_ = types::QASM_none(); ///< stores intermediate values
     QASM_type return_value_ = types::QASM_none(); ///< stores return values
     std::variant<ast::ListSet*, LoopRange>
-        loop_set_{}; ///< for-loop values to iterate over
-    /* ints are qubit ids; bool pointers are classical bits */
+        loop_set_{};                       ///< for-loop values to iterate over
     std::vector<BitReference> register_{}; ///< stores intermediate registers
     idx allocated_qubits_ = 0; ///< total number qubits from visited decls
     qpp::ket psi_{};           ///< state vector

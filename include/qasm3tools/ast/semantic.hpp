@@ -63,6 +63,8 @@ class SemanticError : public std::exception {
  *   const int[32] n = 8;
  *   qubit[7] q;
  *   int[16] i = int[32](8);
+ *
+ * Finally, also computes and sets the program's total number of qubits
  * \see qasm3tools::ast::Visitor
  */
 class ConstExprChecker final : public Visitor {
