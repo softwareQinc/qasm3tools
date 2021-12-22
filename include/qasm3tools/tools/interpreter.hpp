@@ -41,7 +41,9 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <tuple>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #define WHILE_ITERATION_LIMIT 1000
@@ -73,9 +75,9 @@ struct QASM_bool {
 };
 
 struct QASM_int {
-    int width; // < 0 indicates unspecified width (e.g. int literal)
+    int width; // negative indicates unspecified width (e.g. int literal)
     bool is_signed;
-    long long value;
+    long long value; // signed 64 bits; arithmetic with uint[64] may be buggy
 
     QASM_int(int w, bool i = true, long long v = 0)
         : width(w), is_signed(i), value(v) {
@@ -199,15 +201,6 @@ struct QASM_creg {
     }
 };
 
-struct QASM_duration {
-    double value = 0;
-    ast::TimeUnit units = ast::TimeUnit::s;
-
-    friend std::ostream& operator<<(std::ostream& os, const QASM_duration& d) {
-        return os << d.value << d.units;
-    }
-};
-
 struct QASM_qubit {
     int id = 0;
 };
@@ -222,9 +215,11 @@ struct QASM_qreg {
 
 using QASM_type =
     std::variant<QASM_none, QASM_bool, QASM_int, QASM_float, QASM_angle,
-                 QASM_cbit, QASM_creg, QASM_duration, QASM_qubit, QASM_qreg>;
+                 QASM_cbit, QASM_creg, QASM_qubit, QASM_qreg>;
 
-/* result has source's value and target's type */
+/**
+ * \brief Cast source expression to target type
+ */
 inline QASM_type QASM_cast(const QASM_type& source, const QASM_type& target) {
     return std::visit(
         utils::overloaded{
@@ -347,9 +342,6 @@ inline QASM_type QASM_cast(const QASM_type& source, const QASM_type& target) {
             },
             /* the rest can't be casted */
             [](const QASM_none& s, const QASM_none&) -> QASM_type { return s; },
-            [](const QASM_duration& s, const QASM_duration&) -> QASM_type {
-                return s;
-            },
             [](const QASM_qubit& s, const QASM_qubit&) -> QASM_type {
                 return s;
             },
@@ -368,11 +360,17 @@ inline QASM_type QASM_cast(const QASM_type& source, const QASM_type& target) {
         source, target);
 }
 
+/**
+ * \brief Cast but return target type instead of a std::variant
+ */
 template <typename T>
 inline T smart_cast(const QASM_type& source, const T& target) {
     return std::get<T>(QASM_cast(source, target));
 }
 
+/**
+ * \brief Get numerical value of an expression
+ */
 using value_type = std::variant<long long, unsigned long long, double>;
 inline value_type get_value(const QASM_type& t) {
     return std::visit(
@@ -442,14 +440,143 @@ class Executor final : ast::Visitor {
      */
     enum class ControlFlow { Break, Continue, Return, End };
 
+    /**
+     * \brief Ranges for looping
+     */
+    struct LoopRange {
+        int start;
+        int step;
+        int stop;
+
+        LoopRange(int x, int y, int z) : start(x), step(y), stop(z) {}
+    };
+
+    /**
+     * \brief References to quantum or classical bits
+     */
+    using BitReference =
+        std::variant<int, std::pair<types::QASM_angle*, int>, types::QASM_cbit*,
+                     std::pair<types::QASM_creg*, int>>;
+
   public:
     void run(ast::Program& prog) { prog.accept(*this); }
 
     // Index identifiers
-    void visit(ast::RangeSlice&) override {}
-    void visit(ast::ListSlice&) override {}
-    void visit(ast::VarAccess&) override {}
-    void visit(ast::Concat&) override {}
+    void visit(ast::RangeSlice& slice) override {
+        int reg_size = register_.size();
+        if (reg_size == 0) {
+            std::cerr << slice.pos()
+                      << ": error : can't slice empty register\n";
+            throw RuntimeError();
+        }
+
+        /* step size */
+        int step = 1;
+        if (slice.step()) {
+            (**slice.step()).accept(*this);
+            step = types::smart_cast(value_, types::QASM_int(-1)).value;
+            if (step == 0) {
+                std::cerr << slice.pos()
+                          << ": error : range step size is zero\n";
+                throw RuntimeError();
+            }
+        }
+        int max_index = reg_size - 1;
+        /* start = front by default; or back when step is negative */
+        int start = step > 0 ? 0 : max_index;
+        if (slice.start()) {
+            (**slice.start()).accept(*this);
+            start = types::smart_cast(value_, types::QASM_int(-1)).value;
+            if (start > max_index) {
+                start = max_index;
+            } else if (start < -reg_size) {
+                start = 0;
+            } else if (start < 0) {
+                start += register_.size();
+            }
+        }
+        /* stop = back by default; or front when step is negative */
+        int stop = step > 0 ? max_index : 0;
+        if (slice.stop()) {
+            (**slice.stop()).accept(*this);
+            stop = types::smart_cast(value_, types::QASM_int(-1)).value;
+            if (stop > max_index) {
+                stop = max_index;
+            } else if (stop < -reg_size) {
+                stop = 0;
+            } else if (stop < 0) {
+                stop += register_.size();
+            }
+        }
+
+        std::vector<BitReference> new_reg{};
+        for (int i = start; (step > 0) ? (i <= stop) : (i >= stop); i += step) {
+            new_reg.push_back(register_[i]);
+        }
+        register_ = std::move(new_reg);
+    }
+    void visit(ast::ListSlice& slice) override {
+        std::vector<BitReference> new_reg{};
+        int reg_size = register_.size();
+        for (auto& exp : slice.indices()) {
+            exp->accept(*this);
+            int i = types::smart_cast(value_, types::QASM_int(-1)).value;
+            if (i < -reg_size || i >= reg_size) {
+                std::cerr << exp->pos()
+                          << ": error : index is out of bounds: index " << i
+                          << ", size " << reg_size << "\n";
+                throw RuntimeError();
+            } else if (i < 0) {
+                i += reg_size;
+            }
+            new_reg.push_back(register_[i]);
+        }
+        register_ = std::move(new_reg);
+    }
+    void visit(ast::VarAccess& va) override {
+        auto& entry = std::get<QASM_type>(lookup(va.var()));
+        register_.clear();
+        std::visit(
+            utils::overloaded{
+                [this](types::QASM_angle& x) {
+                    for (int i = 0; i < x.width; i++)
+                        register_.push_back(
+                            std::make_pair(std::addressof(x), i));
+                },
+                [this](types::QASM_cbit& x) {
+                    register_.push_back(std::addressof(x));
+                },
+                [this](types::QASM_creg& x) {
+                    for (int i = 0; i < x.width; i++)
+                        register_.push_back(
+                            std::make_pair(std::addressof(x), i));
+                },
+                [this](const types::QASM_qubit& x) {
+                    register_.push_back(x.id);
+                },
+                [this](const types::QASM_qreg& x) {
+                    std::transform(x.ids.begin(), x.ids.end(),
+                                   std::back_inserter(register_),
+                                   [](int i) -> BitReference { return i; });
+                },
+                [&va](auto) {
+                    std::cerr << va.pos() << ": error : not a register\n";
+                    throw RuntimeError();
+                }},
+            entry);
+
+        if (va.slice()) {
+            (**va.slice()).accept(*this);
+        }
+    }
+    void visit(ast::Concat& c) override {
+        // get right register first
+        c.rreg().accept(*this);
+        auto rreg = register_;
+        // append right register to left one
+        c.lreg().accept(*this);
+        register_.insert(register_.end(), rreg.begin(), rreg.end());
+    }
     // Types
     void visit(ast::SingleDesignatorType& type) override {
         type.size().accept(*this);
@@ -475,11 +602,9 @@ class Executor final : ast::Visitor {
                 value_ = types::QASM_bool();
                 break;
             case ast::NDType::Duration:
-                value_ = types::QASM_duration();
-                break;
             case ast::NDType::Stretch:
-                value_ = types::QASM_duration();
-                break;
+                /* not implemented */
+                throw RuntimeError();
         }
     }
     void visit(ast::BitType& type) override {
@@ -624,11 +749,18 @@ class Executor final : ast::Visitor {
                     utils::overloaded{
                         [&exp, &shift](const types::QASM_int& v) -> QASM_type {
                             if (exp.op() == ast::BinaryOp::LeftBitShift) {
-                                return types::QASM_int(v.width, v.is_signed,
-                                                       v.value << shift.value);
+                                return types::QASM_int(
+                                    v.width, v.is_signed,
+                                    v.is_signed ? v.value << shift.value
+                                                : (unsigned long long) v.value
+                                                      << shift.value);
                             } else {
-                                return types::QASM_int(v.width, v.is_signed,
-                                                       v.value >> shift.value);
+                                return types::QASM_int(
+                                    v.width, v.is_signed,
+                                    v.is_signed
+                                        ? v.value >> shift.value
+                                        : (unsigned long long) v.value >>
+                                              shift.value);
                             }
                         },
                         [&exp,
@@ -978,9 +1110,10 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::StringExpr& exp) override {
         std::string content = exp.text().substr(1, exp.text().length() - 2);
-        std::vector<bool> reg(content.length());
+        std::vector<bool> reg{};
         // binary strings are big-endian; cregs are stored in little-endian
-        std::transform(content.rbegin(), content.rend(), reg.begin(),
+        std::transform(content.rbegin(), content.rend(),
+                       std::back_inserter(reg),
                        [](char c) -> bool { return c != '0'; });
         value_ = types::QASM_creg(std::move(reg));
     }
@@ -998,7 +1131,7 @@ class Executor final : ast::Visitor {
     }
     // Statement components
     void visit(ast::QuantumMeasurement&) override {
-        /* not implemented */
+        /* not implemented (but should be) */
         throw RuntimeError();
     }
     void visit(ast::ProgramBlock& block) override {
@@ -1049,7 +1182,15 @@ class Executor final : ast::Visitor {
         control_flow_ = ControlFlow::Return;
     }
     void visit(ast::EndStmt&) override { control_flow_ = ControlFlow::End; }
-    void visit(ast::AliasStmt&) override {}
+    void visit(ast::AliasStmt& stmt) override {
+        stmt.qreg().accept(*this);
+
+        std::vector<int> reg{};
+        std::transform(register_.begin(), register_.end(),
+                       std::back_inserter(reg),
+                       [](BitReference b) -> int { return std::get<int>(b); });
+        set(stmt.alias(), types::QASM_qreg(std::move(reg)));
+    }
     void visit(ast::AssignmentStmt& stmt) override {
         auto& entry = std::get<QASM_type>(lookup(stmt.var()));
         if (stmt.index()) {
@@ -1092,10 +1233,79 @@ class Executor final : ast::Visitor {
     void visit(ast::GPhase&) override {}
     void visit(ast::DeclaredGate&) override {}
     // Loops
-    void visit(ast::RangeSet&) override {}
-    void visit(ast::ListSet&) override {}
-    void visit(ast::VarSet&) override {}
-    void visit(ast::ForStmt&) override {}
+    void visit(ast::RangeSet& set) override {
+        (**set.start()).accept(*this);
+        int start = types::smart_cast(value_, types::QASM_int(-1)).value;
+        int step = 1;
+        if (set.step()) {
+            (**set.step()).accept(*this);
+            step = types::smart_cast(value_, types::QASM_int(-1)).value;
+            if (step == 0) {
+                std::cerr << set.pos() << ": error : range step size is zero\n";
+                throw RuntimeError();
+            }
+        }
+        (**set.stop()).accept(*this);
+        int stop = types::smart_cast(value_, types::QASM_int(-1)).value;
+        loop_set_ = LoopRange(start, step, stop);
+    }
+    void visit(ast::ListSet& set) override { loop_set_ = std::addressof(set); }
+    void visit(ast::VarSet&) override {
+        /* not implemented (no list types yet) */
+        throw RuntimeError();
+    }
+    void visit(ast::ForStmt& stmt) override {
+        stmt.index_set().accept(*this);
+
+        std::visit(
+            utils::overloaded{
+                [this, &stmt](ast::ListSet* list_set) {
+                    for (auto& exp : list_set->indices()) {
+                        exp->accept(*this);
+                        push_scope();
+                        set(stmt.var(),
+                            types::smart_cast(value_, types::QASM_int(-1)));
+                        stmt.body().accept(*this);
+                        pop_scope();
+                        if (control_flow_) {
+                            if (*control_flow_ == ControlFlow::Break) {
+                                control_flow_ = std::nullopt;
+                                break;
+                            } else if (*control_flow_ ==
+                                       ControlFlow::Continue) {
+                                control_flow_ = std::nullopt;
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                },
+                [this, &stmt](LoopRange& range) {
+                    for (int i = range.start;
+                         (range.step > 0) ? (i <= range.stop)
+                                          : (i >= range.stop);
+                         i += range.step) {
+                        push_scope();
+                        set(stmt.var(), types::QASM_int(-1, true, i));
+                        stmt.body().accept(*this);
+                        pop_scope();
+                        if (control_flow_) {
+                            if (*control_flow_ == ControlFlow::Break) {
+                                control_flow_ = std::nullopt;
+                                break;
+                            } else if (*control_flow_ ==
+                                       ControlFlow::Continue) {
+                                control_flow_ = std::nullopt;
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }},
+            loop_set_);
+    }
     void visit(ast::WhileStmt& stmt) override {
         int iterations = 0;
         while (true) {
@@ -1126,7 +1336,58 @@ class Executor final : ast::Visitor {
                 break;
         }
     }
-    void visit(ast::QuantumForStmt&) override {}
+    void visit(ast::QuantumForStmt& stmt) override {
+        stmt.index_set().accept(*this);
+
+        std::visit(
+            utils::overloaded{
+                [this, &stmt](ast::ListSet* list_set) {
+                    for (auto& exp : list_set->indices()) {
+                        exp->accept(*this);
+                        push_scope();
+                        set(stmt.var(),
+                            types::smart_cast(value_, types::QASM_int(-1)));
+                        stmt.body().accept(*this);
+                        pop_scope();
+                        if (control_flow_) {
+                            if (*control_flow_ == ControlFlow::Break) {
+                                control_flow_ = std::nullopt;
+                                break;
+                            } else if (*control_flow_ ==
+                                       ControlFlow::Continue) {
+                                control_flow_ = std::nullopt;
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                },
+                [this, &stmt](LoopRange& range) {
+                    for (int i = range.start;
+                         (range.step > 0) ? (i <= range.stop)
+                                          : (i >= range.stop);
+                         i += range.step) {
+                        push_scope();
+                        set(stmt.var(), types::QASM_int(-1, true, i));
+                        stmt.body().accept(*this);
+                        pop_scope();
+                        if (control_flow_) {
+                            if (*control_flow_ == ControlFlow::Break) {
+                                control_flow_ = std::nullopt;
+                                break;
+                            } else if (*control_flow_ ==
+                                       ControlFlow::Continue) {
+                                control_flow_ = std::nullopt;
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }},
+            loop_set_);
+    }
     void visit(ast::QuantumWhileStmt& stmt) override {
         int iterations = 0;
         while (true) {
@@ -1158,9 +1419,18 @@ class Executor final : ast::Visitor {
         }
     }
     // Timing Statements
-    void visit(ast::DelayStmt&) override {}
-    void visit(ast::RotaryStmt&) override {}
-    void visit(ast::BoxStmt&) override {}
+    void visit(ast::DelayStmt&) override {
+        /* not implemented */
+        throw RuntimeError();
+    }
+    void visit(ast::RotaryStmt&) override {
+        /* not implemented */
+        throw RuntimeError();
+    }
+    void visit(ast::BoxStmt&) override {
+        /* not implemented */
+        throw RuntimeError();
+    }
     // Declarations
     void visit(ast::ClassicalParam& param) override {
         param.type().accept(*this);
@@ -1226,8 +1496,14 @@ class Executor final : ast::Visitor {
             set(decl.id(), tmp);
         }
     }
-    void visit(ast::CalGrammarDecl&) override {}
-    void visit(ast::CalibrationDecl&) override {}
+    void visit(ast::CalGrammarDecl&) override {
+        /* not implemented (calgrammars not specified yet) */
+        throw RuntimeError();
+    }
+    void visit(ast::CalibrationDecl&) override {
+        /* not implemented (calgrammars not specified yet) */
+        throw RuntimeError();
+    }
     // Program
     void visit(ast::Program& prog) override {
         push_scope();
@@ -1249,7 +1525,11 @@ class Executor final : ast::Visitor {
         std::nullopt; ///< signifies when a control statment is executed
     QASM_type value_ = types::QASM_none(); ///< stores intermediate values
     QASM_type return_value_ = types::QASM_none(); ///< stores return values
-    std::vector<qpp::ket> qubits_{};              ///< all quantum bits
+    std::variant<ast::ListSet*, LoopRange>
+        loop_set_{}; ///< for-loop values to iterate over
+    /* ints are qubit ids; bool pointers are classical bits */
+    std::vector<BitReference> register_{}; ///< stores intermediate registers
+    std::vector<qpp::ket> qubits_{};       ///< all quantum bits
     std::list<std::unordered_map<ast::symbol, Type>>
         symbol_table_{}; ///< a stack of symbol tables
 
@@ -1319,9 +1599,6 @@ class Executor final : ast::Visitor {
                                    std::cout << v.first << ": " << val << "\n";
                                },
                                [&v](const types::QASM_creg& val) {
-                                   std::cout << v.first << ": " << val << "\n";
-                               },
-                               [&v](const types::QASM_duration& val) {
                                    std::cout << v.first << ": " << val << "\n";
                                },
                                [](auto val) {}},

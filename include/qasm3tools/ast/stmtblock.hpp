@@ -37,7 +37,6 @@
 
 #include <functional>
 #include <list>
-#include <variant>
 
 namespace qasm3tools {
 namespace ast {
@@ -45,7 +44,7 @@ namespace ast {
 /**
  * \class qasm3tools::ast::BlockBase
  * \brief Base class for statement blocks
- * T is std::variant of allowed statement types
+ * T is virtual statement class
  * D is derived class
  */
 template <typename T, typename D>

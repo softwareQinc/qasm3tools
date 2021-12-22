@@ -83,8 +83,8 @@ static const std::string std_include =
     "gate u3(θ, φ, λ) q { gphase(-(φ+λ)/2); U(θ, φ, λ) q; }\n";
 
 // forward declarations
-ast::ptr<ast::Program> parse_file(std::string);
-ast::ptr<ast::Program> parse_string(const std::string&, std::string);
+ast::ptr<ast::Program> parse_file_helper(std::string);
+ast::ptr<ast::Program> parse_string_helper(const std::string&, std::string);
 
 class ASTConstructor : public qasm3Visitor {
     using ExprTriplet = std::tuple<std::optional<ast::ptr<ast::Expr>>,
@@ -143,9 +143,9 @@ class ASTConstructor : public qasm3Visitor {
         std::string inc_str = ctx->StringLiteral()->getText();
         std::string fname = inc_str.substr(1, inc_str.length() - 2);
         if (fname == "stdgates.inc") {
-            return parse_string(std_include, fname);
+            return parse_string_helper(std_include, fname);
         } else {
-            return parse_file(fname);
+            return parse_file_helper(fname);
         }
     }
 
@@ -1624,9 +1624,9 @@ class ASTConstructor : public qasm3Visitor {
 };
 
 /**
- * \brief Parse a specified file
+ * \brief Parse a specified file without semantic checking
  */
-inline ast::ptr<ast::Program> parse_file(std::string fname) {
+inline ast::ptr<ast::Program> parse_file_helper(std::string fname) {
     if (!std::filesystem::exists(fname))
         throw std::logic_error("File \"" + fname + "\" not found!\n");
     antlr4::ANTLRFileStream input;
@@ -1639,17 +1639,14 @@ inline ast::ptr<ast::Program> parse_file(std::string fname) {
     qasm3Parser::ProgramContext* tree = parser.program();
     if (parser.getNumberOfSyntaxErrors() > 0)
         throw std::logic_error("Parsing failed!");
-    ASTConstructor constructor;
-    auto result = constructor.make_ast(tree);
-    ast::check_source(*result);
-    return result;
+    return ASTConstructor().make_ast(tree);
 }
 
 /**
- * \brief Parse a string
+ * \brief Parse a string without semantic checking
  */
-inline ast::ptr<ast::Program> parse_string(const std::string& str,
-                                           std::string name = "") {
+inline ast::ptr<ast::Program> parse_string_helper(const std::string& str,
+                                                  std::string name = "") {
     antlr4::ANTLRInputStream input(str);
     input.name = name;
     qasm3Lexer lexer(&input);
@@ -1660,8 +1657,24 @@ inline ast::ptr<ast::Program> parse_string(const std::string& str,
     qasm3Parser::ProgramContext* tree = parser.program();
     if (parser.getNumberOfSyntaxErrors() > 0)
         throw std::logic_error("Parsing failed!");
-    ASTConstructor constructor;
-    auto result = constructor.make_ast(tree);
+    return ASTConstructor().make_ast(tree);
+}
+
+/**
+ * \brief Parse a specified file
+ */
+inline ast::ptr<ast::Program> parse_file(std::string fname) {
+    auto result = parse_file_helper(fname);
+    ast::check_source(*result);
+    return result;
+}
+
+/**
+ * \brief Parse a string
+ */
+inline ast::ptr<ast::Program> parse_string(const std::string& str,
+                                           std::string name = "") {
+    auto result = parse_string_helper(str, name);
     ast::check_source(*result);
     return result;
 }

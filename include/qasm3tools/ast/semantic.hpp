@@ -473,6 +473,13 @@ class ConstExprChecker final : public Visitor {
     }
     // Loops
     void visit(RangeSet& set) override {
+        if (!set.start() || !set.stop()) {
+            std::cerr
+                << set.pos()
+                << ": error : loop range must specify start and stop values\n";
+            error_ = true;
+            return;
+        }
         visit_optional_expr(set.start());
         visit_optional_expr(set.step());
         visit_optional_expr(set.stop());

@@ -306,7 +306,7 @@ TEST(Parsing, Miscellaneous_Type_Error) {
                        "measure q[x];\n";
 
     std::string src2 = "OPENQASM 3.0;\n"
-                       "for i in [1im:] {}\n";
+                       "for i in [0:1im] {}\n";
 
     std::string src3 = "OPENQASM 3.0;\n"
                        "bit[10] x;\n"
