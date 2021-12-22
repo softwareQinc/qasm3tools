@@ -51,6 +51,8 @@
 namespace qasm3tools {
 namespace tools {
 
+using idx = qpp::idx;
+
 /**
  * \class qasm3tools::tools::RuntimeError
  * \brief Exception class for runtime errors
@@ -202,14 +204,14 @@ struct QASM_creg {
 };
 
 struct QASM_qubit {
-    int id = 0;
+    idx id = 0;
 };
 
 struct QASM_qreg {
     int width;
-    std::vector<int> ids;
+    std::vector<idx> ids;
 
-    QASM_qreg(std::vector<int> ids) : width(ids.size()), ids(ids) {}
+    QASM_qreg(std::vector<idx> ids) : width(ids.size()), ids(ids) {}
     QASM_qreg(int width) : width(width), ids(width, 0) {}
 };
 
@@ -463,13 +465,13 @@ class Executor final : ast::Visitor {
 
     /**
      * \brief References to quantum or classical bits
-     * int : id of qubit
+     * idx : id of qubit
      * bool* : pointer to the bit of a types::QASM_cbit
      * std::pair<std::vector<bool>*, int> : pointer to the bits of a
      *     types::QASM_creg or types::QASM_angle, and an index
      */
     using BitReference =
-        std::variant<int, bool*, std::pair<std::vector<bool>*, int>>;
+        std::variant<idx, bool*, std::pair<std::vector<bool>*, int>>;
 
   public:
     void run(ast::Program& prog) { prog.accept(*this); }
@@ -566,7 +568,7 @@ class Executor final : ast::Visitor {
                 [this](const types::QASM_qreg& x) {
                     std::transform(x.ids.begin(), x.ids.end(),
                                    std::back_inserter(register_),
-                                   [](int i) -> BitReference { return i; });
+                                   [](idx i) -> BitReference { return i; });
                 },
                 [&va](auto) {
                     std::cerr << va.pos() << ": error : not a register\n";
@@ -1142,14 +1144,16 @@ class Executor final : ast::Visitor {
     void visit(ast::QuantumMeasurement& msmt) override {
         msmt.q_arg().accept(*this);
         // always produce bit[n]; if n = 1 then can be cast to bit later
-        std::vector<bool> result{};
+        std::vector<idx> ids;
         std::transform(register_.begin(), register_.end(),
-                       std::back_inserter(result),
-                       [this](BitReference b) -> bool {
-                           int id = std::get<int>(b);
-                           return std::get<qpp::RES>(
-                               qpp::measure(qubits_[id], qpp::gt.Id2));
-                       });
+                       std::back_inserter(ids),
+                       [](BitReference b) -> idx { return std::get<idx>(b); });
+        std::tie(ids, std::ignore, psi_) =
+            qpp::measure_seq(psi_, ids, 2, false);
+
+        std::vector<bool> result;
+        std::transform(ids.begin(), ids.end(), std::back_inserter(result),
+                       [this](idx b) -> bool { return b; });
         value_ = types::QASM_creg(std::move(result));
     }
     void visit(ast::ProgramBlock& block) override {
@@ -1199,9 +1203,11 @@ class Executor final : ast::Visitor {
     void visit(ast::ResetStmt& stmt) override {
         stmt.foreach_arg([this](ast::IndexId& arg) {
             arg.accept(*this);
-            for (auto qubit : register_) {
-                qubits_[std::get<int>(qubit)] = qpp::st.z0;
-            }
+            std::vector<idx> ids;
+            std::transform(
+                register_.begin(), register_.end(), std::back_inserter(ids),
+                [](BitReference b) -> idx { return std::get<idx>(b); });
+            psi_ = qpp::reset(psi_, ids);
         });
     }
     void visit(ast::BarrierStmt& stmt) override {
@@ -1241,10 +1247,10 @@ class Executor final : ast::Visitor {
     void visit(ast::AliasStmt& stmt) override {
         stmt.qreg().accept(*this);
 
-        std::vector<int> reg{};
+        std::vector<idx> reg{};
         std::transform(register_.begin(), register_.end(),
                        std::back_inserter(reg),
-                       [](BitReference b) -> int { return std::get<int>(b); });
+                       [](BitReference b) -> idx { return std::get<idx>(b); });
         set(stmt.alias(), types::QASM_qreg(std::move(reg)));
     }
     void visit(ast::AssignmentStmt& stmt) override {
@@ -1527,16 +1533,14 @@ class Executor final : ast::Visitor {
         if (std::holds_alternative<types::QASM_qreg>(value_)) {
             auto reg = std::get<types::QASM_qreg>(value_);
             // new ids are N, N+1, ..., N+width-1
-            std::vector<int> ids(reg.width);
-            std::iota(ids.begin(), ids.end(), qubits_.size());
+            std::vector<idx> ids(reg.width);
+            std::iota(ids.begin(), ids.end(), allocated_qubits_);
             set(decl.id(), types::QASM_qreg(std::move(ids)));
-            // add kets
-            qubits_.resize(qubits_.size() + reg.width, qpp::st.z0);
+            allocated_qubits_ += reg.width;
         } else { // qubit
             // new id is N
-            set(decl.id(), types::QASM_qubit{(int) qubits_.size()});
-            // add ket
-            qubits_.push_back(qpp::st.z0);
+            set(decl.id(), types::QASM_qubit{allocated_qubits_});
+            allocated_qubits_ += 1;
         }
     }
     void visit(ast::ClassicalDecl& decl) override {
@@ -1562,6 +1566,8 @@ class Executor final : ast::Visitor {
     }
     // Program
     void visit(ast::Program& prog) override {
+        psi_ = qpp::st.zero(prog.qubits());
+
         push_scope();
 
         prog.foreach_stmt([this](ast::GlobalStmt& stmt) {
@@ -1585,7 +1591,8 @@ class Executor final : ast::Visitor {
         loop_set_{}; ///< for-loop values to iterate over
     /* ints are qubit ids; bool pointers are classical bits */
     std::vector<BitReference> register_{}; ///< stores intermediate registers
-    std::vector<qpp::ket> qubits_{};       ///< all quantum bits
+    idx allocated_qubits_ = 0; ///< total number qubits from visited decls
+    qpp::ket psi_{};           ///< state vector
     std::list<std::unordered_map<ast::symbol, Type>>
         symbol_table_{}; ///< a stack of symbol tables
 

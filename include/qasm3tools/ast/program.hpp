@@ -42,6 +42,7 @@ namespace ast {
  */
 class Program : public BlockBase<GlobalStmt, Program> {
     bool std_include_;
+    std::optional<int> qubits_;
 
   public:
     /**
@@ -52,17 +53,34 @@ class Program : public BlockBase<GlobalStmt, Program> {
      * \param body The program body
      */
     Program(parser::Position pos, std::list<ptr<GlobalStmt>>&& body,
-            bool std_include = false)
-        : BlockBase(pos, std::move(body)), std_include_(std_include) {}
+            bool std_include = false, std::optional<int> qubits = std::nullopt)
+        : BlockBase(pos, std::move(body)), std_include_(std_include),
+          qubits_(qubits) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<Program> create(parser::Position pos,
                                std::list<ptr<GlobalStmt>>&& body,
-                               bool std_include = false) {
-        return std::make_unique<Program>(pos, std::move(body), std_include);
+                               bool std_include = false,
+                               std::optional<int> qubits = std::nullopt) {
+        return std::make_unique<Program>(pos, std::move(body), std_include,
+                                         qubits);
     }
+
+    /**
+     * \brief Get the number of qubits
+     *
+     * \return The number of qubits
+     */
+    int qubits() { return *qubits_; }
+
+    /**
+     * \brief Set the number of qubits
+     *
+     * \param qubits The number of qubits
+     */
+    void set_qubits(int qubits) { qubits_ = qubits; }
 
     /**
      * \brief Add another program's contents to the end of this program
@@ -70,9 +88,15 @@ class Program : public BlockBase<GlobalStmt, Program> {
      */
     void extend(Program& other) {
         std_include_ = std_include_ || other.std_include_;
+        if (qubits_ && other.qubits_) {
+            qubits_ = *qubits_ + *other.qubits_;
+        } else {
+            qubits_ = std::nullopt;
+        }
         body_.insert(body_.end(), std::make_move_iterator(other.body_.begin()),
                      std::make_move_iterator(other.body_.end()));
         other.std_include_ = false;
+        other.qubits_ = std::nullopt;
         other.body_.clear();
     }
 
@@ -95,7 +119,7 @@ class Program : public BlockBase<GlobalStmt, Program> {
         for (auto& x : body_) {
             tmp.emplace_back(object::clone(*x));
         }
-        return new Program(pos_, std::move(tmp), std_include_);
+        return new Program(pos_, std::move(tmp), std_include_, qubits_);
     }
 };
 

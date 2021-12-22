@@ -200,13 +200,21 @@ class ConstExprChecker final : public Visitor {
                               << ": error : quantum register size must be "
                                  "positive\n";
                     error_ = true;
-                } else
+                } else {
                     type.size() = ptr<Expr>(new IntExpr({}, *size));
+                    if (is_quantum_decl_) {
+                        qubit_count_ += *size;
+                    }
+                }
             } else {
                 std::cerr << type.pos()
                           << ": error : quantum register size is not a "
                              "compile-time constant\n";
                 error_ = true;
+            }
+        } else {
+            if (is_quantum_decl_) {
+                qubit_count_ += 1;
             }
         }
     }
@@ -643,7 +651,9 @@ class ConstExprChecker final : public Visitor {
         set(decl.id(), OtherVar{}, decl.pos());
     }
     void visit(QuantumDecl& decl) override {
+        is_quantum_decl_ = true;
         decl.type().accept(*this);
+        is_quantum_decl_ = false;
         set(decl.id(), OtherVar{}, decl.pos());
     }
     void visit(ClassicalDecl& decl) override {
@@ -676,15 +686,21 @@ class ConstExprChecker final : public Visitor {
     void visit(CalibrationDecl&) override {}
     // Program
     void visit(Program& prog) override {
+        qubit_count_ = 0;
+
         push_scope();
         prog.foreach_stmt([this](GlobalStmt& stmt) { stmt.accept(*this); });
         pop_scope();
+
+        prog.set_qubits(qubit_count_);
     }
 
   private:
     bool error_ = false; ///< whether errors have occurred
     bool expect_const_ =
         false; ///< true when traversing a compile-time constant
+    bool is_quantum_decl_ = false; ///< true when traversing quantum declaration
+    int qubit_count_ = 0;          ///< total number of qubits in the program
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
         {}};                                    ///< a stack of symbol tables
     std::optional<ptr<Expr>> replacement_expr_; ///< replace current expression
