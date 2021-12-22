@@ -1398,7 +1398,13 @@ class Executor final : ast::Visitor {
         for (idx i = 0; i < q_args.size(); i++) {
             if (q_args[i].size() > 1) {
                 mapped[i] = true;
-                mapping_size = q_args[i].size();
+                if (mapping_size > 1 && mapping_size != q_args[i].size()) {
+                    std::cerr << dgate.qarg(i).pos()
+                              << ": error : incompatible register length\n";
+                    throw RuntimeError();
+                } else {
+                    mapping_size = q_args[i].size();
+                }
             }
         }
 
