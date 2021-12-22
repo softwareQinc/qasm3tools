@@ -327,12 +327,10 @@ class ConstExprChecker final : public Visitor {
         }
     }
     void visit(ResetStmt& stmt) override {
-        for (int i = 0; i < stmt.num_args(); i++)
-            stmt.arg(i).accept(*this);
+        stmt.foreach_arg([this](IndexId& arg) { arg.accept(*this); });
     }
     void visit(BarrierStmt& stmt) override {
-        for (int i = 0; i < stmt.num_args(); i++)
-            stmt.arg(i).accept(*this);
+        stmt.foreach_arg([this](IndexId& arg) { arg.accept(*this); });
     }
     void visit(IfStmt& stmt) override {
         stmt.cond().accept(*this);
@@ -1584,12 +1582,10 @@ class TypeChecker final : public Visitor {
     }
     void visit(ExprStmt& stmt) override { stmt.exp().accept(*this); }
     void visit(ResetStmt& stmt) override {
-        for (int i = 0; i < stmt.num_args(); i++)
-            visit_quantum_indexid(stmt.arg(i));
+        stmt.foreach_arg([this](IndexId& arg) { visit_quantum_indexid(arg); });
     }
     void visit(BarrierStmt& stmt) override {
-        for (int i = 0; i < stmt.num_args(); i++)
-            visit_quantum_indexid(stmt.arg(i));
+        stmt.foreach_arg([this](IndexId& arg) { visit_quantum_indexid(arg); });
     }
     void visit(IfStmt& stmt) override {
         visit_classical_expr(stmt.cond(), DataType::Bool);

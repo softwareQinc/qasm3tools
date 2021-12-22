@@ -333,6 +333,16 @@ inline QASM_type QASM_cast(const QASM_type& source, const QASM_type& target) {
                           << t.width << "]!\n";
                 throw RuntimeError();
             },
+            /**
+             * bit[1] -> bit cast is needed because visit(QuantumMeasurement)
+             * produces a classical register, which may be assigned to a bit
+             */
+            [](const QASM_creg& s, const QASM_cbit&) -> QASM_type {
+                if (s.width == 1)
+                    return QASM_cbit{s.bits[0]};
+                std::cerr << "Can't cast bit[" << s.width << "] to bit!\n";
+                throw RuntimeError();
+            },
             [](const QASM_creg& s, const QASM_creg& t) -> QASM_type {
                 if (s.width == t.width)
                     return s;
@@ -453,10 +463,13 @@ class Executor final : ast::Visitor {
 
     /**
      * \brief References to quantum or classical bits
+     * int : id of qubit
+     * bool* : pointer to the bit of a types::QASM_cbit
+     * std::pair<std::vector<bool>*, int> : pointer to the bits of a
+     *     types::QASM_creg or types::QASM_angle, and an index
      */
     using BitReference =
-        std::variant<int, std::pair<types::QASM_angle*, int>, types::QASM_cbit*,
-                     std::pair<types::QASM_creg*, int>>;
+        std::variant<int, bool*, std::pair<std::vector<bool>*, int>>;
 
   public:
     void run(ast::Program& prog) { prog.accept(*this); }
@@ -540,16 +553,12 @@ class Executor final : ast::Visitor {
             utils::overloaded{
                 [this](types::QASM_angle& x) {
                     for (int i = 0; i < x.width; i++)
-                        register_.push_back(
-                            std::make_pair(std::addressof(x), i));
+                        register_.push_back(std::make_pair(&x.bits, i));
                 },
-                [this](types::QASM_cbit& x) {
-                    register_.push_back(std::addressof(x));
-                },
+                [this](types::QASM_cbit& x) { register_.push_back(&x.bit); },
                 [this](types::QASM_creg& x) {
                     for (int i = 0; i < x.width; i++)
-                        register_.push_back(
-                            std::make_pair(std::addressof(x), i));
+                        register_.push_back(std::make_pair(&x.bits, i));
                 },
                 [this](const types::QASM_qubit& x) {
                     register_.push_back(x.id);
@@ -1130,9 +1139,18 @@ class Executor final : ast::Visitor {
         throw RuntimeError();
     }
     // Statement components
-    void visit(ast::QuantumMeasurement&) override {
-        /* not implemented (but should be) */
-        throw RuntimeError();
+    void visit(ast::QuantumMeasurement& msmt) override {
+        msmt.q_arg().accept(*this);
+        // always produce bit[n]; if n = 1 then can be cast to bit later
+        std::vector<bool> result{};
+        std::transform(register_.begin(), register_.end(),
+                       std::back_inserter(result),
+                       [this](BitReference b) -> bool {
+                           int id = std::get<int>(b);
+                           return std::get<qpp::RES>(
+                               qpp::measure(qubits_[id], qpp::gt.Id2));
+                       });
+        value_ = types::QASM_creg(std::move(result));
     }
     void visit(ast::ProgramBlock& block) override {
         block.foreach_stmt([this](ast::Stmt& stmt) {
@@ -1147,11 +1165,49 @@ class Executor final : ast::Visitor {
         });
     }
     // Statements
-    void visit(ast::MeasureStmt&) override {}
-    void visit(ast::MeasureAsgnStmt&) override {}
+    void visit(ast::MeasureStmt& stmt) override {
+        stmt.measurement().accept(*this);
+    }
+    void visit(ast::MeasureAsgnStmt& stmt) override {
+        stmt.measurement().accept(*this);
+        auto result = std::get<types::QASM_creg>(value_).bits;
+        stmt.c_arg().accept(*this);
+        if (result.size() != register_.size()) {
+            std::cerr << stmt.pos()
+                      << ": error : measurement assignment registers have "
+                         "different sizes : bit["
+                      << register_.size() << "] and qubit[" << result.size()
+                      << "]\n";
+            throw RuntimeError();
+        }
+        for (int i = 0; i < result.size(); i++) {
+            std::visit(utils::overloaded{
+                           [&result, i](bool* b) { *b = result[i]; },
+                           [&result, i](std::pair<std::vector<bool>*, int> ri) {
+                               (*ri.first)[ri.second] = result[i];
+                           },
+                           [&stmt](int) {
+                               /* qubit; should be caught by sematic checker */
+                               std::cerr << stmt.pos()
+                                         << ": error : semantic error\n";
+                               throw RuntimeError();
+                           }},
+                       register_[i]);
+        }
+    }
     void visit(ast::ExprStmt& stmt) override { stmt.exp().accept(*this); }
-    void visit(ast::ResetStmt&) override {}
-    void visit(ast::BarrierStmt&) override {}
+    void visit(ast::ResetStmt& stmt) override {
+        stmt.foreach_arg([this](ast::IndexId& arg) {
+            arg.accept(*this);
+            for (auto qubit : register_) {
+                qubits_[std::get<int>(qubit)] = qpp::st.z0;
+            }
+        });
+    }
+    void visit(ast::BarrierStmt& stmt) override {
+        // check validity of registers, but do nothing with them
+        stmt.foreach_arg([this](ast::IndexId& arg) { arg.accept(*this); });
+    }
     void visit(ast::IfStmt& stmt) override {
         stmt.cond().accept(*this);
         auto cond = types::smart_cast(value_, types::QASM_bool());
