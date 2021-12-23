@@ -929,7 +929,7 @@ class ConstExprChecker final : public Visitor {
      * \param exp Reference to the expression
      * \return Optional integer value
      */
-    std::optional<int> evaluate(Expr& exp) {
+    static std::optional<int> evaluate(Expr& exp) {
         return ConstIntEvaluator().evaluate(exp);
     }
 };
