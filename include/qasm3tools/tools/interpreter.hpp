@@ -50,45 +50,8 @@
 
 namespace qasm3tools {
 namespace tools {
-inline namespace literals {
-/**
- * \brief User-defined literal for complex \f$i=\sqrt{-1}\f$ (integer overload)
- *
- * Example: \code cplx z = 4_i; // type of z is std::complex<double> \endcode
- */
-inline constexpr qpp::cplx operator"" _i(unsigned long long int x) noexcept {
-    return {0., static_cast<double>(x)};
-}
 
-/**
- * \brief User-defined literal for complex \f$i=\sqrt{-1}\f$ (real overload)
- *
- * Example: \code cplx z = 4.5_i; // type of z is std::complex<double> \endcode
- */
-inline constexpr qpp::cplx operator"" _i(long double x) noexcept {
-    return {0., static_cast<double>(x)};
-}
-
-/**
- * \brief User-defined literal for complex \f$i=\sqrt{-1}\f$ (integer overload)
- *
- * Example: \code auto z = 4_if; // type of z is std::complex<double> \endcode
- */
-inline constexpr std::complex<float>
-operator"" _if(unsigned long long int x) noexcept {
-    return {0., static_cast<float>(x)};
-}
-
-/**
- * \brief User-defined literal for complex \f$i=\sqrt{-1}\f$ (real overload)
- *
- * Example: \code auto z = 4.5_if; // type of z is std::complex<float> \endcode
- */
-inline constexpr std::complex<float> operator"" _if(long double x) noexcept {
-    return {0., static_cast<float>(x)};
-}
-
-} /* namespace literals */
+using namespace qpp::literals;
 
 using idx = qpp::idx;
 
@@ -100,6 +63,17 @@ class RuntimeError : public std::exception {
   public:
     RuntimeError() noexcept = default;
     ~RuntimeError() = default;
+    const char* what() const noexcept { return "Error(s) occurred"; }
+};
+
+/**
+ * \class qasm3tools::tools::NotImplementedError
+ * \brief Exception class for non-implemented features
+ */
+class NotImplementedError : public std::exception {
+  public:
+    NotImplementedError() noexcept = default;
+    ~NotImplementedError() = default;
     const char* what() const noexcept { return "Error(s) occurred"; }
 };
 
@@ -521,12 +495,6 @@ class Executor final : ast::Visitor {
     // Index identifiers
     void visit(ast::RangeSlice& slice) override {
         int reg_size = register_.size();
-        if (reg_size == 0) {
-            std::cerr << slice.pos()
-                      << ": error : can't slice empty register\n";
-            throw RuntimeError();
-        }
-
         /* step size */
         int step = 1;
         if (slice.step()) {
@@ -571,6 +539,11 @@ class Executor final : ast::Visitor {
             new_reg.push_back(register_[i]);
         }
         register_ = std::move(new_reg);
+        if (register_.empty()) {
+            std::cerr << slice.pos()
+                      << ": error : slice results in empty register\n";
+            throw RuntimeError();
+        }
     }
     void visit(ast::ListSlice& slice) override {
         std::vector<BitReference> new_reg{};
@@ -656,8 +629,8 @@ class Executor final : ast::Visitor {
                 break;
             case ast::NDType::Duration:
             case ast::NDType::Stretch:
-                /* not implemented */
-                throw RuntimeError();
+                std::cerr << type.pos() << ": circuit timing not supported\n";
+                throw NotImplementedError();
         }
     }
     void visit(ast::BitType& type) override {
@@ -669,9 +642,9 @@ class Executor final : ast::Visitor {
             value_ = types::QASM_cbit();
         }
     }
-    void visit(ast::ComplexType&) override {
-        /* not implemented */
-        throw RuntimeError();
+    void visit(ast::ComplexType& type) override {
+        std::cerr << type.pos() << ": complex types not supported\n";
+        throw NotImplementedError();
     }
     void visit(ast::QubitType& type) override {
         if (type.size()) {
@@ -1077,6 +1050,12 @@ class Executor final : ast::Visitor {
         return_value_ = types::QASM_none();
         func.body->accept(*this);
         control_flow_ = std::nullopt;
+        if (std::holds_alternative<types::QASM_none>(return_value_) &&
+            !std::holds_alternative<types::QASM_none>(func.return_type)) {
+            std::cerr << exp.pos()
+                      << ": error : function did not return a value\n";
+            throw RuntimeError();
+        }
         value_ = types::QASM_cast(return_value_, func.return_type);
 
         pop_scope();
@@ -1151,9 +1130,9 @@ class Executor final : ast::Visitor {
     void visit(ast::RealExpr& exp) override {
         value_ = types::QASM_float{exp.value()};
     }
-    void visit(ast::ImagExpr&) override {
-        /* not implemented */
-        throw RuntimeError();
+    void visit(ast::ImagExpr& exp) override {
+        std::cerr << exp.pos() << ": complex types not supported\n";
+        throw NotImplementedError();
     }
     void visit(ast::BoolExpr& exp) override {
         value_ = types::QASM_bool{exp.value()};
@@ -1170,17 +1149,17 @@ class Executor final : ast::Visitor {
                        [](char c) -> bool { return c != '0'; });
         value_ = types::QASM_creg(std::move(reg));
     }
-    void visit(ast::TimeExpr&) override {
-        /* not implemented */
-        throw RuntimeError();
+    void visit(ast::TimeExpr& exp) override {
+        std::cerr << exp.pos() << ": circuit timing not supported\n";
+        throw NotImplementedError();
     }
-    void visit(ast::DurationGateExpr&) override {
-        /* not implemented */
-        throw RuntimeError();
+    void visit(ast::DurationGateExpr& exp) override {
+        std::cerr << exp.pos() << ": circuit timing not supported\n";
+        throw NotImplementedError();
     }
-    void visit(ast::DurationBlockExpr&) override {
-        /* not implemented */
-        throw RuntimeError();
+    void visit(ast::DurationBlockExpr& exp) override {
+        std::cerr << exp.pos() << ": circuit timing not supported\n";
+        throw NotImplementedError();
     }
     // Statement components
     void visit(ast::QuantumMeasurement& msmt) override {
@@ -1325,9 +1304,9 @@ class Executor final : ast::Visitor {
             entry = types::QASM_cast(value_, entry);
         }
     }
-    void visit(ast::PragmaStmt&) override {
-        /* not implemented */
-        throw RuntimeError();
+    void visit(ast::PragmaStmt& stmt) override {
+        std::cerr << stmt.pos() << ": pragmas not supported\n";
+        throw NotImplementedError();
     }
     // Gates
     void visit(ast::CtrlModifier&) override {}
@@ -1335,16 +1314,18 @@ class Executor final : ast::Visitor {
     void visit(ast::PowModifier&) override {}
     void visit(ast::UGate& gate) override {
         if (!gate.modifiers().empty()) {
-            /* not implemented */
-            throw RuntimeError();
+            std::cerr << gate.pos() << ": gate modifiers not supported\n";
+            throw NotImplementedError();
         } // no modifiers -> there must be exactly one quantum argument
 
+        expect_float_div_ = true;
         gate.theta().accept(*this);
         double theta = types::smart_cast(value_, types::QASM_float()).value;
         gate.phi().accept(*this);
         double phi = types::smart_cast(value_, types::QASM_float()).value;
         gate.lambda().accept(*this);
         double lambda = types::smart_cast(value_, types::QASM_float()).value;
+        expect_float_div_ = false;
 
         gate.qarg(0).accept(*this);
         std::vector<idx> args;
@@ -1365,14 +1346,14 @@ class Executor final : ast::Visitor {
             psi_ = qpp::apply(psi_, u, {i});
         }
     }
-    void visit(ast::GPhase&) override {
-        /* not implemented */
-        throw RuntimeError();
+    void visit(ast::GPhase& gate) override {
+        std::cerr << gate.pos() << ": gphase gate not supported\n";
+        throw NotImplementedError();
     }
     void visit(ast::DeclaredGate& dgate) override {
         if (!dgate.modifiers().empty()) {
-            /* not implemented */
-            throw RuntimeError();
+            std::cerr << dgate.pos() << ": gate modifiers not supported\n";
+            throw NotImplementedError();
         } // no modifiers -> there must be exactly one quantum argument
 
         auto gate = std::get<GateType>(lookup(dgate.name()));
@@ -1380,10 +1361,12 @@ class Executor final : ast::Visitor {
         // evaluate arguments
         std::vector<double> c_args(dgate.num_cargs());
         std::vector<std::vector<idx>> q_args(dgate.num_qargs());
+        expect_float_div_ = true;
         for (int i = 0; i < dgate.num_cargs(); i++) {
             dgate.carg(i).accept(*this);
             c_args[i] = types::smart_cast(value_, types::QASM_float()).value;
         }
+        expect_float_div_ = false;
         for (int i = 0; i < dgate.num_qargs(); i++) {
             dgate.qarg(i).accept(*this);
             std::transform(
@@ -1466,9 +1449,9 @@ class Executor final : ast::Visitor {
         loop_set_ = LoopRange(start, step, stop);
     }
     void visit(ast::ListSet& set) override { loop_set_ = std::addressof(set); }
-    void visit(ast::VarSet&) override {
-        /* not implemented (no list types yet) */
-        throw RuntimeError();
+    void visit(ast::VarSet& set) override {
+        std::cerr << set.pos() << ": lists not supported\n";
+        throw NotImplementedError();
     }
     void visit(ast::ForStmt& stmt) override {
         stmt.index_set().accept(*this);
@@ -1635,17 +1618,17 @@ class Executor final : ast::Visitor {
         }
     }
     // Timing Statements
-    void visit(ast::DelayStmt&) override {
-        /* not implemented */
-        throw RuntimeError();
+    void visit(ast::DelayStmt& stmt) override {
+        std::cerr << stmt.pos() << ": circuit timing not supported\n";
+        throw NotImplementedError();
     }
-    void visit(ast::RotaryStmt&) override {
-        /* not implemented */
-        throw RuntimeError();
+    void visit(ast::RotaryStmt& stmt) override {
+        std::cerr << stmt.pos() << ": circuit timing not supported\n";
+        throw NotImplementedError();
     }
-    void visit(ast::BoxStmt&) override {
-        /* not implemented */
-        throw RuntimeError();
+    void visit(ast::BoxStmt& stmt) override {
+        std::cerr << stmt.pos() << ": circuit timing not supported\n";
+        throw NotImplementedError();
     }
     // Declarations
     void visit(ast::ClassicalParam& param) override {
@@ -1674,9 +1657,9 @@ class Executor final : ast::Visitor {
         set(decl.id(), SubroutineType{param_types, param_names, value_,
                                       std::addressof(decl.body())});
     }
-    void visit(ast::ExternDecl&) override {
-        /* not implemented */
-        throw RuntimeError();
+    void visit(ast::ExternDecl& decl) override {
+        std::cerr << decl.pos() << ": externs not supported\n";
+        throw NotImplementedError();
     }
     void visit(ast::GateDecl& decl) override {
         set(decl.id(), GateType{decl.c_params(), decl.q_params(),
@@ -1710,13 +1693,13 @@ class Executor final : ast::Visitor {
             set(decl.id(), tmp);
         }
     }
-    void visit(ast::CalGrammarDecl&) override {
-        /* not implemented (calgrammars not specified yet) */
-        throw RuntimeError();
+    void visit(ast::CalGrammarDecl& decl) override {
+        std::cerr << decl.pos() << ": calibration not supported\n";
+        throw NotImplementedError();
     }
-    void visit(ast::CalibrationDecl&) override {
-        /* not implemented (calgrammars not specified yet) */
-        throw RuntimeError();
+    void visit(ast::CalibrationDecl& decl) override {
+        std::cerr << decl.pos() << ": calibration not supported\n";
+        throw NotImplementedError();
     }
     // Program
     void visit(ast::Program& prog) override {
