@@ -1970,36 +1970,37 @@ class TypeChecker final : public Visitor {
         pop_scope();
     }
     // Declarations
-    void visit(ClassicalParam& param) override {
-        param.type().accept(*this);
-
-        set(param.id(), type_, param.pos());
-    }
-    void visit(QuantumParam& param) override {
-        param.type().accept(*this);
-
-        set(param.id(), type_, param.pos());
-    }
+    void visit(ClassicalParam& param) override { param.type().accept(*this); }
+    void visit(QuantumParam& param) override { param.type().accept(*this); }
     void visit(SubroutineDecl& decl) override {
-        push_scope();
+        // function signature
         std::vector<DataType> param_types;
-
+        std::vector<symbol> param_names;
         for (auto& param : decl.params()) {
             param->accept(*this);
             param_types.push_back(type_);
+            param_names.push_back(param->id());
         }
 
+        // return type
         type_ = DataType::None;
         if (decl.return_type()) {
             (**decl.return_type()).accept(*this);
         }
 
+        // declare before visiting body to allow recursion
+        set(decl.id(), SubroutineType{param_types, type_}, decl.pos());
+
+        // add parameter declarations and visit body
         return_type_ = type_;
+        push_scope();
+
+        for (int i = 0; i < param_types.size(); i++) {
+            set(param_names[i], param_types[i], decl.pos());
+        }
         decl.body().accept(*this);
 
         pop_scope();
-
-        set(decl.id(), SubroutineType{param_types, *return_type_}, decl.pos());
         return_type_ = std::nullopt;
     }
     void visit(ExternDecl& decl) override {

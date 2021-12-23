@@ -86,20 +86,12 @@ class Decl {
  * \class qasm3tools::ast::Param
  * \brief Class for subroutine parameters
  */
-class Param : public ASTNode {
+class Param : public ASTNode, public Decl {
   public:
-    Param(parser::Position pos, symbol id) : ASTNode(pos), id_(id) {}
+    Param(parser::Position pos, symbol id) : ASTNode(pos), Decl(id) {}
     virtual ~Param() = default;
 
-    /**
-     * \brief Return the parameter identifier
-     *
-     * \return Constant reference to the identifier
-     */
-    const symbol& id() { return id_; }
-
   protected:
-    symbol id_; ///< the parameter identifier
     virtual Param* clone() const = 0;
 };
 

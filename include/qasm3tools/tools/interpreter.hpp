@@ -1032,6 +1032,13 @@ class Executor final : ast::Visitor {
     void visit(ast::FunctionCall& exp) override {
         auto func = std::get<SubroutineType>(lookup(exp.name()));
 
+        // compute args
+        std::vector<types::QASM_type> args;
+        for (int i = 0; i < exp.num_args(); i++) {
+            exp.arg(i).accept(*this);
+            args.push_back(value_);
+        }
+
         // store local symbols; subroutine body can only refer to globals
         std::list<std::unordered_map<ast::symbol, Type>> local_symbols;
         local_symbols.splice(local_symbols.begin(), symbol_table_,
@@ -1041,15 +1048,14 @@ class Executor final : ast::Visitor {
 
         // pass in arguments by value
         for (int i = 0; i < func.param_types.size(); i++) {
-            exp.arg(i).accept(*this);
             set(func.param_names[i],
-                types::QASM_cast(value_, func.param_types[i]));
+                types::QASM_cast(args[i], func.param_types[i]));
         }
 
         // execute body and obtain return value
         return_value_ = types::QASM_none();
         func.body->accept(*this);
-        control_flow_ = std::nullopt;
+        control_flow_ = std::nullopt; // assume no end statements in body
         if (std::holds_alternative<types::QASM_none>(return_value_) &&
             !std::holds_alternative<types::QASM_none>(func.return_type)) {
             std::cerr << exp.pos()
