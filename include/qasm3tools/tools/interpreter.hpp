@@ -1709,7 +1709,11 @@ class Executor final : ast::Visitor {
     }
     // Program
     void visit(ast::Program& prog) override {
-        psi_ = qpp::st.zero(prog.qubits());
+        if (prog.qubits() > 0) {
+            psi_ = qpp::st.zero(prog.qubits());
+        } else {
+            std::cerr << "Warning: program has no qubits\n";
+        }
 
         push_scope();
 
