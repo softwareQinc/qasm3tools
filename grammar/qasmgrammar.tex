@@ -23,7 +23,7 @@
 \maketitle
 
 \begin{longtable}{rrl}
-	\texttt{<program>} & $::=$ & \texttt{<globalstmt|stmt>*} \\ \\
+	\texttt{<program>} & $::=$ & \texttt{<header> <globalstmt|stmt>*} \\ \\
 	\texttt{<globalstmt>} & $::=$ & \texttt{<subroutinedef>} \\
 	    & $\mid$ & \texttt{<externdef>} \\
 	    & $\mid$ & \texttt{<gatedef>} \\
@@ -47,7 +47,7 @@
 	\texttt{<qdecl>} & $::=$ & \texttt{qreg <id>;} $\mid$ \texttt{qreg <id>[<exp>];} \\
 	    & $\mid$ & \texttt{qubit <id>;} $\mid$ \texttt{qubit[<exp>] <id>;} \\ \\
 	\texttt{<stmt>} & $::=$ & \texttt{<exp>;} \\
-	    & $\mid$ & \texttt{<id> <assignop> <exp>;} $\mid$ \texttt{<id>[<exp>] <assignop> <exp>;} \\
+	    & $\mid$ & \texttt{<indexid> <assignop> <exp>;} \\
 	    & $\mid$ & \texttt{measure <indexid> -> <indexid>;} \\
 	    & $\mid$ & \texttt{<indexid> = measure <indexid>;} \\
 	    & $\mid$ & \texttt{<classicdecl>} \\
@@ -56,13 +56,14 @@
 	    & $\mid$ & \texttt{for <id> in <setdecl> <prgmblock>;} \\
 	    & $\mid$ & \texttt{while (<exp>) <prgmblock>;} \\
 	    & $\mid$ & \texttt{end;} \\
-	    & $\mid$ & \texttt{let <id> = <indexid>;} \\
+	    & $\mid$ & \texttt{let <id> = <exp>;}\\
+	    & $\mid$ & \texttt{let <id> = <exp> ++ <exp> ++ ... ++ <exp>;} \\
 	    & $\mid$ & \texttt{<qstmt>} \\ \\
 	\texttt{<qstmt>} & $::=$ & \texttt{<gatemodifier>* <id> <indexid...>;} \\
 	    & $\mid$ & \texttt{<gatemodifier>* <id>(<exp...>) <indexid...>;} \\
 	    & $\mid$ & \texttt{<gatemodifier>* gphase(<exp>) <indexid...>?;} \\
 	    & $\mid$ & \texttt{measure <indexid>;} \\
-	    & $\mid$ & \texttt{reset <indexid...>;} \\
+	    & $\mid$ & \texttt{reset <indexid>;} \\
 	    & $\mid$ & \texttt{barrier <indexid...>?;} \\
 	    & $\mid$ & \texttt{<timestmt>} \\
 	    & $\mid$ & \texttt{<qloop>} \\ \\
@@ -87,53 +88,60 @@
 	\texttt{<arg>} & $::=$ & \texttt{<carg> | <qarg>} \\
 	\texttt{<carg>} & $::=$ & \texttt{<singledesignatortype>[<exp>] <id>} \\
 	    & $\mid$ & \texttt{<nodesignatortype> <id>} \\
-	    & $\mid$ & \texttt{creg <id>} $\mid$ \texttt{creg <id>[<exp>]} \\
-	    & $\mid$ & \texttt{bit <id>} $\mid$ \texttt{bit[<exp>] <id>} \\
+	    & $\mid$ & \texttt{creg <id>} $\mid$ \texttt{creg <id>[<exp>]} $\mid$ \texttt{bit <id>} $\mid$ \texttt{bit[<exp>] <id>} \\
 	    & $\mid$ & \texttt{complex[<singledesignatortype>[<exp>]] <id>} \\
+	    & $\mid$ & \texttt{const <arrayreftype> <id>} $\mid$ \texttt{mutable <arrayreftype> <id>} \\
+    \texttt{<arrayreftype>} & $::=$ & \texttt{array[<nonarraytype>, <exp...>]} \\
+        & $\mid$ & \texttt{array[<nonarraytype>, \#dim = <exp>]} \\
 	\texttt{<qarg>} & $::=$ & \texttt{qreg <id>} $\mid$ \texttt{qreg <id>[<exp>]} \\
 	    & $\mid$ & \texttt{qubit <id>} $\mid$ \texttt{qubit[<exp>] <id>} \\ \\
-	\texttt{<ctype>} & $::=$ & \texttt{<singledesignatortype>[<exp>]} \\
+    \texttt{<ctype>} & $::=$ & \texttt{<nonarraytype>} $\mid$ \texttt{<arraytype>} \\
+	\texttt{<nonarraytype>} & $::=$ & \texttt{<singledesignatortype>[<exp>]} \\
 	    & $\mid$ & \texttt{<nodesignatortype>} \\
 	    & $\mid$ & \texttt{bit} $\mid$ \texttt{bit[<exp>]} $\mid$ \texttt{creg} $\mid$ \texttt{creg[<exp>]} \\
-	    & $\mid$ & \texttt{complex[<singledesignatortype>[<exp>]]} \\ \\
+	    & $\mid$ & \texttt{complex[<singledesignatortype>[<exp>]]} \\
+    \texttt{<arraytype>} & $::=$ & \texttt{array[<nonarraytype>, <exp...>]} \\ \\
 	\texttt{<singledesignatortype>} & $::=$ & \texttt{int} $\mid$ \texttt{uint} $\mid$ \texttt{float} $\mid$ \texttt{angle} \\
 	\texttt{<nodesignatortype>} & $::=$ & \texttt{bool} $\mid$ \texttt{duration} $\mid$ \texttt{stretch} \\ \\
-	\texttt{<indexid>} & $::=$ & \texttt{<id>[<exp>?:<exp>?]} \\
-	    & $\mid$ & \texttt{<id>[<exp>?:<exp>?:<exp>]} \\
-	    & $\mid$ & \texttt{<id>} \\
-	    & $\mid$ & \texttt{<id>[<exp...>]} \\
-	    & $\mid$ & \texttt{<indexid> ++ <indexid>} \\
+	\texttt{<indexentity>} & $::=$ & \texttt{<exp>} $\mid$ \texttt{<exp>?:<exp>?} $\mid$ \texttt{<exp>?:<exp>?:<exp>} \\
+	\texttt{<indexoperator>} & $::=$ & \texttt{[\{ <exp...> \}]} \\
+	    & $\mid$ & \texttt{[<indexentity...>]} \\
+	\texttt{<indexid>} & $::=$ & \texttt{<id> <indexoperator>}* \\
 	\texttt{<setdecl>} & $::=$ & \texttt{\{ <exp...> \}} \\
 	    & $\mid$ & \texttt{[<exp>?:<exp>?]} $\mid$ \texttt{[<exp>?:<exp>?:<exp>]} \\
 	    & $\mid$ & \texttt{<id>} \\ \\
 	\texttt{<equalsexp>} & $::=$ & \texttt{= <exp>} \\
+	\texttt{<arrayinit>} & $::=$ & \texttt{\{<exp|arrayinit>\}} \\
+	    & $\mid$ & \texttt{\{<exp|arrayinit>, <exp|arrayinit>, ...\}} \\
 	\texttt{<classicdecl>} & $::=$ & \texttt{<singledesignatortype>[<exp>] <id> <equalsexp>?;} \\
 	    & $\mid$ & \texttt{<nodesignatortype> <id> <equalsexp>?;} \\
 	    & $\mid$ & \texttt{creg <id> <equalsexp>?;} $\mid$ \texttt{creg <id>[<exp>] <equalsexp>?;} \\ 
 	    & $\mid$ & \texttt{bit <id> <equalsexp>?;} $\mid$ \texttt{bit[<exp>] <id> <equalsexp>?;} \\
 	    & $\mid$ & \texttt{complex[<singledesignatortype>[<exp>]] <id> <equalsexp>?;} \\
+	    & $\mid$ & \texttt{<arraytype> <id>;} $\mid$ \texttt{<arraytype> <id> = <arrayinit|exp>;} \\
 	    & $\mid$ & \texttt{const <ctype> <id> <equalsexp>;} \\ \\
 	\texttt{<exp>} & $::=$ & \texttt{<constant>} $\mid$ \texttt{<int>} $\mid$ \texttt{<real>} $\mid$ \texttt{<imag>} \\
 	    & $\mid$ & \texttt{<bool>} $\mid$ \texttt{<id>} $\mid$ \texttt{<string>} \\
 	    & $\mid$ & \texttt{<math>(<exp...>)} \\
 	    & $\mid$ & \texttt{<ctype>(<exp...>)} \\
+	    & $\mid$ & \texttt{sizeof(<exp...>)} \\
 	    & $\mid$ & \texttt{<id>(<exp...>?)} \\
 	    & $\mid$ & \texttt{<time>} $\mid$ \texttt{durationof(<id>)}\\
 	    & $\mid$ & \texttt{durationof(<qblock>)}\\
 	    & $\mid$ & \texttt{(<exp>)} \\
-	    & $\mid$ & \texttt{<exp>[<exp>]} \\
+	    & $\mid$ & \texttt{<exp> <indexoperator>} \\
 	    & $\mid$ & \texttt{<exp> <b-op> <exp>} \\
 	    & $\mid$ & \texttt{<u-op> <exp>} \\
 	    \\
 	\texttt{<math>} & $::=$ & \texttt{arcsin} $\mid$ \texttt{sin} $\mid$ \texttt{arccos} $\mid$ \texttt{cos} $\mid$ \texttt{arctan} $\mid$ \texttt{tan} \\
-	& $\mid$ & \texttt{exp} $\mid$ \texttt{ln}  $\mid$ \texttt{sqrt} $\mid$ \texttt{rotl} $\mid$ \texttt{rotr} $\mid$ \texttt{popcount} \\
+	    & $\mid$ & \texttt{exp} $\mid$ \texttt{ln}  $\mid$ \texttt{sqrt} $\mid$ \texttt{rotl} $\mid$ \texttt{rotr} $\mid$ \texttt{popcount} \\
 	\texttt{<b-op>} & $::=$ & \texttt{||} $\mid$ \texttt{\&\&} $\mid$ \texttt{|} $\mid$ \texttt{\string^} $\mid$ \texttt{\&}  $\mid$ \texttt{==} $\mid$ \texttt{!=} $\mid$ \texttt{>} $\mid$ \texttt{<} $\mid$ \texttt{>=} $\mid$ \texttt{<=} \\
-	& $\mid$ & \texttt{<{}<} $\mid$ \texttt{>{}>} $\mid$ \texttt{+} $\mid$ \texttt{-} $\mid$ \texttt{*} $\mid$ \texttt{/} $\mid$ \texttt{\%} $\mid$ \texttt{**} \\
+	    & $\mid$ & \texttt{<{}<} $\mid$ \texttt{>{}>} $\mid$ \texttt{+} $\mid$ \texttt{-} $\mid$ \texttt{*} $\mid$ \texttt{/} $\mid$ \texttt{\%} $\mid$ \texttt{**} \\
 	\texttt{<u-op>} & $::=$ & \texttt{\string~} $\mid$ \texttt{!} $\mid$ \texttt{-} \\ \\
 	\texttt{<assignop>} & $::=$ & \texttt{=} $\mid$ \texttt{+=} $\mid$ \texttt{-=} $\mid$ \texttt{*=} $\mid$ \texttt{/=}  $\mid$ \texttt{\&=} $\mid$ \texttt{|=} $\mid$ \texttt{\string~=} $\mid$ \texttt{\string^=} $\mid$ \texttt{<{}<=} $\mid$ \texttt{>{}>=} $\mid$ \texttt{\%=} $\mid$ \texttt{**=} \\ \\
 	\texttt{<gatemodifier>} & $::=$ & \texttt{inv @} $\mid$ \texttt{pow(<exp>) @} \\
-	& $\mid$ & \texttt{ctrl @} $\mid$ \texttt{ctrl(<exp>) @} \\
-	& $\mid$ & \texttt{negctrl @}  $\mid$ \texttt{negctrl(<exp>) @} \\ \\
+	    & $\mid$ & \texttt{ctrl @} $\mid$ \texttt{ctrl(<exp>) @} \\
+	    & $\mid$ & \texttt{negctrl @}  $\mid$ \texttt{negctrl(<exp>) @} \\ \\
 	\texttt{<uni>} & $::=$ & \texttt{[{\textbackslash}p\{Lu\}{\textbackslash}p\{Ll\}{\textbackslash}p\{Lt\}{\textbackslash}p\{Lm\}{\textbackslash}p\{Lo\}{\textbackslash}p\{Nl\}]} \\
 	\texttt{<id>} & $::=$ & \texttt{(\_|\$|<uni>|[A-Za-z])(\_|\$|<uni>|[A-Za-z]|[0-9])*} \\
 	\texttt{<int>} & $::=$ & \texttt{[0-9]+} \\
@@ -144,7 +152,11 @@
 	\texttt{<string>} & $::=$ & \texttt{"[\string^"{\textbackslash}r{\textbackslash}t{\textbackslash}n]*"} $\mid$ \texttt{'[\string^'{\textbackslash}r{\textbackslash}t{\textbackslash}n]*'} \\
 	\texttt{<constant>} & $::=$ & \texttt{pi} $\mid$ \texttt{\textpi} $\mid$ \texttt{tau} $\mid$ \texttt{\texttau} $\mid$ \texttt{euler} $\mid$ \texttt{\textepsilon} \\ \\
 	\texttt{<comment>} & $::=$ & \texttt{// ...} \\
-	& $\mid$ & \texttt{/* ... */} \\ \\
+	    & $\mid$ & \texttt{/* ... */} \\ \\
+    \texttt{<header>} & $::=$ & \texttt{<version>? <include>* <io>*} \\
+    \texttt{<version>} & $::=$ & \texttt{OPENQASM <int|real>;} \\
+    \texttt{<include>} & $::=$ & \texttt{include <string>;} \\
+    \texttt{<io>} & $::=$ & \texttt{input <ctype> <id>;} $\mid$ \texttt{output <ctype> <id>;} \\ \\
 \end{longtable}
 
 
