@@ -1838,7 +1838,7 @@ class Executor final : ast::Visitor {
      */
     static std::vector<bool> left_rotate_shift(std::vector<bool> bits,
                                                int shift) {
-        shift %= bits.size();
+        shift %= (int)bits.size();
         if (shift < 0)
             shift += bits.size();
         std::rotate(bits.begin(), bits.begin() + shift, bits.end());
