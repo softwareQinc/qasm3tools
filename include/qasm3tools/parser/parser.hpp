@@ -497,7 +497,8 @@ class ASTConstructor : public qasm3ParserVisitor {
                 arr.emplace_back(
                     std::move(a.as<ast::ptr<ast::Expr>>()));
         }
-        return ast::ArrayInitExpr::create(get_pos(ctx), std::move(arr));
+        return ast::ptr<ast::Expr>(
+            new ast::ArrayInitExpr(get_pos(ctx), std::move(arr)));
     }
 
     // arrayDeclaration: arrayType Identifier (EQUALS (arrayInitializer | expression))?;
@@ -680,10 +681,12 @@ class ASTConstructor : public qasm3ParserVisitor {
             }
             ++index;
         }
-        auto c = ctx->children[index]->accept(this);
-        if (c.isNotNull()) {
-            std::get<2>(range) = std::move(c.as<ast::ptr<ast::Expr>>());
-            ++index;
+        if (ctx->children.size() > index) {
+            auto c = ctx->children[index]->accept(this);
+            if (c.isNotNull()) {
+                std::get<2>(range) = std::move(c.as<ast::ptr<ast::Expr>>());
+                ++index;
+            }
         }
         return range;
     }
@@ -1369,7 +1372,7 @@ class ASTConstructor : public qasm3ParserVisitor {
             if (args.size() == 1) {
                 return ast::ptr<ast::Expr>(new ast::SizeofExpr(
                     get_pos(ctx), std::move(args[0])));
-            } else if (args.size() == 1) {
+            } else if (args.size() == 2) {
                 return ast::ptr<ast::Expr>(new ast::SizeofExpr(
                     get_pos(ctx), std::move(args[0]), std::move(args[1])));
             } else {

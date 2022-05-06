@@ -115,6 +115,13 @@ TEST(Parsing, Idempotence) {
                       "\t\tCCCX q[0],q[1],q[2],q[i];\n"
                       "\t}\n"
                       "}\n"
+                      "array[int[32], 2, 3] arr = {{0, 1, 2}, {3, 4, 5}};\n"
+                      "sizeof(arr, 1)*sizeof(arr);\n"
+                      "arr[:, 2][-1] = arr[0, :][1];\n"
+                      "def gg(const array[complex[float[32]], #dim = 2] g) {\n"
+                      "}\n"
+                      "def hh(mutable array[bool, 4] h) {\n"
+                      "}\n"
                       "end;\n";
 
     auto prog = parser::parse_string(src, "idempotence_test.qasm");
