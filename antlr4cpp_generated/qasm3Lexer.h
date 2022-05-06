@@ -1,5 +1,5 @@
 
-// Generated from qasm3.g4 by ANTLR 4.9.2
+// Generated from qasm3Lexer.g4 by ANTLR 4.9.2
 
 #pragma once
 
@@ -12,27 +12,26 @@
 class  qasm3Lexer : public antlr4::Lexer {
 public:
   enum {
-    T__0 = 1, T__1 = 2, T__2 = 3, T__3 = 4, T__4 = 5, T__5 = 6, T__6 = 7, 
-    T__7 = 8, T__8 = 9, T__9 = 10, T__10 = 11, T__11 = 12, T__12 = 13, T__13 = 14, 
-    T__14 = 15, T__15 = 16, T__16 = 17, T__17 = 18, T__18 = 19, T__19 = 20, 
-    T__20 = 21, T__21 = 22, T__22 = 23, T__23 = 24, T__24 = 25, T__25 = 26, 
-    T__26 = 27, T__27 = 28, T__28 = 29, T__29 = 30, T__30 = 31, T__31 = 32, 
-    T__32 = 33, T__33 = 34, T__34 = 35, T__35 = 36, T__36 = 37, T__37 = 38, 
-    T__38 = 39, T__39 = 40, T__40 = 41, T__41 = 42, T__42 = 43, T__43 = 44, 
-    T__44 = 45, T__45 = 46, T__46 = 47, T__47 = 48, T__48 = 49, T__49 = 50, 
-    T__50 = 51, T__51 = 52, T__52 = 53, T__53 = 54, T__54 = 55, T__55 = 56, 
-    T__56 = 57, T__57 = 58, T__58 = 59, T__59 = 60, T__60 = 61, T__61 = 62, 
-    T__62 = 63, T__63 = 64, T__64 = 65, T__65 = 66, T__66 = 67, T__67 = 68, 
-    T__68 = 69, T__69 = 70, T__70 = 71, T__71 = 72, T__72 = 73, T__73 = 74, 
-    T__74 = 75, T__75 = 76, T__76 = 77, T__77 = 78, T__78 = 79, T__79 = 80, 
-    T__80 = 81, T__81 = 82, T__82 = 83, T__83 = 84, T__84 = 85, T__85 = 86, 
-    T__86 = 87, T__87 = 88, T__88 = 89, T__89 = 90, T__90 = 91, T__91 = 92, 
-    LBRACKET = 93, RBRACKET = 94, LBRACE = 95, RBRACE = 96, LPAREN = 97, 
-    RPAREN = 98, COLON = 99, SEMICOLON = 100, DOT = 101, COMMA = 102, EQUALS = 103, 
-    ARROW = 104, PLUS = 105, MINUS = 106, MUL = 107, DIV = 108, MOD = 109, 
-    IMAG = 110, ImagNumber = 111, Constant = 112, Whitespace = 113, Newline = 114, 
-    Integer = 115, Identifier = 116, RealNumber = 117, TimingLiteral = 118, 
-    StringLiteral = 119, LineComment = 120, BlockComment = 121
+    OPENQASM = 1, INCLUDE = 2, PRAGMA = 3, DEFCALGRAMMAR = 4, DEF = 5, DEFCAL = 6, 
+    GATE = 7, EXTERN = 8, BOX = 9, LET = 10, BREAK = 11, CONTINUE = 12, 
+    IF = 13, ELSE = 14, END = 15, RETURN = 16, FOR = 17, WHILE = 18, IN = 19, 
+    INPUT = 20, OUTPUT = 21, CONST = 22, MUTABLE = 23, QREG = 24, QUBIT = 25, 
+    CREG = 26, BOOL = 27, BIT = 28, INT = 29, UINT = 30, FLOAT = 31, ANGLE = 32, 
+    COMPLEX = 33, ARRAY = 34, DURATION = 35, STRETCH = 36, U_ = 37, CX = 38, 
+    GPHASE = 39, INV = 40, POW = 41, CTRL = 42, NEGCTRL = 43, DIM = 44, 
+    SIZEOF = 45, BuiltinMath = 46, DURATIONOF = 47, BuiltinTimingInstruction = 48, 
+    RESET = 49, MEASURE = 50, BARRIER = 51, BooleanLiteral = 52, LBRACKET = 53, 
+    RBRACKET = 54, LBRACE = 55, RBRACE = 56, LPAREN = 57, RPAREN = 58, COLON = 59, 
+    SEMICOLON = 60, DOT = 61, COMMA = 62, EQUALS = 63, ARROW = 64, PLUS = 65, 
+    DOUBLE_PLUS = 66, MINUS = 67, ASTERISK = 68, DOUBLE_ASTERISK = 69, SLASH = 70, 
+    PERCENT = 71, PIPE = 72, DOUBLE_PIPE = 73, AMPERSAND = 74, DOUBLE_AMPERSAND = 75, 
+    CARET = 76, AT = 77, TILDE = 78, EXCLAMATION_POINT = 79, EqualityOperator = 80, 
+    CompoundAssignmentOperator = 81, ComparisonOperator = 82, BitshiftOperator = 83, 
+    IMAG = 84, ImaginaryLiteral = 85, Constant = 86, BinaryIntegerLiteral = 87, 
+    OctalIntegerLiteral = 88, DecimalIntegerLiteral = 89, HexIntegerLiteral = 90, 
+    Identifier = 91, FloatLiteral = 92, TimingLiteral = 93, BitstringLiteral = 94, 
+    StringLiteral = 95, Whitespace = 96, Newline = 97, LineComment = 98, 
+    BlockComment = 99
   };
 
   explicit qasm3Lexer(antlr4::CharStream *input);

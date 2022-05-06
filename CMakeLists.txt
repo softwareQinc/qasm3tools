@@ -12,6 +12,8 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_runtime EXCLUDE_FROM_ALL)
 # antlr4cpp headers
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_runtime/runtime/src)
 
+#### Libs
+include_directories(SYSTEM libs)
 
 #### Headers
 add_library(libqasm3tools INTERFACE)

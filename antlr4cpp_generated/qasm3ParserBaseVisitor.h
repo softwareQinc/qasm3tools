@@ -1,18 +1,18 @@
 
-// Generated from qasm3.g4 by ANTLR 4.9.2
+// Generated from qasm3Parser.g4 by ANTLR 4.9.2
 
 #pragma once
 
 
 #include "antlr4-runtime.h"
-#include "qasm3Visitor.h"
+#include "qasm3ParserVisitor.h"
 
 
 /**
- * This class provides an empty implementation of qasm3Visitor, which can be
+ * This class provides an empty implementation of qasm3ParserVisitor, which can be
  * extended to create a visitor which only needs to handle a subset of the available methods.
  */
-class  qasm3BaseVisitor : public qasm3Visitor {
+class  qasm3ParserBaseVisitor : public qasm3ParserVisitor {
 public:
 
   virtual antlrcpp::Any visitProgram(qasm3Parser::ProgramContext *ctx) override {
@@ -83,10 +83,6 @@ public:
     return visitChildren(ctx);
   }
 
-  virtual antlrcpp::Any visitQuantumArgumentList(qasm3Parser::QuantumArgumentListContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
   virtual antlrcpp::Any visitBitType(qasm3Parser::BitTypeContext *ctx) override {
     return visitChildren(ctx);
   }
@@ -96,6 +92,22 @@ public:
   }
 
   virtual antlrcpp::Any visitNoDesignatorType(qasm3Parser::NoDesignatorTypeContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual antlrcpp::Any visitNonArrayType(qasm3Parser::NonArrayTypeContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual antlrcpp::Any visitArrayType(qasm3Parser::ArrayTypeContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual antlrcpp::Any visitArrayReferenceTypeDimensionSpecifier(qasm3Parser::ArrayReferenceTypeDimensionSpecifierContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual antlrcpp::Any visitArrayReferenceType(qasm3Parser::ArrayReferenceTypeContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -127,6 +139,14 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual antlrcpp::Any visitArrayInitializer(qasm3Parser::ArrayInitializerContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual antlrcpp::Any visitArrayDeclaration(qasm3Parser::ArrayDeclarationContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual antlrcpp::Any visitClassicalDeclaration(qasm3Parser::ClassicalDeclarationContext *ctx) override {
     return visitChildren(ctx);
   }
@@ -151,15 +171,11 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual antlrcpp::Any visitAliasInitializer(qasm3Parser::AliasInitializerContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual antlrcpp::Any visitAliasStatement(qasm3Parser::AliasStatementContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitIndexIdentifier(qasm3Parser::IndexIdentifierContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitIndexIdentifierList(qasm3Parser::IndexIdentifierListContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -199,6 +215,14 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual antlrcpp::Any visitQuantumBarrier(qasm3Parser::QuantumBarrierContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual antlrcpp::Any visitQuantumMeasurement(qasm3Parser::QuantumMeasurementContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual antlrcpp::Any visitQuantumPhase(qasm3Parser::QuantumPhaseContext *ctx) override {
     return visitChildren(ctx);
   }
@@ -207,19 +231,7 @@ public:
     return visitChildren(ctx);
   }
 
-  virtual antlrcpp::Any visitQuantumMeasurement(qasm3Parser::QuantumMeasurementContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
   virtual antlrcpp::Any visitQuantumMeasurementAssignment(qasm3Parser::QuantumMeasurementAssignmentContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitQuantumBarrier(qasm3Parser::QuantumBarrierContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitQuantumGateModifier(qasm3Parser::QuantumGateModifierContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -231,23 +243,15 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual antlrcpp::Any visitQuantumGateModifier(qasm3Parser::QuantumGateModifierContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual antlrcpp::Any visitQuantumGateCall(qasm3Parser::QuantumGateCallContext *ctx) override {
     return visitChildren(ctx);
   }
 
   virtual antlrcpp::Any visitUnaryOperator(qasm3Parser::UnaryOperatorContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitComparisonOperator(qasm3Parser::ComparisonOperatorContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitEqualityOperator(qasm3Parser::EqualityOperatorContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitLogicalOperator(qasm3Parser::LogicalOperatorContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -303,19 +307,23 @@ public:
     return visitChildren(ctx);
   }
 
+  virtual antlrcpp::Any visitIndexOperator(qasm3Parser::IndexOperatorContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual antlrcpp::Any visitIndexExpression(qasm3Parser::IndexExpressionContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual antlrcpp::Any visitIndexedIdentifier(qasm3Parser::IndexedIdentifierContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
   virtual antlrcpp::Any visitExpressionTerminator(qasm3Parser::ExpressionTerminatorContext *ctx) override {
     return visitChildren(ctx);
   }
 
-  virtual antlrcpp::Any visitBooleanLiteral(qasm3Parser::BooleanLiteralContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
   virtual antlrcpp::Any visitBuiltInCall(qasm3Parser::BuiltInCallContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitBuiltInMath(qasm3Parser::BuiltInMathContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -332,6 +340,10 @@ public:
   }
 
   virtual antlrcpp::Any visitAssignmentOperator(qasm3Parser::AssignmentOperatorContext *ctx) override {
+    return visitChildren(ctx);
+  }
+
+  virtual antlrcpp::Any visitDiscreteSet(qasm3Parser::DiscreteSetContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -387,19 +399,11 @@ public:
     return visitChildren(ctx);
   }
 
-  virtual antlrcpp::Any visitTimingType(qasm3Parser::TimingTypeContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
   virtual antlrcpp::Any visitTimingBox(qasm3Parser::TimingBoxContext *ctx) override {
     return visitChildren(ctx);
   }
 
   virtual antlrcpp::Any visitTimingIdentifier(qasm3Parser::TimingIdentifierContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitTimingInstructionName(qasm3Parser::TimingInstructionNameContext *ctx) override {
     return visitChildren(ctx);
   }
 
@@ -420,10 +424,6 @@ public:
   }
 
   virtual antlrcpp::Any visitCalibrationDefinition(qasm3Parser::CalibrationDefinitionContext *ctx) override {
-    return visitChildren(ctx);
-  }
-
-  virtual antlrcpp::Any visitCalibrationGrammar(qasm3Parser::CalibrationGrammarContext *ctx) override {
     return visitChildren(ctx);
   }
 

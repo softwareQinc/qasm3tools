@@ -34,19 +34,23 @@
 namespace qasm3tools {
 namespace ast {
 
-class RangeSlice;
+class SingleIndex;
+class RangeIndex;
+class IndexEntityList;
 class ListSlice;
-class VarAccess;
-class Concat;
+class IndexId;
 class SingleDesignatorType;
 class NoDesignatorType;
 class BitType;
 class ComplexType;
+class ArrayType;
+class ArrayRefType;
 class QubitType;
 class BExpr;
 class UExpr;
 class MathExpr;
 class CastExpr;
+class SizeofExpr;
 class FunctionCall;
 class AccessExpr;
 class ConstantExpr;
@@ -55,7 +59,8 @@ class RealExpr;
 class ImagExpr;
 class BoolExpr;
 class VarExpr;
-class StringExpr;
+class BitString;
+class ArrayInitExpr;
 class TimeExpr;
 class DurationGateExpr;
 class DurationBlockExpr;
@@ -116,21 +121,25 @@ class Program;
 class Visitor {
   public:
     // Index identifiers
-    virtual void visit(RangeSlice&) = 0;
+    virtual void visit(SingleIndex&) = 0;
+    virtual void visit(RangeIndex&) = 0;
+    virtual void visit(IndexEntityList&) = 0;
     virtual void visit(ListSlice&) = 0;
-    virtual void visit(VarAccess&) = 0;
-    virtual void visit(Concat&) = 0;
+    virtual void visit(IndexId&) = 0;
     // Types
     virtual void visit(SingleDesignatorType&) = 0;
     virtual void visit(NoDesignatorType&) = 0;
     virtual void visit(BitType&) = 0;
     virtual void visit(ComplexType&) = 0;
+    virtual void visit(ArrayType&) = 0;
+    virtual void visit(ArrayRefType&) = 0;
     virtual void visit(QubitType&) = 0;
     // Expressions
     virtual void visit(BExpr&) = 0;
     virtual void visit(UExpr&) = 0;
     virtual void visit(MathExpr&) = 0;
     virtual void visit(CastExpr&) = 0;
+    virtual void visit(SizeofExpr&) = 0;
     virtual void visit(FunctionCall&) = 0;
     virtual void visit(AccessExpr&) = 0;
     virtual void visit(ConstantExpr&) = 0;
@@ -139,7 +148,8 @@ class Visitor {
     virtual void visit(ImagExpr&) = 0;
     virtual void visit(BoolExpr&) = 0;
     virtual void visit(VarExpr&) = 0;
-    virtual void visit(StringExpr&) = 0;
+    virtual void visit(BitString&) = 0;
+    virtual void visit(ArrayInitExpr&) = 0;
     virtual void visit(TimeExpr&) = 0;
     virtual void visit(DurationGateExpr&) = 0;
     virtual void visit(DurationBlockExpr&) = 0;

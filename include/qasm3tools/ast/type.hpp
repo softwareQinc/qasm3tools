@@ -35,6 +35,8 @@
 #include "exprbase.hpp"
 
 #include <optional>
+#include <variant>
+#include <vector>
 
 namespace qasm3tools {
 namespace ast {
@@ -94,12 +96,25 @@ class ClassicalType : public ASTNode {
 };
 
 /**
+ * \class qasm3tools::ast::NonArrayType
+ * \brief Class for non-array classical types
+ */
+class NonArrayType : public ClassicalType {
+  public:
+    NonArrayType(parser::Position pos) : ClassicalType(pos) {}
+    virtual ~NonArrayType() = default;
+
+  protected:
+    virtual NonArrayType* clone() const = 0;
+};
+
+/**
  * \class qasm3tools::ast::SingleDesignatorType
  * \brief Type sub-class for single-designator types
  */
-class SingleDesignatorType : public ClassicalType {
+class SingleDesignatorType : public NonArrayType {
     SDType type_;
-    ptr<Expr> size_;
+    std::optional<ptr<Expr>> size_;
 
   public:
     /**
@@ -109,14 +124,15 @@ class SingleDesignatorType : public ClassicalType {
      * \param type The type name
      * \param size The size
      */
-    SingleDesignatorType(parser::Position pos, SDType type, ptr<Expr> size)
-        : ClassicalType(pos), type_(type), size_(std::move(size)) {}
+    SingleDesignatorType(parser::Position pos, SDType type,
+                         std::optional<ptr<Expr>>&& size = std::nullopt)
+        : NonArrayType(pos), type_(type), size_(std::move(size)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<SingleDesignatorType> create(parser::Position pos, SDType type,
-                                            ptr<Expr> size) {
+                                            std::optional<ptr<Expr>>&& size = std::nullopt) {
         return std::make_unique<SingleDesignatorType>(pos, type,
                                                       std::move(size));
     }
@@ -131,26 +147,24 @@ class SingleDesignatorType : public ClassicalType {
     /**
      * \brief Get the size
      *
-     * \return Reference to Expr size
+     * \return Optional expr size
      */
-    Expr& size() { return *size_; }
-
-    /**
-     * \brief Set the size
-     *
-     * \param d The new size
-     */
-    void set_size(ptr<Expr> size) { size_ = std::move(size); }
+    std::optional<ptr<Expr>>& size() { return size_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << type_ << "[" << *size_ << "]";
+        os << type_ ;
+        if (size_)
+            os << "[" << **size_ << "]";
         return os;
     }
 
   protected:
     SingleDesignatorType* clone() const override {
-        return new SingleDesignatorType(pos_, type_, object::clone(*size_));
+        std::optional<ptr<Expr>> tmp = std::nullopt;
+        if (size_)
+            tmp = object::clone(**size_);
+        return new SingleDesignatorType(pos_, type_, std::move(tmp));
     }
 };
 
@@ -158,7 +172,7 @@ class SingleDesignatorType : public ClassicalType {
  * \class qasm3tools::ast::NoDesignatorType
  * \brief Type sub-class for no-designator types
  */
-class NoDesignatorType : public ClassicalType {
+class NoDesignatorType : public NonArrayType {
     NDType type_;
 
   public:
@@ -169,7 +183,7 @@ class NoDesignatorType : public ClassicalType {
      * \param type The type name
      */
     NoDesignatorType(parser::Position pos, NDType type)
-        : ClassicalType(pos), type_(type) {}
+        : NonArrayType(pos), type_(type) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -201,7 +215,7 @@ class NoDesignatorType : public ClassicalType {
  * \class qasm3tools::ast::BitType
  * \brief Type sub-class for bit types
  */
-class BitType : public ClassicalType {
+class BitType : public NonArrayType {
     std::optional<ptr<Expr>> size_;
 
   public:
@@ -213,7 +227,7 @@ class BitType : public ClassicalType {
      */
     BitType(parser::Position pos,
             std::optional<ptr<Expr>>&& size = std::nullopt)
-        : ClassicalType(pos), size_(std::move(size)) {}
+        : NonArrayType(pos), size_(std::move(size)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -251,7 +265,7 @@ class BitType : public ClassicalType {
  * \class qasm3tools::ast::ComplexType
  * \brief Type sub-class for complex types
  */
-class ComplexType : public ClassicalType {
+class ComplexType : public NonArrayType {
     ptr<SingleDesignatorType> subtype_;
 
   public:
@@ -262,7 +276,7 @@ class ComplexType : public ClassicalType {
      * \param subtype The single-designator subtype
      */
     ComplexType(parser::Position pos, ptr<SingleDesignatorType> subtype)
-        : ClassicalType(pos), subtype_(std::move(subtype)) {}
+        : NonArrayType(pos), subtype_(std::move(subtype)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -288,6 +302,157 @@ class ComplexType : public ClassicalType {
   protected:
     ComplexType* clone() const override {
         return new ComplexType(pos_, object::clone(*subtype_));
+    }
+};
+
+/**
+ * \class qasm3tools::ast::ArrayType
+ * \brief Class for classical array types
+ */
+class ArrayType : public ClassicalType {
+    ptr<NonArrayType> subtype_;   ///< non-array subtype
+    std::vector<ptr<Expr>> dims_; ///< dimension specification
+
+  public:
+    /**
+     * \brief Construct a classical array types
+     *
+     * \param pos The source position
+     * \param subtype The non-array subtype
+     * \param dims The dimension specification
+     */
+    ArrayType(parser::Position pos, ptr<NonArrayType> subtype,
+              std::vector<ptr<Expr>>&& dims)
+        : ClassicalType(pos), subtype_(std::move(subtype)),
+          dims_(std::move(dims)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<ArrayType> create(parser::Position pos,
+                                 ptr<NonArrayType> subtype,
+                                 std::vector<ptr<Expr>>&& dims) {
+        return std::make_unique<ArrayType>(pos, std::move(subtype),
+                                           std::move(dims));
+    }
+
+    /**
+     * \brief Get the subtype
+     *
+     * \return Reference to the non-array subtype
+     */
+    NonArrayType& subtype() { return *subtype_; }
+
+    /**
+     * \brief Get the dimension specification
+     *
+     * \return Reference to the dimension specification
+     */
+    std::vector<ptr<Expr>>& dims() { return dims_; }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os) const override {
+        os << "array[" << *subtype_;
+        for (auto& dim: dims_)
+            os << ", " << *dim;
+        os << "]";
+        return os;
+    }
+
+  protected:
+    ArrayType* clone() const override {
+        std::vector<ptr<Expr>> tmp;
+        for (auto& dim: dims_)
+            tmp.emplace_back(object::clone(*dim));
+        return new ArrayType(pos_, object::clone(*subtype_), std::move(tmp));
+    }
+};
+
+/**
+ * \class qasm3tools::ast::ArrayRefType
+ * \brief Class for array reference types
+ */
+class ArrayRefType : public ClassicalType {
+    ptr<NonArrayType> subtype_; ///< non-array subtype
+    /* vector = list of the dimensions of the array
+     * Expr = we only know the number of dimensions, not the sizes
+     */
+    using Dimensions = std::variant<std::vector<ptr<Expr>>, ptr<Expr>>;
+    Dimensions dims_;           ///< dimension specification
+    bool is_mutable_;           ///< Whether the array reference is mutable
+
+  public:
+    /**
+     * \brief Construct an array reference types
+     *
+     * \param pos The source position
+     * \param subtype The non-array subtype
+     * \param dims The dimension specification
+     * \param is_mutable Whether the array reference is mutable
+     */
+    ArrayRefType(parser::Position pos, ptr<NonArrayType> subtype,
+                 Dimensions&& dims, bool is_mutable = false)
+        : ClassicalType(pos), subtype_(std::move(subtype)),
+          dims_(std::move(dims)), is_mutable_(is_mutable) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<ArrayRefType> create(parser::Position pos,
+                                    ptr<NonArrayType> subtype,
+                                    Dimensions&& dims,
+                                    bool is_mutable = false) {
+        return std::make_unique<ArrayRefType>(pos, std::move(subtype),
+                                              std::move(dims), is_mutable);
+    }
+
+    /**
+     * \brief Get the subtype
+     *
+     * \return Reference to the non-array subtype
+     */
+    NonArrayType& subtype() { return *subtype_; }
+
+    /**
+     * \brief Get the dimension specification
+     *
+     * \return Reference to the dimension specification
+     */
+    Dimensions& dims() { return dims_; }
+
+    bool is_mutable() const { return is_mutable_; }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os) const override {
+        os << (is_mutable_ ? "mutable" : "const") << " array[" << *subtype_;
+        std::visit(utils::overloaded{[&os](const std::vector<ptr<Expr>>& dims) {
+                                         for (auto& dim: dims)
+                                            os << ", " << *dim;
+                                     },
+                                     [&os](const ptr<Expr>& dims) {
+                                         os << ", #dim = " << *dims;
+                                     }},
+                   dims_);
+        os << "]";
+        return os;
+    }
+
+  protected:
+    ArrayRefType* clone() const override {
+        Dimensions dims_copy = std::vector<ptr<Expr>>();
+        std::visit(
+            utils::overloaded{
+                [&dims_copy](const std::vector<ptr<Expr>>& dims) {
+                    for (auto& dim: dims)
+                        std::get<std::vector<ptr<Expr>>>(
+                            dims_copy).emplace_back(object::clone(*dim));
+                },
+                [&dims_copy](const ptr<Expr>& dims) {
+                    dims_copy = object::clone(*dims);
+                }},
+            dims_);
+        return new ArrayRefType(pos_, object::clone(*subtype_),
+                                std::move(dims_copy), is_mutable_);
     }
 };
 

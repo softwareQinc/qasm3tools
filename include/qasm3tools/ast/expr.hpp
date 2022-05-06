@@ -34,6 +34,7 @@
 #include "../utils/angle.hpp"
 #include "base.hpp"
 #include "exprbase.hpp"
+#include "indexid.hpp"
 #include "type.hpp"
 
 #include <cmath>
@@ -606,6 +607,81 @@ class CastExpr final : public Expr {
 };
 
 /**
+ * \class qasm3tools::ast::SizeofExpr
+ * \brief Class for sizeof() expressions
+ * \see qasm3tools::ast::Expr
+ */
+class SizeofExpr final : public Expr {
+    ptr<Expr> arr_;                ///< array being queried
+    std::optional<ptr<Expr>> dim_; ///< 0-based dimension number
+
+  public:
+    /**
+     * \brief Constructs a Sizeof expression
+     *
+     * \param pos The source position
+     * \param arr The array being queried
+     * \param dim The dimension number
+     */
+    SizeofExpr(parser::Position pos, ptr<Expr> arr,
+               std::optional<ptr<Expr>>&& dim = std::nullopt)
+        : Expr(pos), arr_(std::move(arr)), dim_(std::move(dim)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<SizeofExpr> create(parser::Position pos, ptr<Expr> arr,
+                                  std::optional<ptr<Expr>>&& dim = std::nullopt) {
+        return std::make_unique<SizeofExpr>(pos, std::move(arr),
+                                            std::move(dim));
+    }
+
+    /**
+     * \brief Get the array being queried
+     *
+     * \return A reference to the array
+     */
+    Expr& arr() { return *arr_; }
+
+    /**
+     * \brief Get the dimension number
+     *
+     * \return Optional expr dimension number
+     */
+    std::optional<ptr<Expr>>& dim() { return dim_; }
+
+    /**
+     * \brief Set the array
+     *
+     * \param arr The new array
+     */
+    void set_arr(ptr<Expr> arr) { arr_ = std::move(arr); }
+
+    std::optional<std::complex<double>> constant_eval() const override {
+        return std::nullopt;
+    }
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
+        (void) ctx;
+
+        os << "sizeof(" << *arr_;
+        if (dim_)
+            os << ", " << **dim_;
+        os << ")";
+
+        return os;
+    }
+
+  protected:
+    SizeofExpr* clone() const override {
+        std::optional<ptr<Expr>> tmp = std::nullopt;
+        if (dim_)
+            tmp = object::clone(**dim_);
+        return new SizeofExpr(pos_, object::clone(*arr_), std::move(tmp));
+    }
+};
+
+/**
  * \class qasm3tools::ast::FunctionCall
  * \brief Class for subroutine-call expressions
  * \see qasm3tools::ast::Expr
@@ -694,8 +770,8 @@ class FunctionCall final : public Expr {
  * \see qasm3tools::ast::Expr
  */
 class AccessExpr final : public Expr {
-    ptr<Expr> exp_;   ///< the expression
-    ptr<Expr> index_; ///< the index
+    ptr<Expr> exp_;         ///< the expression
+    ptr<IndexOp> index_op_; ///< the index operator
 
   public:
     /**
@@ -703,18 +779,18 @@ class AccessExpr final : public Expr {
      *
      * \param pos The source position
      * \param exp The expression
-     * \param index The index
+     * \param index_op The index operator
      */
-    AccessExpr(parser::Position pos, ptr<Expr> exp, ptr<Expr> index)
-        : Expr(pos), exp_(std::move(exp)), index_(std::move(index)) {}
+    AccessExpr(parser::Position pos, ptr<Expr> exp, ptr<IndexOp> index_op)
+        : Expr(pos), exp_(std::move(exp)), index_op_(std::move(index_op)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<AccessExpr> create(parser::Position pos, ptr<Expr> exp,
-                                  ptr<Expr> index) {
+                                  ptr<IndexOp> index_op) {
         return std::make_unique<AccessExpr>(pos, std::move(exp),
-                                            std::move(index));
+                                            std::move(index_op));
     }
 
     /**
@@ -725,11 +801,11 @@ class AccessExpr final : public Expr {
     Expr& exp() { return *exp_; }
 
     /**
-     * \brief Get the index
+     * \brief Get the index operator
      *
-     * \return A reference to the index
+     * \return A reference to the index operator
      */
-    Expr& index() { return *index_; }
+    IndexOp& index_op() { return *index_op_; }
 
     /**
      * \brief Set the expression
@@ -739,11 +815,11 @@ class AccessExpr final : public Expr {
     void set_exp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
     /**
-     * \brief Set the index
+     * \brief Set the index operator
      *
-     * \param exp The new index
+     * \param index_op The new index operator
      */
-    void set_index(ptr<Expr> exp) { index_ = std::move(exp); }
+    void set_index_op(ptr<IndexOp> index_op) { index_op_ = std::move(index_op); }
 
     std::optional<std::complex<double>> constant_eval() const override {
         return std::nullopt;
@@ -753,9 +829,7 @@ class AccessExpr final : public Expr {
         (void) ctx;
 
         exp_->pretty_print(os, true);
-        os << "[";
-        index_->pretty_print(os, false);
-        os << "]";
+        os << *index_op_;
 
         return os;
     }
@@ -763,7 +837,7 @@ class AccessExpr final : public Expr {
   protected:
     AccessExpr* clone() const override {
         return new AccessExpr(pos_, object::clone(*exp_),
-                              object::clone(*index_));
+                              object::clone(*index_op_));
     }
 };
 
@@ -1057,28 +1131,31 @@ class VarExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::StringExpr
- * \brief Class for string expressions
+ * \class qasm3tools::ast::BitString
+ * \brief Class for bit string expressions
  * \see qasm3tools::ast::Expr
+ *
+ * The string should only consist of 0s and 1s, but this class does not
+ * verify this.
  */
-class StringExpr final : public Expr {
+class BitString final : public Expr {
     std::string text_; ///< the string
 
   public:
     /**
-     * \brief Construct a variable expression
+     * \brief Construct a bit string expression
      *
      * \param pos The source position
      * \param text The string
      */
-    StringExpr(parser::Position pos, std::string text)
+    BitString(parser::Position pos, std::string text)
         : Expr(pos), text_(text) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<StringExpr> create(parser::Position pos, std::string text) {
-        return std::make_unique<StringExpr>(pos, text);
+    static ptr<BitString> create(parser::Position pos, std::string text) {
+        return std::make_unique<BitString>(pos, text);
     }
 
     /**
@@ -1099,7 +1176,80 @@ class StringExpr final : public Expr {
     }
 
   protected:
-    StringExpr* clone() const override { return new StringExpr(pos_, text_); }
+    BitString* clone() const override { return new BitString(pos_, text_); }
+};
+
+/**
+ * \class qasm3tools::ast::ArrayInitExpr
+ * \brief Class for array initialization
+ * \see qasm3tools::ast::Expr
+ */
+class ArrayInitExpr final : public Expr {
+    std::vector<ptr<Expr>> arr_; ///< array elements
+
+  public:
+    /**
+     * \brief Constructs an array initialization
+     *
+     * \param pos The source position
+     * \param arr The array elements
+     */
+    ArrayInitExpr(parser::Position pos, std::vector<ptr<Expr>>&& arr)
+        : Expr(pos), arr_(std::move(arr)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<ArrayInitExpr> create(parser::Position pos,
+                                     std::vector<ptr<Expr>>&& arr) {
+        return std::make_unique<ArrayInitExpr>(pos, std::move(arr));
+    }
+
+    /**
+     * \brief Get the number of elements
+     *
+     * \return The number of elements
+     */
+    int size() const { return static_cast<int>(arr_.size()); }
+
+    /**
+     * \brief Get the ith element
+     *
+     * \param i The number of the element, 0-indexed
+     * \return Reference to an expression
+     */
+    Expr& at(int i) { return *(arr_[i]); }
+
+    /**
+     * \brief Set the ith element
+     *
+     * \param i The number of the element, 0-indexed
+     * \param expr An expression giving the new argument
+     */
+    void set_at(int i, ptr<Expr> expr) { arr_[i] = std::move(expr); }
+
+    std::optional<std::complex<double>> constant_eval() const override {
+        return std::nullopt;
+    }
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
+        (void) ctx;
+
+        os << "{";
+        for (auto it = arr_.begin(); it != arr_.end(); it++)
+            os << (it == arr_.begin() ? "" : ", ") << **it;
+        os << "}";
+
+        return os;
+    }
+
+  protected:
+    ArrayInitExpr* clone() const override {
+        std::vector<ptr<Expr>> tmp;
+        for (auto& x : arr_)
+            tmp.emplace_back(object::clone(*x));
+        return new ArrayInitExpr(pos_, std::move(tmp));
+    }
 };
 
 /**

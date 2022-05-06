@@ -275,80 +275,41 @@ class ExprStmt final : public Stmt {
  * \see qasm3tools::ast::StmtBase
  */
 class ResetStmt final : public QuantumStmt {
-    std::vector<ptr<IndexId>> args_; ///< list of quantum bits|registers
+    ptr<IndexId> q_arg_; ///< the quantum bit|register
 
   public:
     /**
      * \brief Constructs a reset statement
      *
      * \param pos The source position
-     * \param arg Rvalue reference to the list of arguments
+     * \param q_arg Rvalue reference to the quantum argument
      */
-    ResetStmt(parser::Position pos, std::vector<ptr<IndexId>>&& args)
-        : QuantumStmt(pos), args_(std::move(args)) {}
+    ResetStmt(parser::Position pos, ptr<IndexId> q_arg)
+        : QuantumStmt(pos), q_arg_(std::move(q_arg)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<ResetStmt> create(parser::Position pos,
-                                 std::vector<ptr<IndexId>>&& args) {
-        return std::make_unique<ResetStmt>(pos, std::move(args));
+    static ptr<ResetStmt> create(parser::Position pos, ptr<IndexId> q_arg) {
+        return std::make_unique<ResetStmt>(pos, std::move(q_arg));
     }
 
     /**
-     * \brief Get the number of arguments
+     * \brief Get the quantum argument
      *
-     * \return The number of arguments
+     * \return Reference to the quantum argument
      */
-    int num_args() const { return static_cast<int>(args_.size()); }
-
-    /**
-     * \brief Get the list of arguments
-     *
-     * \return Reference to the list of arguments
-     */
-    std::vector<ptr<IndexId>>& args() { return args_; }
-
-    /**
-     * \brief Get the ith argument
-     *
-     * \param i The index
-     * \return Reference to the argument
-     */
-    IndexId& arg(int i) { return *args_[i]; }
-
-    /**
-     * \brief Apply a function to each argument
-     *
-     * \param f Void function accepting a reference to the argument
-     */
-    void foreach_arg(std::function<void(IndexId&)> f) {
-        for (auto& x : args_)
-            f(*x);
-    }
-
-    /**
-     * \brief Set the ith argument
-     *
-     * \param arg Const reference to a new argument
-     */
-    void set_arg(int i, ptr<IndexId> arg) { args_[i] = std::move(arg); }
+    IndexId& q_arg() { return *q_arg_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        os << "reset";
-        for (auto it = args_.begin(); it != args_.end(); it++)
-            os << (it == args_.begin() ? " " : ", ") << **it;
-        os << ";\n";
+        os << "reset " << *q_arg_ << ";\n";
         return os;
     }
 
   protected:
     ResetStmt* clone() const override {
-        std::vector<ptr<IndexId>> tmp;
-        for (auto& x : args_)
-            tmp.emplace_back(object::clone(*x));
-        return new ResetStmt(pos_, std::move(tmp));
+        return new ResetStmt(pos_, object::clone(*q_arg_));
     }
 };
 
@@ -609,9 +570,9 @@ class ReturnStmt final : public ControlStmt {
     }
 
     /**
-     * \brief Get the classical parameter list
+     * \brief Get the returned expression
      *
-     * \return Reference to the list of classical parameters
+     * \return Reference to the returned expression
      */
     RetType& value() { return value_; }
 
@@ -682,8 +643,8 @@ class EndStmt final : public Stmt {
  * \see qasm3tools::ast::StmtBase
  */
 class AliasStmt final : public Stmt {
-    symbol alias_;      ///< the alias name
-    ptr<IndexId> qreg_; ///< the quantum bit|register
+    symbol alias_;                ///< the alias name
+    std::vector<ptr<Expr>> regs_; ///< concatenated quantum bits|registers
 
   public:
     /**
@@ -691,17 +652,18 @@ class AliasStmt final : public Stmt {
      *
      * \param pos The source position
      * \param alias The alias name
-     * \param qreq The quantum bit|register
+     * \param regs The concatenated quantum bits|registers
      */
-    AliasStmt(parser::Position pos, symbol alias, ptr<IndexId> qreg)
-        : Stmt(pos), alias_(alias), qreg_(std::move(qreg)) {}
+    AliasStmt(parser::Position pos, symbol alias,
+              std::vector<ptr<Expr>>&& regs)
+        : Stmt(pos), alias_(alias), regs_(std::move(regs)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
     static ptr<AliasStmt> create(parser::Position pos, symbol alias,
-                                 ptr<IndexId> qreg) {
-        return std::make_unique<AliasStmt>(pos, alias, std::move(qreg));
+                                 std::vector<ptr<Expr>>&& regs) {
+        return std::make_unique<AliasStmt>(pos, alias, std::move(regs));
     }
 
     /**
@@ -712,21 +674,44 @@ class AliasStmt final : public Stmt {
     const symbol& alias() const { return alias_; }
 
     /**
-     * \brief Get the quantum bit|register
+     * \brief Get the number of concatenated registers
      *
-     * \return Reference to the quantum bit|register
+     * \return The number of concatenated registers
      */
-    IndexId& qreg() { return *qreg_; }
+    int num_regs() const { return static_cast<int>(regs_.size()); }
+
+    /**
+     * \brief Get the list of concatenated registers
+     *
+     * \return Reference to the list of concatenated registers
+     */
+    std::vector<ptr<Expr>>& regs() { return regs_; }
+
+    /**
+     * \brief Apply a function to each concatenated register
+     *
+     * \param f Void function accepting a reference to the argument
+     */
+    void foreach_reg(std::function<void(Expr&)> f) {
+        for (auto& x : regs_)
+            f(*x);
+    }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        os << "let " << alias_ << " = " << *qreg_ << ";\n";
+        os << "let " << alias_ << " = ";
+        for (auto it = regs_.begin(); it != regs_.end(); it++)
+            os << (it == regs_.begin() ? "" : " ++ ") << **it;
+        os << ";\n";
         return os;
     }
 
   protected:
     AliasStmt* clone() const override {
-        return new AliasStmt(pos_, alias_, object::clone(*qreg_));
+        std::vector<ptr<Expr>> tmp;
+        for (auto& x : regs_)
+            tmp.emplace_back(object::clone(*x));
+        return new AliasStmt(pos_, alias_, std::move(tmp));
     }
 };
 
@@ -799,56 +784,37 @@ inline std::ostream& operator<<(std::ostream& os, const AssignOp& aop) {
  * \see qasm3tools::ast::StmtBase
  */
 class AssignmentStmt final : public Stmt {
-    symbol var_;                     ///< the variable being assigned to
-    std::optional<ptr<Expr>> index_; ///< the variable index
-    AssignOp op_;                    ///< the assignment operator
-    ptr<Expr> exp_;                  ///< the expression
+    ptr<IndexId> var_; ///< target variable
+    AssignOp op_;      ///< the assignment operator
+    ptr<Expr> exp_;    ///< the expression
 
   public:
     /**
      * \brief Constructs an assignment statement
      *
      * \param pos The source position
-     * \param var The variable name
-     * \param index Optional index (default = std::nullopt)
+     * \param var The target variable
      * \param op The assignment operator
      * \param exp The expression
      */
-    AssignmentStmt(parser::Position pos, symbol var, AssignOp op, ptr<Expr> exp)
-        : Stmt(pos), var_(var), index_(std::nullopt), op_(op),
-          exp_(std::move(exp)) {}
-    AssignmentStmt(parser::Position pos, symbol var,
-                   std::optional<ptr<Expr>>&& index, AssignOp op, ptr<Expr> exp)
-        : Stmt(pos), var_(var), index_(std::move(index)), op_(op),
-          exp_(std::move(exp)) {}
+    AssignmentStmt(parser::Position pos, ptr<IndexId> var, AssignOp op, ptr<Expr> exp)
+        : Stmt(pos), var_(std::move(var)), op_(op), exp_(std::move(exp)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<AssignmentStmt> create(parser::Position pos, symbol var,
+    static ptr<AssignmentStmt> create(parser::Position pos, ptr<IndexId> var,
                                       AssignOp op, ptr<Expr> exp) {
-        return std::make_unique<AssignmentStmt>(pos, var, op, std::move(exp));
-    }
-    static ptr<AssignmentStmt> create(parser::Position pos, symbol var,
-                                      std::optional<ptr<Expr>>&& index,
-                                      AssignOp op, ptr<Expr> exp) {
-        return std::make_unique<AssignmentStmt>(pos, var, std::move(index), op,
+        return std::make_unique<AssignmentStmt>(pos, std::move(var), op,
                                                 std::move(exp));
     }
 
     /**
-     * \brief Get the variable name
+     * \brief Get the target variable
      *
-     * \return Const reference to the variable name
+     * \return Reference to the target variable
      */
-    const symbol& var() const { return var_; }
-
-    /**
-     * \brief Get the variable index
-     *
-     * \return Reference to the vairable index
-     */
-    std::optional<ptr<Expr>>& index() { return index_; }
+    IndexId& var() { return *var_; }
 
     /**
      * \brief Get the assignment operator
@@ -880,19 +846,13 @@ class AssignmentStmt final : public Stmt {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        os << var_;
-        if (index_)
-            os << "[" << **index_ << "]";
-        os << " " << op_ << " " << *exp_ << ";\n";
+        os << *var_ << " " << op_ << " " << *exp_ << ";\n";
         return os;
     }
 
   protected:
     AssignmentStmt* clone() const override {
-        std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (index_)
-            tmp = object::clone(**index_);
-        return new AssignmentStmt(pos_, var_, std::move(tmp), op_,
+        return new AssignmentStmt(pos_, object::clone(*var_), op_,
                                   object::clone(*exp_));
     }
 };

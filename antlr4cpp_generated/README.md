@@ -1,8 +1,8 @@
 # antlr4cpp generated files
 
-These files must stay up-to-date with the `qasm3.g4` grammar file. Instructions:
+These files must stay up-to-date with the `qasm3Lexer.g4` and `qasm3Parser.g4` grammar files. Instructions:
 
-1. Go to the `../grammar` directory. After updating `qasm3.g4`, run `make` (requires java).
+1. Go to the `../grammar` directory. After updating the `*.g4` files, run `make` (requires java).
 2. From the generated files, rename `qasm3Lexer.cpp` to `qasm3LexerImpl.hpp` and add the `#pragma once` preprocessor directive. Similarly, change `qasm3Parser.cpp` to `qasm3ParserImpl.hpp`.
 3. Replace the files in this directory with the new files.
 

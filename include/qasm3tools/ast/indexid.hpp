@@ -26,7 +26,7 @@
 
 /**
  * \file qasm3tools/ast/indexid.hpp
- * \brief OpenQASM index identifiers
+ * \brief OpenQASM indexed identifiers
  */
 
 #pragma once
@@ -41,30 +41,102 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::Slice
- * \brief Class for register slices
+ * \class qasm3tools::ast::IndexOp
+ * \brief Class for index operators
  */
-class Slice : public ASTNode {
+class IndexOp : public ASTNode {
   public:
-    Slice(parser::Position pos) : ASTNode(pos) {}
-    virtual ~Slice() = default;
+    IndexOp(parser::Position pos) : ASTNode(pos) {}
+    virtual ~IndexOp() = default;
 
     /**
-     * \brief Get whether the index set is a single index
+     * \brief Get the number of slices (i.e. not single indices)
      *
-     * return Whether the index set is a single index
+     * return The number of slices
+     */
+    virtual int num_slices() const = 0;
+
+  protected:
+    virtual IndexOp* clone() const = 0;
+};
+
+/**
+ * \class qasm3tools::ast::IndexEntity
+ * \brief Class for index entities
+ */
+class IndexEntity : public ASTNode {
+  public:
+    IndexEntity(parser::Position pos) : ASTNode(pos) {}
+    virtual ~IndexEntity() = default;
+
+    /**
+     * \brief Get whether the index entity is a single index
+     *
+     * return Whether the index entity is a single index
      */
     virtual bool is_single_index() const = 0;
 
   protected:
-    virtual Slice* clone() const = 0;
+    virtual IndexEntity* clone() const = 0;
 };
 
 /**
- * \class qasm3tools::ast::RangeSlice
+ * \class qasm3tools::ast::SingleIndex
+ * \brief Class for single indices
+ */
+class SingleIndex : public IndexEntity {
+    ptr<Expr> index_; ///< the index
+
+  public:
+    /**
+     * \brief Constructs a single index
+     *
+     * \param pos The source position
+     * \param index The index
+     */
+    SingleIndex(parser::Position pos, ptr<Expr> index)
+        : IndexEntity(pos), index_(std::move(index)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<SingleIndex> create(parser::Position pos, ptr<Expr> index) {
+        return std::make_unique<SingleIndex>(pos, std::move(index));
+    }
+
+    /**
+     * \brief Get the index
+     *
+     * \return A reference to the index
+     */
+    Expr& index() { return *index_; }
+
+    /**
+     * \brief Set the index
+     *
+     * \param index The new index
+     */
+    void set_index(ptr<Expr> index) { index_ = std::move(index); }
+
+    bool is_single_index() const override { return true; }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os) const override {
+        os << *index_;
+        return os;
+    }
+
+  protected:
+    SingleIndex* clone() const override {
+        return new SingleIndex(pos_, object::clone(*index_));
+    }
+};
+
+/**
+ * \class qasm3tools::ast::RangeIndex
  * \brief Class for range slices
  */
-class RangeSlice : public Slice {
+class RangeIndex : public IndexEntity {
     std::optional<ptr<Expr>> start_; ///< the start index
     std::optional<ptr<Expr>> step_;  ///< the step size
     std::optional<ptr<Expr>> stop_;  ///< the stop index
@@ -77,29 +149,29 @@ class RangeSlice : public Slice {
      * \param step Optional step size (default = std::nullopt)
      * \param stop Stop index
      */
-    RangeSlice(parser::Position pos, std::optional<ptr<Expr>>&& start,
+    RangeIndex(parser::Position pos, std::optional<ptr<Expr>>&& start,
                std::optional<ptr<Expr>>&& stop)
-        : Slice(pos), start_(std::move(start)), step_(std::nullopt),
+        : IndexEntity(pos), start_(std::move(start)), step_(std::nullopt),
           stop_(std::move(stop)) {}
-    RangeSlice(parser::Position pos, std::optional<ptr<Expr>>&& start,
+    RangeIndex(parser::Position pos, std::optional<ptr<Expr>>&& start,
                std::optional<ptr<Expr>>&& step, std::optional<ptr<Expr>>&& stop)
-        : Slice(pos), start_(std::move(start)), step_(std::move(step)),
+        : IndexEntity(pos), start_(std::move(start)), step_(std::move(step)),
           stop_(std::move(stop)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<RangeSlice> create(parser::Position pos,
+    static ptr<RangeIndex> create(parser::Position pos,
                                   std::optional<ptr<Expr>>&& start,
                                   std::optional<ptr<Expr>>&& stop) {
-        return std::make_unique<RangeSlice>(pos, std::move(start),
+        return std::make_unique<RangeIndex>(pos, std::move(start),
                                             std::move(stop));
     }
-    static ptr<RangeSlice> create(parser::Position pos,
+    static ptr<RangeIndex> create(parser::Position pos,
                                   std::optional<ptr<Expr>>&& start,
                                   std::optional<ptr<Expr>>&& step,
                                   std::optional<ptr<Expr>>&& stop) {
-        return std::make_unique<RangeSlice>(pos, std::move(start),
+        return std::make_unique<RangeIndex>(pos, std::move(start),
                                             std::move(step), std::move(stop));
     }
 
@@ -128,7 +200,6 @@ class RangeSlice : public Slice {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << "[";
         if (start_)
             os << **start_;
         os << ":";
@@ -136,12 +207,11 @@ class RangeSlice : public Slice {
             os << **step_ << ":";
         if (stop_)
             os << **stop_;
-        os << "]";
         return os;
     }
 
   protected:
-    RangeSlice* clone() const override {
+    RangeIndex* clone() const override {
         std::optional<ptr<Expr>> tmp_start = std::nullopt;
         if (start_)
             tmp_start = object::clone(**start_);
@@ -151,8 +221,67 @@ class RangeSlice : public Slice {
         std::optional<ptr<Expr>> tmp_stop = std::nullopt;
         if (stop_)
             tmp_stop = object::clone(**stop_);
-        return new RangeSlice(pos_, std::move(tmp_start), std::move(tmp_step),
+        return new RangeIndex(pos_, std::move(tmp_start), std::move(tmp_step),
                               std::move(tmp_stop));
+    }
+};
+
+/**
+ * \class qasm3tools::ast::IndexEntityList
+ * \brief Class for index entity lists
+ */
+class IndexEntityList : public IndexOp {
+    std::vector<ptr<IndexEntity>> indices_; ///< list of index entities
+
+  public:
+    /**
+     * \brief Construct an index entity list
+     *
+     * \param pos The source position
+     * \param indices The list of index entities
+     */
+    IndexEntityList(parser::Position pos, std::vector<ptr<IndexEntity>>&& indices)
+        : IndexOp(pos), indices_(std::move(indices)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<IndexEntityList> create(parser::Position pos,
+                                       std::vector<ptr<IndexEntity>>&& indices) {
+        return std::make_unique<IndexEntityList>(pos, std::move(indices));
+    }
+
+    /**
+     * \brief Get the list of index entities
+     *
+     * \return Reference to the list of index entities
+     */
+    std::vector<ptr<IndexEntity>>& indices() { return indices_; }
+
+    int num_slices() const override {
+        int ans = 0;
+        for (auto& index : indices_) {
+            if (!index->is_single_index())
+                ++ans;
+        }
+        return ans;
+    }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os) const override {
+        os << "[";
+        for (auto it = indices_.begin(); it != indices_.end(); it++)
+            os << (it == indices_.begin() ? "" : ", ") << **it;
+        os << "]";
+        return os;
+    }
+
+  protected:
+    IndexEntityList* clone() const override {
+        std::vector<ptr<IndexEntity>> tmp;
+        for (auto& x : indices_)
+            tmp.emplace_back(object::clone(*x));
+        return new IndexEntityList(pos_, std::move(tmp));
     }
 };
 
@@ -160,7 +289,7 @@ class RangeSlice : public Slice {
  * \class qasm3tools::ast::ListSlice
  * \brief Class for list slices
  */
-class ListSlice : public Slice {
+class ListSlice : public IndexOp {
     std::vector<ptr<Expr>> indices_;
 
   public:
@@ -171,7 +300,7 @@ class ListSlice : public Slice {
      * \param indices The list of indices
      */
     ListSlice(parser::Position pos, std::vector<ptr<Expr>>&& indices)
-        : Slice(pos), indices_(std::move(indices)) {}
+        : IndexOp(pos), indices_(std::move(indices)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -188,14 +317,14 @@ class ListSlice : public Slice {
      */
     std::vector<ptr<Expr>>& indices() { return indices_; }
 
-    bool is_single_index() const override { return indices_.size() == 1; }
+    int num_slices() const override { return 1; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << "[";
+        os << "[{";
         for (auto it = indices_.begin(); it != indices_.end(); it++)
-            os << (it == indices_.begin() ? "" : ",") << **it;
-        os << "]";
+            os << (it == indices_.begin() ? "" : ", ") << **it;
+        os << "}]";
         return os;
     }
 
@@ -210,48 +339,33 @@ class ListSlice : public Slice {
 
 /**
  * \class qasm3tools::ast::IndexId
- * \brief Class for index identifiers
- */
-class IndexId : public ASTNode {
-  public:
-    IndexId(parser::Position pos) : ASTNode(pos) {}
-    virtual ~IndexId() = default;
-
-  protected:
-    virtual IndexId* clone() const = 0;
-};
-
-/**
- * \class qasm3tools::ast::VarAccess
- * \brief Class for variable accesses
- * \see qasm3tools::ast::IndexId
+ * \brief Class for indexed identifiers
  *
- * Represents accesses into a register by the register name and an optional
- * range or list slicing.
+ * Represents accesses into a register or array.
  */
-class VarAccess final : public IndexId {
-    symbol var_;                      ///< the identifier
-    std::optional<ptr<Slice>> slice_; ///< optional register slice
+class IndexId final : public ASTNode {
+    symbol var_;                          ///< the identifier
+    std::vector<ptr<IndexOp>> index_ops_; ///< sequence of index operators
 
   public:
     /**
-     * \brief Construct a variable access
+     * \brief Construct an indexed identifiers
      *
      * \param pos The source position
      * \param var The register name
-     * \param offset Optional register slice (default = std::nullopt)
+     * \param index_ops The sequence of index operators
      */
-    VarAccess(parser::Position pos, symbol var,
-              std::optional<ptr<Slice>>&& slice = std::nullopt)
-        : IndexId(pos), var_(var), slice_(std::move(slice)) {}
+    IndexId(parser::Position pos, symbol var,
+            std::vector<ptr<IndexOp>>&& index_ops)
+        : ASTNode(pos), var_(var), index_ops_(std::move(index_ops)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<VarAccess>
+    static ptr<IndexId>
     create(parser::Position pos, symbol var,
-           std::optional<ptr<Slice>>&& slice = std::nullopt) {
-        return std::make_unique<VarAccess>(pos, var, std::move(slice));
+           std::vector<ptr<IndexOp>>&& index_ops) {
+        return std::make_unique<IndexId>(pos, var, std::move(index_ops));
     }
 
     /**
@@ -262,94 +376,43 @@ class VarAccess final : public IndexId {
     const symbol& var() const { return var_; }
 
     /**
-     * \brief Get the slice
+     * \brief Get the number of index operators
      *
-     * return std::optional reference to slice
+     * \return The number of index operators
      */
-    std::optional<ptr<Slice>>& slice() { return slice_; }
+    int num_index_ops() const { return static_cast<int>(index_ops_.size()); }
+
+    /**
+     * \brief Get the list of index operators
+     *
+     * \return Reference to the list of index operators
+     */
+    std::vector<ptr<IndexOp>>& index_ops() { return index_ops_; }
+
+    /**
+     * \brief Apply a function to each index operator
+     *
+     * \param f Void function accepting a reference to the argument
+     */
+    void foreach_index_op(std::function<void(IndexOp&)> f) {
+        for (auto& x : index_ops_)
+            f(*x);
+    }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << var_;
-        if (slice_)
-            os << **slice_;
+        for (auto& x : index_ops_)
+            os << *x;
         return os;
     }
 
   protected:
-    VarAccess* clone() const override {
-        std::optional<ptr<Slice>> tmp = std::nullopt;
-        if (slice_)
-            tmp = object::clone(**slice_);
-        return new VarAccess(pos_, var_, std::move(tmp));
-    }
-};
-
-/**
- * \class qasm3tools::ast::Concat
- * \brief Class for register concatenation
- * \see qasm3tools::ast::IndexId
- */
-class Concat final : public IndexId {
-    ptr<IndexId> lreg_; ///< the left sub-register
-    ptr<IndexId> rreg_; ///< the right sub-register
-
-  public:
-    /**
-     * \brief Constructs a register concatenation
-     *
-     * \param pos The source position
-     * \param lreg The left sub-register
-     * \param rreg The right sub-register
-     */
-    Concat(parser::Position pos, ptr<IndexId> lreg, ptr<IndexId> rreg)
-        : IndexId(pos), lreg_(std::move(lreg)), rreg_(std::move(rreg)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<Concat> create(parser::Position pos, ptr<IndexId> lreg,
-                              ptr<IndexId> rreg) {
-        return std::make_unique<Concat>(pos, std::move(lreg), std::move(rreg));
-    }
-
-    /**
-     * \brief Get the left sub-register
-     *
-     * \return A reference to the left sub-register
-     */
-    IndexId& lreg() { return *lreg_; }
-
-    /**
-     * \brief Get the right sub-register
-     *
-     * \return A reference to the right sub-register
-     */
-    IndexId& rreg() { return *rreg_; }
-
-    /**
-     * \brief Set the left sub-register
-     *
-     * \param exp The new left sub-register
-     */
-    void set_lreg(ptr<IndexId> reg) { lreg_ = std::move(reg); }
-
-    /**
-     * \brief Set the right sub-register
-     *
-     * \param exp The new right sub-register
-     */
-    void set_rreg(ptr<IndexId> reg) { rreg_ = std::move(reg); }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os) const override {
-        os << *lreg_ << "++" << *rreg_;
-        return os;
-    }
-
-  protected:
-    Concat* clone() const override {
-        return new Concat(pos_, object::clone(*lreg_), object::clone(*rreg_));
+    IndexId* clone() const override {
+        std::vector<ptr<IndexOp>> tmp;
+        for (auto& x : index_ops_)
+            tmp.emplace_back(object::clone(*x));
+        return new IndexId(pos_, var_, std::move(tmp));
     }
 };
 
