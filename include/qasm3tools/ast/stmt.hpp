@@ -301,6 +301,13 @@ class ResetStmt final : public QuantumStmt {
      */
     IndexId& q_arg() { return *q_arg_; }
 
+    /**
+     * \brief Set the quantum argument
+     *
+     * \param arg The new quantum argument
+     */
+    void set_arg(ptr<IndexId> arg) { q_arg_ = std::move(arg); }
+
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "reset " << *q_arg_ << ";\n";
@@ -654,8 +661,7 @@ class AliasStmt final : public Stmt {
      * \param alias The alias name
      * \param regs The concatenated quantum bits|registers
      */
-    AliasStmt(parser::Position pos, symbol alias,
-              std::vector<ptr<Expr>>&& regs)
+    AliasStmt(parser::Position pos, symbol alias, std::vector<ptr<Expr>>&& regs)
         : Stmt(pos), alias_(alias), regs_(std::move(regs)) {}
 
     /**
@@ -784,37 +790,38 @@ inline std::ostream& operator<<(std::ostream& os, const AssignOp& aop) {
  * \see qasm3tools::ast::StmtBase
  */
 class AssignmentStmt final : public Stmt {
-    ptr<IndexId> var_; ///< target variable
-    AssignOp op_;      ///< the assignment operator
-    ptr<Expr> exp_;    ///< the expression
+    ptr<IndexId> lval_; ///< lvalue to assign to
+    AssignOp op_;       ///< the assignment operator
+    ptr<Expr> exp_;     ///< the expression
 
   public:
     /**
      * \brief Constructs an assignment statement
      *
      * \param pos The source position
-     * \param var The target variable
+     * \param lval The lvalue to assign to
      * \param op The assignment operator
      * \param exp The expression
      */
-    AssignmentStmt(parser::Position pos, ptr<IndexId> var, AssignOp op, ptr<Expr> exp)
-        : Stmt(pos), var_(std::move(var)), op_(op), exp_(std::move(exp)) {}
+    AssignmentStmt(parser::Position pos, ptr<IndexId> lval, AssignOp op,
+                   ptr<Expr> exp)
+        : Stmt(pos), lval_(std::move(lval)), op_(op), exp_(std::move(exp)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<AssignmentStmt> create(parser::Position pos, ptr<IndexId> var,
+    static ptr<AssignmentStmt> create(parser::Position pos, ptr<IndexId> lval,
                                       AssignOp op, ptr<Expr> exp) {
-        return std::make_unique<AssignmentStmt>(pos, std::move(var), op,
+        return std::make_unique<AssignmentStmt>(pos, std::move(lval), op,
                                                 std::move(exp));
     }
 
     /**
-     * \brief Get the target variable
+     * \brief Get the lvalue to assign to
      *
-     * \return Reference to the target variable
+     * \return Reference to the lvalue to assign to
      */
-    IndexId& var() { return *var_; }
+    IndexId& lval() { return *lval_; }
 
     /**
      * \brief Get the assignment operator
@@ -846,13 +853,13 @@ class AssignmentStmt final : public Stmt {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        os << *var_ << " " << op_ << " " << *exp_ << ";\n";
+        os << *lval_ << " " << op_ << " " << *exp_ << ";\n";
         return os;
     }
 
   protected:
     AssignmentStmt* clone() const override {
-        return new AssignmentStmt(pos_, object::clone(*var_), op_,
+        return new AssignmentStmt(pos_, object::clone(*lval_), op_,
                                   object::clone(*exp_));
     }
 };

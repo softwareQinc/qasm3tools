@@ -101,10 +101,21 @@ class ConstExprChecker final : public Visitor {
     }
 
     // Index identifiers
-    void visit(RangeSlice& slice) override {
-        visit_optional_expr(slice.start());
-        visit_optional_expr(slice.step());
-        visit_optional_expr(slice.stop());
+    void visit(SingleIndex& index) override {
+        index.index().accept(*this);
+        if (replacement_expr_) {
+            index.set_index(std::move(*replacement_expr_));
+            replacement_expr_ = std::nullopt;
+        }
+    }
+    void visit(RangeIndex& index) override {
+        visit_optional_expr(index.start());
+        visit_optional_expr(index.step());
+        visit_optional_expr(index.stop());
+    }
+    void visit(IndexEntityList& indices) override {
+        indices.foreach_index(
+            [this](IndexEntity& index) { index.accept(*this); });
     }
     void visit(ListSlice& slice) override {
         for (auto& index : slice.indices()) {
@@ -115,59 +126,52 @@ class ConstExprChecker final : public Visitor {
             }
         }
     }
-    void visit(VarAccess& va) override {
-        auto entry = lookup(va.var());
+    void visit(IndexId& indexid) override {
+        auto entry = lookup(indexid.var());
         if (!entry) {
-            std::cerr << va.pos() << ": error : undefined identifier \""
-                      << va.var() << "\"\n";
+            std::cerr << indexid.pos() << ": error : undefined identifier \""
+                      << indexid.var() << "\"\n";
             error_ = true;
         } else {
             std::visit(utils::overloaded{
-                           [this, &va](ConstVar&) {
-                               std::cerr
-                                   << va.pos()
-                                   << ": error : constant variable \""
-                                   << va.var()
-                                   << "\" cannot be used as an argument\n";
+                           [this, &indexid](ConstVar&) {
+                               std::cerr << indexid.pos()
+                                         << ": error : constant variable \""
+                                         << indexid.var()
+                                         << "\" cannot be used here\n";
                                error_ = true;
                            },
-                           [this, &va](LoopVar&) {
-                               std::cerr
-                                   << va.pos() << ": error : loop variable \""
-                                   << va.var()
-                                   << "\" cannot be used as an argument\n";
+                           [this, &indexid](LoopVar&) {
+                               std::cerr << indexid.pos()
+                                         << ": error : loop variable \""
+                                         << indexid.var()
+                                         << "\" cannot be used here\n";
                                error_ = true;
                            },
                            [](auto) {}},
                        *entry);
         }
-        if (va.slice())
-            (**va.slice()).accept(*this);
-    }
-    void visit(Concat& c) override {
-        c.lreg().accept(*this);
-        c.rreg().accept(*this);
+        indexid.foreach_index_op([this](IndexOp& op) { op.accept(*this); });
     }
     // Types
     void visit(SingleDesignatorType& type) override {
-        type.size().accept(*this);
-        if (replacement_expr_) {
-            type.set_size(std::move(*replacement_expr_));
-            replacement_expr_ = std::nullopt;
-        }
-        auto size = evaluate(type.size());
-        if (size) {
-            if (*size <= 0) {
+        visit_optional_expr(type.size());
+        if (type.size()) {
+            auto size = evaluate(**type.size());
+            if (size) {
+                if (*size <= 0) {
+                    std::cerr << type.pos()
+                              << ": error : designator size must be "
+                                 "positive\n";
+                    error_ = true;
+                } else
+                    type.size() = ptr<Expr>(new IntExpr({}, *size));
+            } else {
                 std::cerr << type.pos()
-                          << ": error : designator size must be positive\n";
+                          << ": error : designator size is not a "
+                             "compile-time constant\n";
                 error_ = true;
-            } else
-                type.set_size(ptr<Expr>(new IntExpr({}, *size)));
-        } else {
-            std::cerr
-                << type.pos()
-                << ": error : designator size is not a compile-time constant\n";
-            error_ = true;
+            }
         }
     }
     void visit(NoDesignatorType&) override {}
@@ -192,6 +196,90 @@ class ConstExprChecker final : public Visitor {
         }
     }
     void visit(ComplexType& type) override { type.subtype().accept(*this); }
+    void visit(ArrayType& type) override {
+        type.subtype().accept(*this);
+        for (int i = 0; i < type.dims(); i++) {
+            type.dim(i).accept(*this);
+            if (replacement_expr_) {
+                type.set_dim(i, std::move(*replacement_expr_));
+                replacement_expr_ = std::nullopt;
+            }
+            auto size = evaluate(type.dim(i));
+            if (size) {
+                if (*size <= 0) {
+                    std::cerr << type.pos()
+                              << ": error : array dimension size must be "
+                                 "positive\n";
+                    error_ = true;
+                } else {
+                    type.set_dim(i, ptr<Expr>(new IntExpr({}, *size)));
+                }
+            } else {
+                std::cerr << type.pos()
+                          << ": error : array dimension size is not a "
+                             "compile-time constant\n";
+                error_ = true;
+            }
+        }
+    }
+    void visit(ArrayRefType& type) override {
+        type.subtype().accept(*this);
+        std::visit(
+            utils::overloaded{
+                [this](std::vector<ptr<Expr>>& dims) {
+                    for (auto& dim : dims) {
+                        dim->accept(*this);
+                        if (replacement_expr_) {
+                            dim = std::move(*replacement_expr_);
+                            replacement_expr_ = std::nullopt;
+                        }
+                        auto size = evaluate(*dim);
+                        if (size) {
+                            if (*size <= 0) {
+                                std::cerr
+                                    << dim->pos()
+                                    << ": error : array dimension size must be "
+                                       "positive\n";
+                                error_ = true;
+                            } else {
+                                dim = ptr<Expr>(new IntExpr({}, *size));
+                            }
+                        } else {
+                            std::cerr
+                                << dim->pos()
+                                << ": error : array dimension size is not a "
+                                   "compile-time constant\n";
+                            error_ = true;
+                        }
+                    }
+                },
+                [this](ptr<Expr>& dims) {
+                    dims->accept(*this);
+                    if (replacement_expr_) {
+                        dims = std::move(*replacement_expr_);
+                        replacement_expr_ = std::nullopt;
+                    }
+                    auto size = evaluate(*dims);
+                    if (size) {
+                        if (*size <= 0) {
+                            std::cerr << dims->pos()
+                                      << ": error : array dimension specifier "
+                                         "must be "
+                                         "positive\n";
+                            error_ = true;
+                        } else {
+                            dims = ptr<Expr>(new IntExpr({}, *size));
+                        }
+                    } else {
+                        std::cerr
+                            << dims->pos()
+                            << ": error : array dimension specifier is not a "
+                               "compile-time constant\n";
+                        error_ = true;
+                    }
+                }},
+            type.dims());
+    }
     void visit(QubitType& type) override {
         visit_optional_expr(type.size());
         if (type.size()) {
@@ -257,6 +345,23 @@ class ConstExprChecker final : public Visitor {
             replacement_expr_ = std::nullopt;
         }
     }
+    void visit(SizeofExpr& exp) override {
+        bool expect_const_copy = expect_const_;
+        expect_const_ = false;
+        exp.arr().accept(*this);
+        if (replacement_expr_) {
+            exp.set_arr(std::move(*replacement_expr_));
+            replacement_expr_ = std::nullopt;
+        }
+        if (exp.dim()) {
+            (**exp.dim()).accept(*this);
+            if (replacement_expr_) {
+                exp.dim() = std::move(*replacement_expr_);
+                replacement_expr_ = std::nullopt;
+            }
+        }
+        expect_const_ = expect_const_copy;
+    }
     void visit(FunctionCall& exp) override {
         for (int i = 0; i < exp.num_args(); i++) {
             exp.arg(i).accept(*this);
@@ -278,11 +383,7 @@ class ConstExprChecker final : public Visitor {
             exp.set_exp(std::move(*replacement_expr_));
             replacement_expr_ = std::nullopt;
         }
-        exp.index().accept(*this);
-        if (replacement_expr_) {
-            exp.set_index(std::move(*replacement_expr_));
-            replacement_expr_ = std::nullopt;
-        }
+        exp.index_op().accept(*this);
     }
     void visit(ConstantExpr&) override {}
     void visit(IntExpr&) override {}
@@ -305,7 +406,16 @@ class ConstExprChecker final : public Visitor {
             error_ = true;
         }
     }
-    void visit(StringExpr&) override {}
+    void visit(BitString&) override {}
+    void visit(ArrayInitExpr& exp) override {
+        for (int i = 0; i < exp.size(); i++) {
+            exp.at(i).accept(*this);
+            if (replacement_expr_) {
+                exp.set_at(i, std::move(*replacement_expr_));
+                replacement_expr_ = std::nullopt;
+            }
+        }
+    }
     void visit(TimeExpr&) override {}
     void visit(DurationGateExpr&) override {}
     void visit(DurationBlockExpr& exp) override {
@@ -336,9 +446,7 @@ class ConstExprChecker final : public Visitor {
             replacement_expr_ = std::nullopt;
         }
     }
-    void visit(ResetStmt& stmt) override {
-        stmt.foreach_arg([this](IndexId& arg) { arg.accept(*this); });
-    }
+    void visit(ResetStmt& stmt) override { stmt.q_arg().accept(*this); }
     void visit(BarrierStmt& stmt) override {
         stmt.foreach_arg([this](IndexId& arg) { arg.accept(*this); });
     }
@@ -376,27 +484,11 @@ class ConstExprChecker final : public Visitor {
     }
     void visit(EndStmt&) override {}
     void visit(AliasStmt& stmt) override {
-        stmt.qreg().accept(*this);
+        stmt.foreach_reg([this](Expr& reg) { reg.accept(*this); });
         set(stmt.alias(), OtherVar{}, stmt.pos());
     }
     void visit(AssignmentStmt& stmt) override {
-        auto entry = lookup(stmt.var());
-        if (!entry) {
-            std::cerr << stmt.pos() << ": error : undefined identifier \""
-                      << stmt.var() << "\"\n";
-            error_ = true;
-        } else if (std::holds_alternative<ConstVar>(*entry)) {
-            std::cerr << stmt.pos()
-                      << ": error : cannot assign to constant variable \""
-                      << stmt.var() << "\"\n";
-            error_ = true;
-        } else if (std::holds_alternative<LoopVar>(*entry)) {
-            std::cerr << stmt.pos()
-                      << ": error : cannot assign to loop variable \""
-                      << stmt.var() << "\"\n";
-            error_ = true;
-        }
-        visit_optional_expr(stmt.index());
+        stmt.lval().accept(*this);
         stmt.exp().accept(*this);
         if (replacement_expr_) {
             stmt.set_exp(std::move(*replacement_expr_));
@@ -801,10 +893,11 @@ class ConstExprChecker final : public Visitor {
         }
 
         // Index identifiers
-        void visit(RangeSlice&) override {}
+        void visit(SingleIndex&) override {}
+        void visit(RangeIndex&) override {}
+        void visit(IndexEntityList&) override {}
         void visit(ListSlice&) override {}
-        void visit(VarAccess&) override {}
-        void visit(Concat&) override {}
+        void visit(IndexId&) override {}
         // Types
         void visit(SingleDesignatorType& type) override {
             cast_is_int_ =
@@ -813,6 +906,8 @@ class ConstExprChecker final : public Visitor {
         void visit(NoDesignatorType&) override { cast_is_int_ = false; }
         void visit(BitType&) override { cast_is_int_ = false; }
         void visit(ComplexType&) override { cast_is_int_ = false; }
+        void visit(ArrayType&) override { cast_is_int_ = false; }
+        void visit(ArrayRefType&) override { cast_is_int_ = false; }
         void visit(QubitType&) override {}
         // Expressions
         void visit(BExpr& exp) override {
@@ -860,6 +955,7 @@ class ConstExprChecker final : public Visitor {
                 value_ = std::nullopt;
             }
         }
+        void visit(SizeofExpr&) override { value_ = std::nullopt; }
         void visit(FunctionCall&) override { value_ = std::nullopt; }
         void visit(AccessExpr&) override { value_ = std::nullopt; }
         void visit(ConstantExpr&) override { value_ = std::nullopt; }
@@ -868,7 +964,8 @@ class ConstExprChecker final : public Visitor {
         void visit(ImagExpr&) override { value_ = std::nullopt; }
         void visit(BoolExpr&) override { value_ = std::nullopt; }
         void visit(VarExpr& exp) override { value_ = std::nullopt; }
-        void visit(StringExpr&) override { value_ = std::nullopt; }
+        void visit(BitString&) override { value_ = std::nullopt; }
+        void visit(ArrayInitExpr&) override { value_ = std::nullopt; }
         void visit(TimeExpr&) override { value_ = std::nullopt; }
         void visit(DurationGateExpr&) override { value_ = std::nullopt; }
         void visit(DurationBlockExpr&) override { value_ = std::nullopt; }
@@ -942,186 +1039,40 @@ class ConstExprChecker final : public Visitor {
 class TypeChecker final : public Visitor {
   public:
     /**
-     * \brief Classical and quantum types
+     * \brief None type
      */
-    enum class DataType {
-        None,
+    struct NoneType {};
+
+    /**
+     * \brief Standard (i.e. classical and quantum) types
+     */
+    enum class StdType {
         Bool,
         Int,
         Float,
         Angle,
         ClassicalBit,
-        ClassicalRegister,
         Duration,
         Complex,
         QuantumBit,
-        QuantumRegister
     };
 
     /**
-     * \brief Extraction operator overload for TypeChecker::DataType enum class
-     *
-     * \param os Output stream passed by reference
-     * \param data_type TypeChecker::DataType enum class
-     * \return Reference to the output stream
+     * \brief Data struct for array types
      */
-    friend std::ostream& operator<<(std::ostream& os,
-                                    const DataType& data_type) {
-        switch (data_type) {
-            case DataType::None:
-                os << "None";
-                break;
-            case DataType::Bool:
-                os << "bool";
-                break;
-            case DataType::Int:
-                os << "int";
-                break;
-            case DataType::Float:
-                os << "float";
-                break;
-            case DataType::Angle:
-                os << "angle";
-                break;
-            case DataType::ClassicalBit:
-                os << "bit";
-                break;
-            case DataType::ClassicalRegister:
-                os << "bit[n]";
-                break;
-            case DataType::Duration:
-                os << "duration";
-                break;
-            case DataType::Complex:
-                os << "complex";
-                break;
-            case DataType::QuantumBit:
-                os << "qubit";
-                break;
-            case DataType::QuantumRegister:
-                os << "qubit[n]";
-                break;
-        }
-        return os;
-    }
-
-  private:
-    // static member functions
-    /**
-     * \brief Checks whether a data type is a quantum type
-     *
-     * \return True if the data type is a quantum type, false otherwise
-     */
-    static bool is_quantum(const DataType& type) {
-        return type == DataType::QuantumBit ||
-               type == DataType::QuantumRegister;
-    }
+    struct ArrType {
+        StdType subtype;
+        int dims;
+        bool is_mutable = true;
+    };
 
     /**
-     * \brief Checks whether the source type is castable to the target type
+     * \brief OpenQASM expression types as a std::variant
      *
-     * \return True if the source type is castable to the target type
+     * Functional-style syntax trees in C++17 as a simpler alternative
+     * to inheritance hierarchy. Support is still lacking for large-scale.
      */
-    static bool is_castable(const DataType& source, const DataType& target) {
-        switch (source) {
-            case DataType::Bool:
-            case DataType::Int:
-                switch (target) {
-                    case DataType::Bool:
-                    case DataType::Int:
-                    case DataType::Float:
-                    case DataType::ClassicalBit:
-                    case DataType::ClassicalRegister:
-                    case DataType::Complex:
-                        return true;
-                    default:
-                        return false;
-                }
-            case DataType::Float:
-                switch (target) {
-                    case DataType::Bool:
-                    case DataType::Int:
-                    case DataType::Float:
-                    case DataType::Angle:
-                    case DataType::Complex:
-                        return true;
-                    default:
-                        return false;
-                }
-            case DataType::Angle:
-                switch (target) {
-                    case DataType::Bool:
-                    case DataType::Angle:
-                    case DataType::ClassicalBit:
-                    case DataType::ClassicalRegister:
-                        return true;
-                    default:
-                        return false;
-                }
-            case DataType::ClassicalBit:
-            case DataType::ClassicalRegister:
-                switch (target) {
-                    case DataType::Bool:
-                    case DataType::Int:
-                    case DataType::Angle:
-                    case DataType::ClassicalBit:
-                    case DataType::ClassicalRegister:
-                        return true;
-                    default:
-                        return false;
-                }
-            case DataType::Duration:
-                switch (target) {
-                    case DataType::Duration:
-                        return true;
-                    default:
-                        return false;
-                }
-            case DataType::Complex:
-                switch (target) {
-                    case DataType::Complex:
-                        return true;
-                    default:
-                        return false;
-                }
-            case DataType::QuantumBit:
-                switch (target) {
-                    case DataType::QuantumBit:
-                        return true;
-                    default:
-                        return false;
-                }
-            case DataType::QuantumRegister:
-                switch (target) {
-                    case DataType::QuantumRegister:
-                        return true;
-                    default:
-                        return false;
-                }
-            default:
-                return false;
-        }
-    }
-
-    /**
-     * \brief Checks whether two types are both numeric, and the first is
-     * a subtype of the second.
-     *
-     * int is subtype of float and complex; float is subtype of complex.
-     * int, float, complex, angle are subtypes of themselves.
-     * Any other combinations return false.
-     */
-    static bool is_numeric_subtype(const DataType& sub, const DataType& sup) {
-        if ((sub == DataType::Int &&
-             (sup == DataType::Int || sup == DataType::Float ||
-              sup == DataType::Complex)) ||
-            (sub == DataType::Float &&
-             (sup == DataType::Float || sup == DataType::Complex)) ||
-            (sub == DataType::Complex && sup == DataType::Complex) ||
-            (sub == DataType::Angle && sup == DataType::Angle))
-            return true;
-        return false;
-    }
+    using ExprType = std::variant<NoneType, StdType, ArrType>;
 
     /**
      * \brief Data struct for quantum gate types
@@ -1135,8 +1086,8 @@ class TypeChecker final : public Visitor {
      * \brief Data struct for subroutine types
      */
     struct SubroutineType {
-        std::vector<DataType> param_types; ///< function signature
-        DataType return_type;              ///< return type (None if no return)
+        std::vector<ExprType> param_types; ///< function signature
+        ExprType return_type;              ///< return type
     };
 
     /**
@@ -1145,7 +1096,262 @@ class TypeChecker final : public Visitor {
      * Functional-style syntax trees in C++17 as a simpler alternative
      * to inheritance hierarchy. Support is still lacking for large-scale.
      */
-    using Type = std::variant<DataType, GateType, SubroutineType>;
+    using Type = std::variant<ExprType, GateType, SubroutineType>;
+
+    /**
+     * \brief Extraction operator overload for NoneType class
+     *
+     * \param os Output stream passed by reference
+     * \param _ TypeChecker::NoneType class
+     * \return Reference to the output stream
+     */
+    friend std::ostream& operator<<(std::ostream& os, const NoneType&) {
+        os << "None";
+        return os;
+    }
+
+    /**
+     * \brief Extraction operator overload for TypeChecker::StdType enum class
+     *
+     * \param os Output stream passed by reference
+     * \param type TypeChecker::StdType enum class
+     * \return Reference to the output stream
+     */
+    friend std::ostream& operator<<(std::ostream& os, const StdType& type) {
+        switch (type) {
+            case StdType::Bool:
+                os << "bool";
+                break;
+            case StdType::Int:
+                os << "int";
+                break;
+            case StdType::Float:
+                os << "float";
+                break;
+            case StdType::Angle:
+                os << "angle";
+                break;
+            case StdType::ClassicalBit:
+                os << "bit";
+                break;
+            case StdType::Duration:
+                os << "duration";
+                break;
+            case StdType::Complex:
+                os << "complex";
+                break;
+            case StdType::QuantumBit:
+                os << "qubit";
+                break;
+        }
+        return os;
+    }
+
+    /**
+     * \brief Extraction operator overload for ArrType class
+     *
+     * \param os Output stream passed by reference
+     * \param type TypeChecker::ArrType class
+     * \return Reference to the output stream
+     */
+    friend std::ostream& operator<<(std::ostream& os, const ArrType& type) {
+        os << "array[" << type.subtype << ", #dim = " << type.dims << "]";
+        return os;
+    }
+
+    /**
+     * \brief Extraction operator overload for ExprType variant class
+     *
+     * \param os Output stream passed by reference
+     * \param type TypeChecker::ExprType class
+     * \return Reference to the output stream
+     */
+    friend std::ostream& operator<<(std::ostream& os, const ExprType& type) {
+        std::visit([&os](auto&& arg) { os << arg; }, type);
+        return os;
+    }
+
+  private:
+    // static member functions
+    /**
+     * \brief Checks whether a data type is a quantum type
+     *
+     * \return True if the data type is a quantum type, false otherwise
+     */
+    static bool is_quantum(const ExprType& type) {
+        if (std::holds_alternative<StdType>(type)) {
+            return std::get<StdType>(type) == StdType::QuantumBit;
+        } else if (std::holds_alternative<ArrType>(type)) {
+            return std::get<ArrType>(type).subtype == StdType::QuantumBit;
+        }
+        return false;
+    }
+
+    /**
+     * \brief Checks whether a data type is a classical bit or creg type
+     *
+     * \return True if the data type is a classical bit type, false otherwise
+     */
+    static bool is_classical_bit(const ExprType& type) {
+        if (std::holds_alternative<StdType>(type)) {
+            return std::get<StdType>(type) == StdType::ClassicalBit;
+        } else if (std::holds_alternative<ArrType>(type)) {
+            auto t = std::get<ArrType>(type);
+            return t.dims == 1 && t.subtype == StdType::ClassicalBit;
+        }
+        return false;
+    }
+
+    /**
+     * \brief Checks whether a data type is a classical type
+     *
+     * \return True if the data type is a classical type, false otherwise
+     */
+    static bool is_classical(const ExprType& type) {
+        if (std::holds_alternative<StdType>(type)) {
+            return std::get<StdType>(type) != StdType::QuantumBit;
+        } else if (std::holds_alternative<ArrType>(type)) {
+            return std::get<ArrType>(type).subtype != StdType::QuantumBit;
+        }
+        return false;
+    }
+
+    /**
+     * \brief Checks whether a data type is mutable
+     *
+     * \return True if the data type is mutable, false otherwise
+     */
+    static bool is_mutable(const ExprType& type) {
+        if (std::holds_alternative<StdType>(type)) {
+            return true;
+        } else if (std::holds_alternative<ArrType>(type)) {
+            return std::get<ArrType>(type).is_mutable;
+        }
+        return false;
+    }
+
+    /**
+     * \brief Checks whether the source type is castable to the target type
+     *
+     * \return True if the source type is castable to the target type
+     */
+    static bool castable(StdType source, StdType target) {
+        switch (source) {
+            case StdType::Bool:
+            case StdType::Int:
+                switch (target) {
+                    case StdType::Bool:
+                    case StdType::Int:
+                    case StdType::Float:
+                    case StdType::ClassicalBit:
+                    case StdType::Complex:
+                        return true;
+                    default:
+                        return false;
+                }
+            case StdType::Float:
+                switch (target) {
+                    case StdType::Bool:
+                    case StdType::Int:
+                    case StdType::Float:
+                    case StdType::Angle:
+                    case StdType::Complex:
+                        return true;
+                    default:
+                        return false;
+                }
+            case StdType::Angle:
+                switch (target) {
+                    case StdType::Bool:
+                    case StdType::Angle:
+                    case StdType::ClassicalBit:
+                        return true;
+                    default:
+                        return false;
+                }
+            case StdType::ClassicalBit:
+                switch (target) {
+                    case StdType::Bool:
+                    case StdType::Int:
+                    case StdType::Angle:
+                    case StdType::ClassicalBit:
+                        return true;
+                    default:
+                        return false;
+                }
+            default:
+                return source == target;
+        }
+    }
+
+    /**
+     * \brief Checks whether the source type is castable to the target type
+     *
+     * \return True if the source type is castable to the target type
+     */
+    static bool general_castable(const ExprType& source,
+                                 const ExprType& target) {
+        if (std::holds_alternative<StdType>(source) &&
+            std::holds_alternative<StdType>(target)) {
+            return castable(std::get<StdType>(source),
+                            std::get<StdType>(target));
+        } else if (std::holds_alternative<ArrType>(source) &&
+                   std::holds_alternative<ArrType>(target)) {
+            auto s = std::get<ArrType>(source);
+            auto t = std::get<ArrType>(target);
+            return s.dims == t.dims && castable(s.subtype, t.subtype);
+        } else if (std::holds_alternative<StdType>(source) &&
+                   is_classical_bit(target)) {
+            return castable(std::get<StdType>(source), StdType::ClassicalBit);
+        } else if (is_classical_bit(source) &&
+                   std::holds_alternative<StdType>(target)) {
+            return castable(StdType::ClassicalBit, std::get<StdType>(target));
+        }
+        return false;
+    }
+
+    /**
+     * \brief Checks whether the two types are exactly the same
+     *
+     * \return True if the types are exactly the same
+     */
+    static bool is_same(const ExprType& source, const ExprType& target) {
+        if (std::holds_alternative<StdType>(source) &&
+            std::holds_alternative<StdType>(target)) {
+            return std::get<StdType>(source) == std::get<StdType>(target);
+        } else if (std::holds_alternative<ArrType>(source) &&
+                   std::holds_alternative<ArrType>(target)) {
+            return std::get<ArrType>(source).subtype ==
+                   std::get<ArrType>(target).subtype;
+        }
+        return false;
+    }
+
+    /**
+     * \brief Checks whether two types are both numeric, and the first is
+     * a subtype of the second.
+     *
+     * int is subtype of float and complex; float is subtype of complex.
+     * int, float, complex, angle are subtypes of themselves.
+     * Any other combinations return false.
+     */
+    static bool is_numeric_subtype(const ExprType& subtype,
+                                   const ExprType& suptype) {
+        if (std::holds_alternative<StdType>(subtype) &&
+            std::holds_alternative<StdType>(suptype)) {
+            auto sub = std::get<StdType>(subtype);
+            auto sup = std::get<StdType>(suptype);
+            if ((sub == StdType::Int &&
+                 (sup == StdType::Int || sup == StdType::Float ||
+                  sup == StdType::Complex)) ||
+                (sub == StdType::Float &&
+                 (sup == StdType::Float || sup == StdType::Complex)) ||
+                (sub == StdType::Complex && sup == StdType::Complex) ||
+                (sub == StdType::Angle && sup == StdType::Angle))
+                return true;
+        }
+        return false;
+    }
 
   public:
     bool run(Program& prog) {
@@ -1154,137 +1360,140 @@ class TypeChecker final : public Visitor {
     }
 
     // Index identifiers
-    void visit(RangeSlice& slice) override {
-        visit_optional_classical_expr(slice.start(), DataType::Int);
-        visit_optional_classical_expr(slice.step(), DataType::Int);
-        visit_optional_classical_expr(slice.stop(), DataType::Int);
+    void visit(SingleIndex& index) override {
+        visit_classical_expr(index.index(), StdType::Int);
+    }
+    void visit(RangeIndex& index) override {
+        visit_optional_classical_expr(index.start(), StdType::Int);
+        visit_optional_classical_expr(index.step(), StdType::Int);
+        visit_optional_classical_expr(index.stop(), StdType::Int);
+    }
+    void visit(IndexEntityList& indices) override {
+        if (!std::holds_alternative<ArrType>(type_)) {
+            std::cerr << indices.pos()
+                      << ": error : non-array type cannot be indexed\n";
+            error_ = true;
+            type_ = NONE;
+            return;
+        }
+        auto tmp = type_;
+        if (indices.num_index_entities() > std::get<ArrType>(tmp).dims) {
+            std::cerr << indices.pos()
+                      << ": error : more index entities than dimensions\n";
+            error_ = true;
+        } else {
+            std::get<ArrType>(tmp).dims -= indices.num_single_indices();
+            if (std::get<ArrType>(tmp).dims == 0)
+                tmp = std::get<ArrType>(tmp).subtype;
+        }
+        indices.foreach_index(
+            [this](IndexEntity& index) { index.accept(*this); });
+        type_ = tmp;
     }
     void visit(ListSlice& slice) override {
+        if (!std::holds_alternative<ArrType>(type_)) {
+            std::cerr << slice.pos()
+                      << ": error : non-array type cannot be indexed\n";
+            error_ = true;
+            type_ = NONE;
+            return;
+        }
+        auto tmp = type_;
         for (auto& index : slice.indices()) {
-            visit_classical_expr(*index, DataType::Int);
+            visit_classical_expr(*index, StdType::Int);
         }
+        type_ = tmp;
     }
-    void visit(VarAccess& va) override {
-        auto entry = lookup(va.var());
+    void visit(IndexId& indexid) override {
+        auto entry = lookup(indexid.var());
         if (!entry) {
-            std::cerr << va.pos() << ": error : undefined identifier \""
-                      << va.var() << "\"\n";
+            std::cerr << indexid.pos() << ": error : undefined identifier \""
+                      << indexid.var() << "\"\n";
             error_ = true;
-            type_ = DataType::None;
-        } else if (std::holds_alternative<DataType>(*entry)) {
-            switch (std::get<DataType>(*entry)) {
-                case DataType::QuantumRegister:
-                    if (va.slice()) {
-                        (**va.slice()).accept(*this);
-                        if ((**va.slice()).is_single_index())
-                            type_ = DataType::QuantumBit;
-                        else
-                            type_ = DataType::QuantumRegister;
-                    } else {
-                        type_ = DataType::QuantumRegister;
-                    }
-                    return;
-                case DataType::QuantumBit:
-                    type_ = DataType::QuantumBit;
-                    if (va.slice()) {
-                        std::cerr << va.pos() << ": error : quantum bit \""
-                                  << va.var() << "\" cannnot be indexed\n";
-                        error_ = true;
-                    }
-                    return;
-                case DataType::Angle: // apparently allowed (see ipe.qasm)
-                case DataType::ClassicalRegister:
-                    if (va.slice()) {
-                        (**va.slice()).accept(*this);
-                        if ((**va.slice()).is_single_index())
-                            type_ = DataType::ClassicalBit;
-                        else
-                            type_ = DataType::ClassicalRegister;
-                    } else {
-                        type_ = DataType::ClassicalRegister;
-                    }
-                    return;
-                case DataType::ClassicalBit:
-                    type_ = DataType::ClassicalBit;
-                    if (va.slice()) {
-                        std::cerr << va.pos() << ": error : classical bit \""
-                                  << va.var() << "\" cannnot be indexed\n";
-                        error_ = true;
-                    }
-                    return;
-                default:;
-            }
-        }
-        std::cerr << va.pos() << ": error : identifier \"" << va.var()
-                  << "\" is not a register or bit type\n";
-        error_ = true;
-        type_ = DataType::None;
-    }
-    void visit(Concat& c) override {
-        c.lreg().accept(*this);
-        auto t1 = type_;
-        c.rreg().accept(*this);
-        auto t2 = type_;
-        if (t1 == DataType::None || t2 == DataType::None) {
-            type_ = DataType::None;
-        } else if ((t1 == DataType::ClassicalBit ||
-                    t1 == DataType::ClassicalRegister) &&
-                   (t2 == DataType::ClassicalBit ||
-                    t2 == DataType::ClassicalRegister)) {
-            type_ = DataType::ClassicalRegister;
-        } else if (is_quantum(t1) && is_quantum(t2)) {
-            type_ = DataType::QuantumRegister;
+            type_ = NONE;
+        } else if (std::holds_alternative<ExprType>(*entry)) {
+            type_ = std::get<ExprType>(*entry);
+            indexid.foreach_index_op([this](IndexOp& op) { op.accept(*this); });
         } else {
-            std::cerr << c.pos()
-                      << ": error : concatenation of classical and quantum "
-                         "register\n";
+            std::cerr << indexid.pos() << ": error : identifier \""
+                      << indexid.var() << "\" is not an expression\n";
             error_ = true;
-            type_ = DataType::None;
+            type_ = NONE;
         }
     }
     // Types
     void visit(SingleDesignatorType& type) override {
         switch (type.type()) {
             case SDType::Int:
-                type_ = DataType::Int;
+                type_ = StdType::Int;
                 break;
             case SDType::Uint:
-                type_ = DataType::Int;
+                type_ = StdType::Int;
                 break;
             case SDType::Float:
-                type_ = DataType::Float;
+                type_ = StdType::Float;
                 break;
             case SDType::Angle:
-                type_ = DataType::Angle;
+                type_ = StdType::Angle;
                 break;
         }
     }
     void visit(NoDesignatorType& type) override {
         switch (type.type()) {
             case NDType::Bool:
-                type_ = DataType::Bool;
+                type_ = StdType::Bool;
                 break;
             case NDType::Duration:
-                type_ = DataType::Duration;
+                type_ = StdType::Duration;
                 break;
             case NDType::Stretch:
-                type_ = DataType::Duration;
+                type_ = StdType::Duration;
                 break;
         }
     }
     void visit(BitType& type) override {
         if (type.size()) {
-            type_ = DataType::ClassicalRegister;
+            type_ = CREG;
         } else {
-            type_ = DataType::ClassicalBit;
+            type_ = StdType::ClassicalBit;
         }
     }
-    void visit(ComplexType& type) override { type_ = DataType::Complex; }
+    void visit(ComplexType& type) override { type_ = StdType::Complex; }
+    void visit(ArrayType& type) override {
+        type.subtype().accept(*this);
+        if (std::holds_alternative<StdType>(type_)) {
+            type_ = ArrType{std::get<StdType>(type_), type.dims()};
+        } else {
+            std::cerr << type.pos()
+                      << ": error : invalid array subtype : " << type_ << "\n";
+            error_ = true;
+            type_ = NONE;
+        }
+    }
+    void visit(ArrayRefType& type) override {
+        int d;
+        std::visit(utils::overloaded{
+                       [&d](std::vector<ptr<Expr>>& dims) { d = dims.size(); },
+                       [&d](ptr<Expr>& dims) {
+                           auto expr = dynamic_cast<IntExpr*>(dims.get());
+                           d = expr->value();
+                       }},
+                   type.dims());
+        type.subtype().accept(*this);
+        if (std::holds_alternative<StdType>(type_)) {
+            type_ = ArrType{std::get<StdType>(type_), d, type.is_mutable()};
+        } else {
+            std::cerr << type.pos()
+                      << ": error : invalid array subtype : " << type_ << "\n";
+            error_ = true;
+            type_ = NONE;
+        }
+    }
     void visit(QubitType& type) override {
         if (type.size()) {
-            type_ = DataType::QuantumRegister;
+            type_ = QREG;
         } else {
-            type_ = DataType::QuantumBit;
+            type_ = StdType::QuantumBit;
         }
     }
     // Expressions
@@ -1296,16 +1505,16 @@ class TypeChecker final : public Visitor {
         switch (exp.op()) {
             case BinaryOp::LogicalOr:
             case BinaryOp::LogicalAnd:
-                if (is_castable(t1, DataType::Bool) &&
-                    is_castable(t2, DataType::Bool)) {
-                    type_ = DataType::Bool;
+                if (general_castable(t1, StdType::Bool) &&
+                    general_castable(t2, StdType::Bool)) {
+                    type_ = StdType::Bool;
                     return;
                 }
                 break;
             case BinaryOp::BitOr:
             case BinaryOp::XOr:
             case BinaryOp::BitAnd:
-                if (is_castable(t1, DataType::ClassicalRegister) && t1 == t2) {
+                if (general_castable(t1, CREG) && is_same(t1, t2)) {
                     type_ = t1;
                     return;
                 }
@@ -1316,18 +1525,18 @@ class TypeChecker final : public Visitor {
             case BinaryOp::LT:
             case BinaryOp::GTE:
             case BinaryOp::LTE:
-                if ((is_castable(t1, DataType::ClassicalRegister) ||
-                     t1 == DataType::Float) &&
-                    (is_castable(t2, DataType::ClassicalRegister) ||
-                     t2 == DataType::Float)) {
-                    type_ = DataType::Bool;
+                if ((general_castable(t1, CREG) ||
+                     is_same(t1, StdType::Float)) &&
+                    (general_castable(t2, CREG) ||
+                     is_same(t2, StdType::Float))) {
+                    type_ = StdType::Bool;
                     return;
                 }
                 break;
             case BinaryOp::LeftBitShift:
             case BinaryOp::RightBitShift: {
-                if (is_castable(t1, DataType::ClassicalRegister) &&
-                    is_castable(t2, DataType::Int)) {
+                if (general_castable(t1, CREG) &&
+                    general_castable(t2, StdType::Int)) {
                     type_ = t1;
                     return;
                 }
@@ -1335,8 +1544,9 @@ class TypeChecker final : public Visitor {
             }
             case BinaryOp::Plus:
             case BinaryOp::Minus:
-                if (t1 == DataType::Duration && t2 == DataType::Duration) {
-                    type_ = DataType::Duration;
+                if (is_same(t1, StdType::Duration) &&
+                    is_same(t2, StdType::Duration)) {
+                    type_ = StdType::Duration;
                     return;
                 } else if (is_numeric_subtype(t1, t2)) {
                     type_ = t2;
@@ -1348,19 +1558,19 @@ class TypeChecker final : public Visitor {
                 break;
             case BinaryOp::Times:
             case BinaryOp::Divide:
-                if (t1 == DataType::Duration &&
-                    is_numeric_subtype(t2, DataType::Float)) {
-                    type_ = DataType::Duration;
+                if (is_same(t1, StdType::Duration) &&
+                    is_numeric_subtype(t2, StdType::Float)) {
+                    type_ = StdType::Duration;
                     return;
                 } else if (exp.op() == BinaryOp::Times &&
-                           t2 == DataType::Duration &&
-                           is_numeric_subtype(t1, DataType::Float)) {
-                    type_ = DataType::Duration;
+                           is_same(t2, StdType::Duration) &&
+                           is_numeric_subtype(t1, StdType::Float)) {
+                    type_ = StdType::Duration;
                     return;
                 } else if (exp.op() == BinaryOp::Divide &&
-                           t1 == DataType::Duration &&
-                           t2 == DataType::Duration) {
-                    type_ = DataType::Float;
+                           is_same(t1, StdType::Duration) &&
+                           is_same(t2, StdType::Duration)) {
+                    type_ = StdType::Float;
                     return;
                 } else if (is_numeric_subtype(t1, t2)) {
                     type_ = t2;
@@ -1371,9 +1581,9 @@ class TypeChecker final : public Visitor {
                 }
                 break;
             case BinaryOp::Mod:
-                if (is_castable(t1, DataType::Int) &&
-                    is_castable(t2, DataType::Int)) {
-                    type_ = DataType::Int;
+                if (general_castable(t1, StdType::Int) &&
+                    general_castable(t2, StdType::Int)) {
+                    type_ = StdType::Int;
                     return;
                 }
                 break;
@@ -1388,24 +1598,24 @@ class TypeChecker final : public Visitor {
                   << ": error : invalid operands to binary operator "
                   << exp.op() << " : '" << t1 << "' and '" << t2 << "' \n";
         error_ = true;
-        type_ = DataType::None;
+        type_ = NONE;
     }
     void visit(UExpr& exp) override {
         exp.subexp().accept(*this);
         switch (exp.op()) {
             case UnaryOp::BitNot:
-                if (is_castable(type_, DataType::ClassicalRegister)) {
+                if (general_castable(type_, CREG)) {
                     return; // type of ~x is same as type of x
                 }
                 break;
             case UnaryOp::LogicalNot:
-                if (is_castable(type_, DataType::Bool)) {
-                    type_ = DataType::Bool;
+                if (general_castable(type_, StdType::Bool)) {
+                    type_ = StdType::Bool;
                     return;
                 }
                 break;
             case UnaryOp::Neg:
-                if (is_numeric_subtype(type_, DataType::Complex)) {
+                if (is_numeric_subtype(type_, StdType::Complex)) {
                     return; // type of -x is same as type of x
                 }
                 break;
@@ -1413,7 +1623,7 @@ class TypeChecker final : public Visitor {
         std::cerr << exp.pos() << ": error : invalid operand to unary operator "
                   << exp.op() << " : '" << type_ << "' \n";
         error_ = true;
-        type_ = DataType::None;
+        type_ = NONE;
     }
     void visit(MathExpr& exp) override {
         switch (exp.op()) {
@@ -1431,11 +1641,11 @@ class TypeChecker final : public Visitor {
                               << " expects one argument, but got "
                               << exp.num_args() << "\n";
                     error_ = true;
-                    type_ = DataType::None;
+                    type_ = NONE;
                     return;
                 }
                 visit_numeric_expr(exp.arg(0));
-                type_ = DataType::Float; // assume we accept & return float
+                type_ = StdType::Float; // assume we accept & return float
                 break;
             case MathOp::Rotl:
             case MathOp::Rotr:
@@ -1444,12 +1654,12 @@ class TypeChecker final : public Visitor {
                               << " expects two arguments, but got "
                               << exp.num_args() << "\n";
                     error_ = true;
-                    type_ = DataType::None;
+                    type_ = NONE;
                     return;
                 }
-                visit_classical_expr(exp.arg(0), DataType::ClassicalRegister);
-                visit_classical_expr(exp.arg(1), DataType::Int);
-                type_ = DataType::ClassicalRegister;
+                visit_classical_expr(exp.arg(0), CREG);
+                visit_classical_expr(exp.arg(1), StdType::Int);
+                type_ = CREG;
                 break;
             case MathOp::Popcount:
                 if (exp.num_args() != 1) {
@@ -1457,11 +1667,11 @@ class TypeChecker final : public Visitor {
                               << " expects one argument, but got "
                               << exp.num_args() << "\n";
                     error_ = true;
-                    type_ = DataType::None;
+                    type_ = NONE;
                     return;
                 }
-                visit_classical_expr(exp.arg(0), DataType::ClassicalRegister);
-                type_ = DataType::Int;
+                visit_classical_expr(exp.arg(0), CREG);
+                type_ = StdType::Int;
                 break;
         }
     }
@@ -1469,12 +1679,25 @@ class TypeChecker final : public Visitor {
         exp.type().accept(*this);
         auto tmp = type_;
         exp.subexp().accept(*this);
-        if (!is_castable(type_, tmp)) {
+        if (!general_castable(type_, tmp)) {
             std::cerr << exp.pos() << ": error : cannot cast '" << type_
                       << "' to '" << tmp << "' \n";
             error_ = true;
         }
         type_ = tmp;
+    }
+    void visit(SizeofExpr& exp) override {
+        if (exp.dim()) {
+            visit_classical_expr(**exp.dim(), StdType::Int);
+        }
+        exp.arr().accept(*this);
+        if (!std::holds_alternative<ArrType>(type_)) {
+            std::cerr << exp.pos()
+                      << ": error : sizeof() expexts array type, but got '"
+                      << type_ << "' \n";
+            error_ = true;
+        }
+        type_ = StdType::Int;
     }
     void visit(FunctionCall& exp) override {
         auto entry = lookup(exp.name());
@@ -1482,7 +1705,7 @@ class TypeChecker final : public Visitor {
             std::cerr << exp.pos() << ": error : undefined identifier \""
                       << exp.name() << "\"\n";
             error_ = true;
-            type_ = DataType::None;
+            type_ = NONE;
         } else if (std::holds_alternative<SubroutineType>(*entry)) {
             auto subrtn_type = std::get<SubroutineType>(*entry);
             if (subrtn_type.param_types.size() != exp.num_args()) {
@@ -1494,7 +1717,7 @@ class TypeChecker final : public Visitor {
             } else {
                 for (int i = 0; i < exp.num_args(); i++) {
                     exp.arg(i).accept(*this);
-                    if (!is_castable(type_, subrtn_type.param_types[i])) {
+                    if (!general_castable(type_, subrtn_type.param_types[i])) {
                         std::cerr << exp.pos() << ": error : argument " << i
                                   << " is the wrong type : expected '"
                                   << subrtn_type.param_types[i] << "', got '"
@@ -1508,54 +1731,56 @@ class TypeChecker final : public Visitor {
             std::cerr << exp.pos() << ": error : identifier \"" << exp.name()
                       << "\" is not a subroutine\n";
             error_ = true;
-            type_ = DataType::None;
+            type_ = NONE;
         }
     }
     void visit(AccessExpr& exp) override {
         exp.exp().accept(*this);
-        auto tmp = type_;
-        visit_classical_expr(exp.index(), DataType::Int);
-        switch (tmp) {
-            case DataType::Int: // apparently allowed (see adder.qasm)
-            case DataType::ClassicalRegister:
-                type_ = DataType::ClassicalBit;
-                break;
-            case DataType::QuantumRegister:
-                type_ = DataType::QuantumBit;
-                break;
-            default:
-                std::cerr << exp.pos() << ": error : expression of type '"
-                          << tmp << "' cannot be indexed\n";
-                error_ = true;
-                type_ = DataType::None;
-                break;
-        }
+        exp.index_op().accept(*this);
     }
-    void visit(ConstantExpr&) override { type_ = DataType::Float; }
-    void visit(IntExpr&) override { type_ = DataType::Int; }
-    void visit(RealExpr&) override { type_ = DataType::Float; }
-    void visit(ImagExpr&) override { type_ = DataType::Complex; }
-    void visit(BoolExpr&) override { type_ = DataType::Bool; }
+    void visit(ConstantExpr&) override { type_ = StdType::Float; }
+    void visit(IntExpr&) override { type_ = StdType::Int; }
+    void visit(RealExpr&) override { type_ = StdType::Float; }
+    void visit(ImagExpr&) override { type_ = StdType::Complex; }
+    void visit(BoolExpr&) override { type_ = StdType::Bool; }
     void visit(VarExpr& exp) override {
         auto entry = lookup(exp.var());
         if (!entry) {
             std::cerr << exp.pos() << ": error : undefined identifier \""
                       << exp.var() << "\"\n";
             error_ = true;
-            type_ = DataType::None;
-        } else if (std::holds_alternative<DataType>(*entry)) {
-            type_ = std::get<DataType>(*entry);
+            type_ = NONE;
+        } else if (std::holds_alternative<ExprType>(*entry)) {
+            type_ = std::get<ExprType>(*entry);
         } else {
             std::cerr << exp.pos() << ": error : invalid expression \""
                       << exp.var() << "\"\n";
             error_ = true;
-            type_ = DataType::None;
+            type_ = NONE;
         }
     }
-    void visit(StringExpr&) override {
-        type_ = DataType::ClassicalRegister; // assume string of 0s and 1s
+    void visit(BitString&) override { type_ = CREG; }
+    void visit(ArrayInitExpr& exp) override {
+        int size = exp.size();
+        if (size == 0) {
+            std::cerr << exp.pos() << ": error : empty array initializer\n";
+            error_ = true;
+            type_ = NONE;
+        } else {
+            exp.at(0).accept(*this);
+            auto subtype = type_;
+            for (int i = 1; i < size; i++) {
+                visit_classical_expr(exp.at(i), subtype);
+            }
+            if (std::holds_alternative<StdType>(subtype)) {
+                type_ = ArrType{std::get<StdType>(subtype), 1};
+            } else if (std::holds_alternative<ArrType>(subtype)) {
+                auto t = std::get<ArrType>(subtype);
+                type_ = ArrType{t.subtype, t.dims + 1};
+            }
+        }
     }
-    void visit(TimeExpr&) override { type_ = DataType::Duration; }
+    void visit(TimeExpr&) override { type_ = StdType::Duration; }
     void visit(DurationGateExpr& exp) override {
         auto entry = lookup(exp.gate());
         if (!entry) {
@@ -1567,13 +1792,13 @@ class TypeChecker final : public Visitor {
                       << "\" is not a gate\n";
             error_ = true;
         }
-        type_ = DataType::Duration;
+        type_ = StdType::Duration;
     }
     void visit(DurationBlockExpr& exp) override {
         push_scope();
         exp.block().accept(*this);
         pop_scope();
-        type_ = DataType::Duration;
+        type_ = StdType::Duration;
     }
     // Statement components
     void visit(QuantumMeasurement& msmt) override {
@@ -1590,23 +1815,23 @@ class TypeChecker final : public Visitor {
     void visit(MeasureAsgnStmt& stmt) override {
         stmt.measurement().accept(*this);
         stmt.c_arg().accept(*this);
-        if (type_ != DataType::ClassicalBit &&
-            type_ != DataType::ClassicalRegister) {
+        if (!is_classical_bit(type_)) {
             std::cerr << stmt.c_arg().pos()
                       << ": error : expected classical register : \""
                       << stmt.c_arg() << "\"\n";
             error_ = true;
         }
+        check_mutable(stmt.c_arg());
     }
     void visit(ExprStmt& stmt) override { stmt.exp().accept(*this); }
     void visit(ResetStmt& stmt) override {
-        stmt.foreach_arg([this](IndexId& arg) { visit_quantum_indexid(arg); });
+        visit_quantum_indexid(stmt.q_arg());
     }
     void visit(BarrierStmt& stmt) override {
         stmt.foreach_arg([this](IndexId& arg) { visit_quantum_indexid(arg); });
     }
     void visit(IfStmt& stmt) override {
-        visit_classical_expr(stmt.cond(), DataType::Bool);
+        visit_classical_expr(stmt.cond(), StdType::Bool);
 
         push_scope();
         stmt.then().accept(*this);
@@ -1640,13 +1865,11 @@ class TypeChecker final : public Visitor {
             utils::overloaded{
                 [this](ptr<QuantumMeasurement>& qm) {
                     qm->accept(*this);
-                    if (!is_castable(DataType::ClassicalRegister,
-                                     *return_type_)) {
+                    if (!general_castable(CREG, *return_type_)) {
                         std::cerr
                             << qm->pos()
                             << ": error : incompatible return type : expected '"
-                            << *return_type_ << "', got '"
-                            << DataType::ClassicalRegister << "'\n";
+                            << *return_type_ << "', got '" << CREG << "'\n";
                         error_ = true;
                     }
                 },
@@ -1654,7 +1877,7 @@ class TypeChecker final : public Visitor {
                     visit_classical_expr(*exp, *return_type_);
                 },
                 [this, &stmt](auto) {
-                    if (*return_type_ != DataType::None) {
+                    if (!std::holds_alternative<NoneType>(*return_type_)) {
                         std::cerr << stmt.pos()
                                   << ": error : non-void subroutine "
                                      "should return a value\n";
@@ -1671,11 +1894,26 @@ class TypeChecker final : public Visitor {
         }
     }
     void visit(AliasStmt& stmt) override {
-        visit_quantum_indexid(stmt.qreg());
+        stmt.foreach_reg([this](Expr& reg) {
+            reg.accept(*this);
+            if (!is_quantum(type_)) {
+                std::cerr << reg.pos() << ": error : expected quantum type\n";
+                error_ = true;
+            }
+        });
         set(stmt.alias(), type_, stmt.pos());
     }
     void visit(AssignmentStmt& stmt) override {
-        /* first, replace 'x [op]= y' with 'x = x [op] y' */
+        stmt.lval().accept(*this);
+        auto tmp = type_;
+        if (!is_classical(tmp)) {
+            std::cerr << stmt.pos() << ": error : expected classical type\n";
+            error_ = true;
+            type_ = NONE;
+            return;
+        }
+        check_mutable(stmt.lval());
+        /* replace 'x [op]= y' with 'x = x [op] y' */
         if (stmt.op() != AssignOp::Equals) {
             BinaryOp bop;
             switch (stmt.op()) {
@@ -1720,46 +1958,16 @@ class TypeChecker final : public Visitor {
                     return;
                 default:;
             }
-            auto lexp = ptr<Expr>(new VarExpr(stmt.pos(), stmt.var()));
-            if (stmt.index()) {
-                lexp = ptr<Expr>(new AccessExpr(stmt.pos(), std::move(lexp),
-                                                object::clone(**stmt.index())));
-            }
+            auto lexp = ptr<Expr>(new VarExpr(stmt.pos(), stmt.lval().var()));
+            stmt.lval().foreach_index_op([this, &lexp](IndexOp& op) {
+                lexp = ptr<Expr>(
+                    new AccessExpr({}, std::move(lexp), object::clone(op)));
+            });
             stmt.set_exp(ptr<Expr>(new BExpr(stmt.pos(), std::move(lexp), bop,
                                              object::clone(stmt.exp()))));
             stmt.set_op(AssignOp::Equals);
         }
-        auto entry = lookup(stmt.var());
-        if (!entry) {
-            std::cerr << stmt.pos() << ": error : undefined identifier \""
-                      << stmt.var() << "\"\n";
-            error_ = true;
-        } else if (!std::holds_alternative<DataType>(*entry)) {
-            std::cerr << stmt.pos() << ": error : identifier \"" << stmt.var()
-                      << "\" is not a classical type\n";
-            error_ = true;
-        } else {
-            DataType type = std::get<DataType>(*entry);
-            if (is_quantum(type)) {
-                std::cerr << stmt.pos() << ": error : identifier \""
-                          << stmt.var() << "\" is not a classical type\n";
-                error_ = true;
-                return;
-            }
-            if (stmt.index()) {
-                visit_optional_classical_expr(stmt.index(), DataType::Int);
-                if (type != DataType::ClassicalRegister) {
-                    std::cerr << stmt.pos() << ": error : identifier \""
-                              << stmt.var()
-                              << "\" cannot be indexed because it is not a "
-                                 "classical register type\n";
-                    error_ = true;
-                    return;
-                }
-                type = DataType::ClassicalBit;
-            }
-            visit_classical_expr(stmt.exp(), type);
-        }
+        visit_classical_expr(stmt.exp(), tmp);
     }
     void visit(PragmaStmt& stmt) override {
         push_scope();
@@ -1777,7 +1985,7 @@ class TypeChecker final : public Visitor {
     }
     void visit(InvModifier&) override {}
     void visit(PowModifier& mod) override {
-        visit_classical_expr(mod.r(), DataType::Float);
+        visit_classical_expr(mod.r(), StdType::Float);
     }
     void visit(UGate& gate) override {
         int total_control_bits = 0;
@@ -1873,13 +2081,13 @@ class TypeChecker final : public Visitor {
     }
     // Loops
     void visit(RangeSet& set) override {
-        visit_optional_classical_expr(set.start(), DataType::Int);
-        visit_optional_classical_expr(set.step(), DataType::Int);
-        visit_optional_classical_expr(set.stop(), DataType::Int);
+        visit_optional_classical_expr(set.start(), StdType::Int);
+        visit_optional_classical_expr(set.step(), StdType::Int);
+        visit_optional_classical_expr(set.stop(), StdType::Int);
     }
     void visit(ListSet& set) override {
         for (auto& index : set.indices()) {
-            visit_classical_expr(*index, DataType::Int);
+            visit_classical_expr(*index, StdType::Int);
         }
     }
     void visit(VarSet& vs) override {
@@ -1888,9 +2096,16 @@ class TypeChecker final : public Visitor {
             std::cerr << vs.pos() << ": error : undefined identifier \""
                       << vs.var() << "\"\n";
             error_ = true;
+        } else if (std::holds_alternative<ExprType>(*entry)) {
+            if (!is_same(std::get<ExprType>(*entry),
+                         ArrType{StdType::Int, 1})) {
+                std::cerr << vs.pos() << ": error : identifier \"" << vs.var()
+                          << "\" is not of type array[int, #dim = 1]\n";
+                error_ = true;
+            }
         } else {
-            std::cerr << vs.pos() << ": error : looping over identifier \""
-                      << vs.var() << "\" is not supported\n";
+            std::cerr << vs.pos() << ": error : cannot loop over identifier \""
+                      << vs.var() << "\"\n";
             error_ = true;
         }
     }
@@ -1901,14 +2116,14 @@ class TypeChecker final : public Visitor {
         in_loop_ = true;
 
         push_scope();
-        set(stmt.var(), DataType::Int, stmt.pos());
+        set(stmt.var(), StdType::Int, stmt.pos());
         stmt.body().accept(*this);
         pop_scope();
 
         in_loop_ = was_in_loop;
     }
     void visit(WhileStmt& stmt) override {
-        visit_classical_expr(stmt.cond(), DataType::Bool);
+        visit_classical_expr(stmt.cond(), StdType::Bool);
 
         bool was_in_loop = in_loop_;
         in_loop_ = true;
@@ -1926,14 +2141,14 @@ class TypeChecker final : public Visitor {
         in_loop_ = true;
 
         push_scope();
-        set(stmt.var(), DataType::Int, stmt.pos());
+        set(stmt.var(), StdType::Int, stmt.pos());
         stmt.body().accept(*this);
         pop_scope();
 
         in_loop_ = was_in_loop;
     }
     void visit(QuantumWhileStmt& stmt) override {
-        visit_classical_expr(stmt.cond(), DataType::Bool);
+        visit_classical_expr(stmt.cond(), StdType::Bool);
 
         bool was_in_loop = in_loop_;
         in_loop_ = true;
@@ -1947,24 +2162,24 @@ class TypeChecker final : public Visitor {
     // Timing Statements
     void visit(DelayStmt& delay) override {
         for (int i = 0; i < delay.num_cargs(); i++) {
-            visit_classical_expr(delay.carg(i), DataType::Float);
+            visit_classical_expr(delay.carg(i), StdType::Float);
         }
-        visit_classical_expr(delay.duration(), DataType::Duration);
+        visit_classical_expr(delay.duration(), StdType::Duration);
         for (int i = 0; i < delay.num_qargs(); i++) {
             visit_quantum_indexid(delay.qarg(i));
         }
     }
     void visit(RotaryStmt& rotary) override {
         for (int i = 0; i < rotary.num_cargs(); i++) {
-            visit_classical_expr(rotary.carg(i), DataType::Float);
+            visit_classical_expr(rotary.carg(i), StdType::Float);
         }
-        visit_classical_expr(rotary.duration(), DataType::Duration);
+        visit_classical_expr(rotary.duration(), StdType::Duration);
         for (int i = 0; i < rotary.num_qargs(); i++) {
             visit_quantum_indexid(rotary.qarg(i));
         }
     }
     void visit(BoxStmt& box) override {
-        visit_optional_classical_expr(box.duration(), DataType::Duration);
+        visit_optional_classical_expr(box.duration(), StdType::Duration);
         push_scope();
         box.circuit().accept(*this);
         pop_scope();
@@ -1974,7 +2189,7 @@ class TypeChecker final : public Visitor {
     void visit(QuantumParam& param) override { param.type().accept(*this); }
     void visit(SubroutineDecl& decl) override {
         // function signature
-        std::vector<DataType> param_types;
+        std::vector<ExprType> param_types;
         std::vector<symbol> param_names;
         for (auto& param : decl.params()) {
             param->accept(*this);
@@ -1983,7 +2198,7 @@ class TypeChecker final : public Visitor {
         }
 
         // return type
-        type_ = DataType::None;
+        type_ = NONE;
         if (decl.return_type()) {
             (**decl.return_type()).accept(*this);
         }
@@ -2004,14 +2219,14 @@ class TypeChecker final : public Visitor {
         return_type_ = std::nullopt;
     }
     void visit(ExternDecl& decl) override {
-        std::vector<DataType> param_types;
+        std::vector<ExprType> param_types;
 
         for (auto& type : decl.param_types()) {
             type->accept(*this);
             param_types.push_back(type_);
         }
 
-        type_ = DataType::None;
+        type_ = NONE;
         if (decl.return_type()) {
             (**decl.return_type()).accept(*this);
         }
@@ -2022,10 +2237,10 @@ class TypeChecker final : public Visitor {
         push_scope();
 
         for (const ast::symbol& param : decl.c_params()) {
-            set(param, DataType::Float, decl.pos());
+            set(param, StdType::Float, decl.pos());
         }
         for (const ast::symbol& param : decl.q_params()) {
-            set(param, DataType::QuantumBit, decl.pos());
+            set(param, StdType::QuantumBit, decl.pos());
         }
         decl.body().accept(*this);
 
@@ -2043,11 +2258,12 @@ class TypeChecker final : public Visitor {
     void visit(ClassicalDecl& decl) override {
         if (decl.is_const()) {
             // assume constants have already been substituted
-            set(decl.id(), DataType::None, decl.pos());
+            set(decl.id(), NONE, decl.pos());
         } else {
             decl.type().accept(*this);
-            set(decl.id(), type_, decl.pos());
-            visit_optional_classical_expr(decl.equalsexp(), type_);
+            auto tmp = type_;
+            set(decl.id(), tmp, decl.pos());
+            visit_optional_classical_expr(decl.equalsexp(), tmp);
         }
     }
     void visit(CalGrammarDecl&) override {}
@@ -2060,13 +2276,17 @@ class TypeChecker final : public Visitor {
     }
 
   private:
+    const NoneType NONE{};
+    const ArrType CREG{StdType::ClassicalBit, 1};
+    const ArrType QREG{StdType::QuantumBit, 1};
+
     bool error_ = false;   ///< whether errors have occurred
     bool in_loop_ = false; ///< whether we are in the body of a loop
     int control_bits_ = 0; ///< number of control bits from control modifiers
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
-        {}};                         ///< a stack of symbol tables
-    DataType type_ = DataType::None; ///< type of current expression
-    std::optional<DataType> return_type_ =
+        {}};               ///< a stack of symbol tables
+    ExprType type_ = NONE; ///< type of current expression
+    std::optional<ExprType> return_type_ =
         std::nullopt; ///< return type of subroutine
 
     /**
@@ -2138,9 +2358,9 @@ class TypeChecker final : public Visitor {
      * \param exp Reference to the expression
      * \param expected_type Expected type of the expression
      */
-    void visit_classical_expr(Expr& exp, DataType expected_type) {
+    void visit_classical_expr(Expr& exp, const ExprType& expected_type) {
         exp.accept(*this);
-        if (!is_castable(type_, expected_type)) {
+        if (!general_castable(type_, expected_type)) {
             std::cerr << exp.pos() << ": error : expected '" << expected_type
                       << "' type, but got '" << type_ << "' type : \"" << exp
                       << "\"\n";
@@ -2155,7 +2375,7 @@ class TypeChecker final : public Visitor {
      * \param expected_type Expected type of the expression
      */
     void visit_optional_classical_expr(std::optional<ptr<Expr>>& exp,
-                                       const DataType& expected_type) {
+                                       const ExprType& expected_type) {
         if (exp)
             visit_classical_expr(**exp, expected_type);
     }
@@ -2167,13 +2387,14 @@ class TypeChecker final : public Visitor {
      */
     void visit_numeric_expr(Expr& exp) {
         exp.accept(*this);
-        if (type_ != DataType::Int && type_ != DataType::Float &&
-            type_ != DataType::Angle) {
-            std::cerr << exp.pos()
-                      << ": error : expected numeric type, but got '" << type_
-                      << "' type : \"" << exp << "\"\n";
-            error_ = true;
+        if (std::holds_alternative<StdType>(type_)) {
+            auto t = std::get<StdType>(type_);
+            if (t == StdType::Int || t == StdType::Float || t == StdType::Angle)
+                return;
         }
+        std::cerr << exp.pos() << ": error : expected numeric type, but got '"
+                  << type_ << "' type : \"" << exp << "\"\n";
+        error_ = true;
     }
 
     /**
@@ -2188,6 +2409,25 @@ class TypeChecker final : public Visitor {
                       << ": error : expected quantum type, but got '" << type_
                       << "' type : \"" << indexid << "\"\n";
             error_ = true;
+        }
+    }
+
+    /**
+     * \brief Check that an lvalue is mutable
+     *
+     * \param indexid Reference to the lvalue
+     */
+    void check_mutable(IndexId& lval) {
+        auto entry = lookup(lval.var());
+        if (entry && std::holds_alternative<ExprType>(*entry)) {
+            auto tmp = std::get<ExprType>(*entry);
+            if (std::holds_alternative<ArrType>(tmp)) {
+                if (!std::get<ArrType>(tmp).is_mutable) {
+                    std::cerr << lval.pos() << ": error : lvalue '"
+                              << lval.var() << "' must be mutable\n";
+                    error_ = true;
+                }
+            }
         }
     }
 };

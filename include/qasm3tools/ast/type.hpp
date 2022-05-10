@@ -131,8 +131,9 @@ class SingleDesignatorType : public NonArrayType {
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<SingleDesignatorType> create(parser::Position pos, SDType type,
-                                            std::optional<ptr<Expr>>&& size = std::nullopt) {
+    static ptr<SingleDesignatorType>
+    create(parser::Position pos, SDType type,
+           std::optional<ptr<Expr>>&& size = std::nullopt) {
         return std::make_unique<SingleDesignatorType>(pos, type,
                                                       std::move(size));
     }
@@ -153,7 +154,7 @@ class SingleDesignatorType : public NonArrayType {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << type_ ;
+        os << type_;
         if (size_)
             os << "[" << **size_ << "]";
         return os;
@@ -344,16 +345,32 @@ class ArrayType : public ClassicalType {
     NonArrayType& subtype() { return *subtype_; }
 
     /**
-     * \brief Get the dimension specification
+     * \brief Get the number of dimensions
      *
-     * \return Reference to the dimension specification
+     * \return The number of dimensions
      */
-    std::vector<ptr<Expr>>& dims() { return dims_; }
+    int dims() const { return static_cast<int>(dims_.size()); }
+
+    /**
+     * \brief Get the ith dimension size
+     *
+     * \param i The number of the dimension, 0-indexed
+     * \return Reference to an expression
+     */
+    Expr& dim(int i) { return *(dims_[i]); }
+
+    /**
+     * \brief Set the ith dimension size
+     *
+     * \param i The number of the dimension, 0-indexed
+     * \param expr An expression giving the new dimension size
+     */
+    void set_dim(int i, ptr<Expr> expr) { dims_[i] = std::move(expr); }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "array[" << *subtype_;
-        for (auto& dim: dims_)
+        for (auto& dim : dims_)
             os << ", " << *dim;
         os << "]";
         return os;
@@ -362,7 +379,7 @@ class ArrayType : public ClassicalType {
   protected:
     ArrayType* clone() const override {
         std::vector<ptr<Expr>> tmp;
-        for (auto& dim: dims_)
+        for (auto& dim : dims_)
             tmp.emplace_back(object::clone(*dim));
         return new ArrayType(pos_, object::clone(*subtype_), std::move(tmp));
     }
@@ -378,8 +395,8 @@ class ArrayRefType : public ClassicalType {
      * Expr = we only know the number of dimensions, not the sizes
      */
     using Dimensions = std::variant<std::vector<ptr<Expr>>, ptr<Expr>>;
-    Dimensions dims_;           ///< dimension specification
-    bool is_mutable_;           ///< Whether the array reference is mutable
+    Dimensions dims_; ///< dimension specification
+    bool is_mutable_; ///< Whether the array reference is mutable
 
   public:
     /**
@@ -426,8 +443,8 @@ class ArrayRefType : public ClassicalType {
     std::ostream& pretty_print(std::ostream& os) const override {
         os << (is_mutable_ ? "mutable" : "const") << " array[" << *subtype_;
         std::visit(utils::overloaded{[&os](const std::vector<ptr<Expr>>& dims) {
-                                         for (auto& dim: dims)
-                                            os << ", " << *dim;
+                                         for (auto& dim : dims)
+                                             os << ", " << *dim;
                                      },
                                      [&os](const ptr<Expr>& dims) {
                                          os << ", #dim = " << *dims;
@@ -440,17 +457,16 @@ class ArrayRefType : public ClassicalType {
   protected:
     ArrayRefType* clone() const override {
         Dimensions dims_copy = std::vector<ptr<Expr>>();
-        std::visit(
-            utils::overloaded{
-                [&dims_copy](const std::vector<ptr<Expr>>& dims) {
-                    for (auto& dim: dims)
-                        std::get<std::vector<ptr<Expr>>>(
-                            dims_copy).emplace_back(object::clone(*dim));
-                },
-                [&dims_copy](const ptr<Expr>& dims) {
-                    dims_copy = object::clone(*dims);
-                }},
-            dims_);
+        std::visit(utils::overloaded{
+                       [&dims_copy](const std::vector<ptr<Expr>>& dims) {
+                           for (auto& dim : dims)
+                               std::get<std::vector<ptr<Expr>>>(dims_copy)
+                                   .emplace_back(object::clone(*dim));
+                       },
+                       [&dims_copy](const ptr<Expr>& dims) {
+                           dims_copy = object::clone(*dims);
+                       }},
+                   dims_);
         return new ArrayRefType(pos_, object::clone(*subtype_),
                                 std::move(dims_copy), is_mutable_);
     }

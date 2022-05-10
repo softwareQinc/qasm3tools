@@ -50,11 +50,18 @@ class IndexOp : public ASTNode {
     virtual ~IndexOp() = default;
 
     /**
-     * \brief Get the number of slices (i.e. not single indices)
+     * \brief Get the number of single indices (i.e. non-slices) in the access
      *
-     * return The number of slices
+     * return The number of single indices
      */
-    virtual int num_slices() const = 0;
+    virtual int num_single_indices() const = 0;
+
+    /**
+     * \brief Get the number of index entities in the access
+     *
+     * return The number of index entities
+     */
+    virtual int num_index_entities() const = 0;
 
   protected:
     virtual IndexOp* clone() const = 0;
@@ -240,14 +247,15 @@ class IndexEntityList : public IndexOp {
      * \param pos The source position
      * \param indices The list of index entities
      */
-    IndexEntityList(parser::Position pos, std::vector<ptr<IndexEntity>>&& indices)
+    IndexEntityList(parser::Position pos,
+                    std::vector<ptr<IndexEntity>>&& indices)
         : IndexOp(pos), indices_(std::move(indices)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<IndexEntityList> create(parser::Position pos,
-                                       std::vector<ptr<IndexEntity>>&& indices) {
+    static ptr<IndexEntityList>
+    create(parser::Position pos, std::vector<ptr<IndexEntity>>&& indices) {
         return std::make_unique<IndexEntityList>(pos, std::move(indices));
     }
 
@@ -258,13 +266,24 @@ class IndexEntityList : public IndexOp {
      */
     std::vector<ptr<IndexEntity>>& indices() { return indices_; }
 
-    int num_slices() const override {
+    int num_single_indices() const override {
         int ans = 0;
         for (auto& index : indices_) {
-            if (!index->is_single_index())
+            if (index->is_single_index())
                 ++ans;
         }
         return ans;
+    }
+    int num_index_entities() const override { return indices_.size(); }
+
+    /**
+     * \brief Apply a function to each index entity
+     *
+     * \param f Void function accepting a reference to the index entity
+     */
+    void foreach_index(std::function<void(IndexEntity&)> f) {
+        for (auto& x : indices_)
+            f(*x);
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -317,7 +336,8 @@ class ListSlice : public IndexOp {
      */
     std::vector<ptr<Expr>>& indices() { return indices_; }
 
-    int num_slices() const override { return 1; }
+    int num_single_indices() const override { return 0; }
+    int num_index_entities() const override { return 1; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
@@ -362,9 +382,8 @@ class IndexId final : public ASTNode {
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<IndexId>
-    create(parser::Position pos, symbol var,
-           std::vector<ptr<IndexOp>>&& index_ops) {
+    static ptr<IndexId> create(parser::Position pos, symbol var,
+                               std::vector<ptr<IndexOp>>&& index_ops) {
         return std::make_unique<IndexId>(pos, var, std::move(index_ops));
     }
 

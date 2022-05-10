@@ -630,8 +630,9 @@ class SizeofExpr final : public Expr {
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<SizeofExpr> create(parser::Position pos, ptr<Expr> arr,
-                                  std::optional<ptr<Expr>>&& dim = std::nullopt) {
+    static ptr<SizeofExpr>
+    create(parser::Position pos, ptr<Expr> arr,
+           std::optional<ptr<Expr>>&& dim = std::nullopt) {
         return std::make_unique<SizeofExpr>(pos, std::move(arr),
                                             std::move(dim));
     }
@@ -819,7 +820,9 @@ class AccessExpr final : public Expr {
      *
      * \param index_op The new index operator
      */
-    void set_index_op(ptr<IndexOp> index_op) { index_op_ = std::move(index_op); }
+    void set_index_op(ptr<IndexOp> index_op) {
+        index_op_ = std::move(index_op);
+    }
 
     std::optional<std::complex<double>> constant_eval() const override {
         return std::nullopt;

@@ -9,12 +9,14 @@ using namespace qasm3tools;
 /******************************************************************************/
 TEST(Parsing, Standard_Compliance) {
     // generic circuits
-    EXPECT_NO_THROW(
-        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/adder.qasm"));
+    /*EXPECT_NO_THROW(
+        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/adder.qasm"));*/
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/alignment.qasm"));
     EXPECT_NO_THROW(
-        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/cphase.qasm"));
+        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/arrays.qasm"));
+    /*EXPECT_NO_THROW(
+        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/cphase.qasm"));*/
     /*EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/dd.qasm"));*/
     EXPECT_NO_THROW(
@@ -25,8 +27,8 @@ TEST(Parsing, Standard_Compliance) {
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/inverseqft1.qasm"));
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/inverseqft2.qasm"));
-    EXPECT_NO_THROW(
-        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/ipe.qasm"));
+    /*EXPECT_NO_THROW(
+        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/ipe.qasm"));*/
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/msd.qasm"));
     /*EXPECT_NO_THROW(
@@ -122,6 +124,9 @@ TEST(Parsing, Idempotence) {
                       "}\n"
                       "def hh(mutable array[bool, 4] h) {\n"
                       "}\n"
+                      "array[int[32], 4] loop_arr = {1, 4, 9, 16};\n"
+                      "for i in loop_arr {\n"
+                      "}\n"
                       "end;\n";
 
     auto prog = parser::parse_string(src, "idempotence_test.qasm");
@@ -151,14 +156,34 @@ TEST(Parsing, Not_Const_Error) {
                        "int[32] n = 8;\n"
                        "const int[64] cn = n;\n";
 
-    /*EXPECT_THROW(parser::parse_string(src1, "not_const_error_1.qasm"),
+    std::string src5 = "OPENQASM 3.0;\n"
+                       "int[32] n = 8;\n"
+                       "array[float[32], 3, 2, n, 1] arr;\n";
+
+    std::string src6 = "OPENQASM 3.0;\n"
+                       "int[32] n = 2;\n"
+                       "def f(mutable array[bool, #dim = n] a) {\n"
+                       "}\n";
+
+    std::string src7 = "OPENQASM 3.0;\n"
+                       "int[32] n = 2;\n"
+                       "def f(const array[int[32], 2, n] a) {\n"
+                       "}\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "not_const_error_1.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src2, "not_const_error_2.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src3, "not_const_error_3.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src4, "not_const_error_4.qasm"),
-                 ast::SemanticError);*/
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src5, "not_const_error_5.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src6, "not_const_error_6.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src7, "not_const_error_7.qasm"),
+                 ast::SemanticError);
 }
 /******************************************************************************/
 
@@ -173,10 +198,17 @@ TEST(Parsing, Const_Assignment_Error) {
                        "qubit[4] q;\n"
                        "n = measure q;\n";
 
-    /*EXPECT_THROW(parser::parse_string(src1, "const_assignment_error_1.qasm"),
+    std::string src3 = "OPENQASM 3.0;\n"
+                       "def f(const array[int[32], #dim = 2] a) {\n"
+                       "\ta[0, 0] = 0;\n"
+                       "}\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "const_assignment_error_1.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src2, "const_assignment_error_2.qasm"),
-                 ast::SemanticError);*/
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src3, "const_assignment_error_3.qasm"),
+                 ast::SemanticError);
 }
 /******************************************************************************/
 
@@ -197,14 +229,14 @@ TEST(Parsing, Operand_Type_Error) {
                        "extern f();\n"
                        "f()+1;\n";
 
-    /*EXPECT_THROW(parser::parse_string(src1, "operand_type_error_1.qasm"),
+    EXPECT_THROW(parser::parse_string(src1, "operand_type_error_1.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src2, "operand_type_error_2.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src3, "operand_type_error_3.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src4, "operand_type_error_4.qasm"),
-                 ast::SemanticError);*/
+                 ast::SemanticError);
 }
 /******************************************************************************/
 
@@ -217,10 +249,10 @@ TEST(Parsing, Cast_Type_Error) {
                        "angle[64] theta;\n"
                        "float[64](theta);\n";
 
-    /*EXPECT_THROW(parser::parse_string(src1, "cast_type_error_1.qasm"),
+    EXPECT_THROW(parser::parse_string(src1, "cast_type_error_1.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src2, "cast_type_error_2.qasm"),
-                 ast::SemanticError);*/
+                 ast::SemanticError);
 }
 /******************************************************************************/
 
@@ -240,12 +272,12 @@ TEST(Parsing, Param_Type_Error) {
                        "bit b;\n"
                        "f(b);\n";
 
-    /*EXPECT_THROW(parser::parse_string(src1, "param_type_error_1.qasm"),
+    EXPECT_THROW(parser::parse_string(src1, "param_type_error_1.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src2, "param_type_error_2.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src3, "param_type_error_3.qasm"),
-                 ast::SemanticError);*/
+                 ast::SemanticError);
 }
 /******************************************************************************/
 
@@ -266,12 +298,12 @@ TEST(Parsing, Return_Type_Error) {
                        "\treturn measure q;\n"
                        "}\n";
 
-    /*EXPECT_THROW(parser::parse_string(src1, "return_type_error_1.qasm"),
+    EXPECT_THROW(parser::parse_string(src1, "return_type_error_1.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src2, "return_type_error_2.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src3, "return_type_error_3.qasm"),
-                 ast::SemanticError);*/
+                 ast::SemanticError);
 }
 /******************************************************************************/
 
@@ -294,14 +326,14 @@ TEST(Parsing, Register_Type_Error) {
                        "qubit y;\n"
                        "x[1] = measure y;\n";
 
-    /*EXPECT_THROW(parser::parse_string(src1, "register_type_error_1.qasm"),
+    EXPECT_THROW(parser::parse_string(src1, "register_type_error_1.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src2, "register_type_error_2.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src3, "register_type_error_3.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src4, "register_type_error_4.qasm"),
-                 ast::SemanticError);*/
+                 ast::SemanticError);
 }
 /******************************************************************************/
 
@@ -344,7 +376,7 @@ TEST(Parsing, Miscellaneous_Type_Error) {
                        "extern f();\n"
                        "float[32] x = f();\n";
 
-    /*EXPECT_THROW(parser::parse_string(src1, "miscellaneous_type_error_1.qasm"),
+    EXPECT_THROW(parser::parse_string(src1, "miscellaneous_type_error_1.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src2, "miscellaneous_type_error_2.qasm"),
                  ast::SemanticError);
@@ -361,7 +393,7 @@ TEST(Parsing, Miscellaneous_Type_Error) {
     EXPECT_THROW(parser::parse_string(src8, "miscellaneous_type_error_8.qasm"),
                  ast::SemanticError);
     EXPECT_THROW(parser::parse_string(src9, "miscellaneous_type_error_9.qasm"),
-                 ast::SemanticError);*/
+                 ast::SemanticError);
 }
 /******************************************************************************/
 
@@ -383,7 +415,7 @@ TEST(Parsing, Unexpected_Control_Error) {
                        "\tif (true) end;\n"
                        "}\n";
 
-    /*EXPECT_THROW(parser::parse_string(src1, "unexpected_control_error_1.qasm"),
+    EXPECT_THROW(parser::parse_string(src1, "unexpected_control_error_1.qasm"),
                  ast::SemanticError);
 
     EXPECT_THROW(parser::parse_string(src2, "unexpected_control_error_2.qasm"),
@@ -393,6 +425,6 @@ TEST(Parsing, Unexpected_Control_Error) {
                  ast::SemanticError);
 
     EXPECT_THROW(parser::parse_string(src4, "unexpected_control_error_4.qasm"),
-                 ast::SemanticError);*/
+                 ast::SemanticError);
 }
 /******************************************************************************/
