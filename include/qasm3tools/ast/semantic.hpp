@@ -1238,12 +1238,22 @@ class TypeChecker final : public Visitor {
     static bool castable(StdType source, StdType target) {
         switch (source) {
             case StdType::Bool:
-            case StdType::Int:
                 switch (target) {
                     case StdType::Bool:
                     case StdType::Int:
                     case StdType::Float:
                     case StdType::ClassicalBit:
+                    case StdType::Complex:
+                        return true;
+                    default:
+                        return false;
+                }
+            case StdType::Int:
+                switch (target) {
+                    case StdType::Bool:
+                    case StdType::Int:
+                    case StdType::Float:
+                    // case StdType::ClassicalBit: // can only do INT -> CREG
                     case StdType::Complex:
                         return true;
                     default:
@@ -1264,7 +1274,8 @@ class TypeChecker final : public Visitor {
                 switch (target) {
                     case StdType::Bool:
                     case StdType::Angle:
-                    case StdType::ClassicalBit:
+                        // case StdType::ClassicalBit: // can only do ANGLE ->
+                        // CREG
                         return true;
                     default:
                         return false;
@@ -1272,8 +1283,8 @@ class TypeChecker final : public Visitor {
             case StdType::ClassicalBit:
                 switch (target) {
                     case StdType::Bool:
-                    case StdType::Int:
-                    case StdType::Angle:
+                    case StdType::Int: // can also do CREG -> INT
+                    // case StdType::Angle: // can only do CREG -> ANGLE
                     case StdType::ClassicalBit:
                         return true;
                     default:
@@ -1301,11 +1312,17 @@ class TypeChecker final : public Visitor {
             auto t = std::get<ArrType>(target);
             return s.dims == t.dims && castable(s.subtype, t.subtype);
         } else if (std::holds_alternative<StdType>(source) &&
-                   is_classical_bit(target)) {
-            return castable(std::get<StdType>(source), StdType::ClassicalBit);
-        } else if (is_classical_bit(source) &&
+                   std::holds_alternative<ArrType>(target)) {
+            return (std::get<StdType>(source) == StdType::Int ||
+                    std::get<StdType>(source) == StdType::Angle ||
+                    std::get<StdType>(source) == StdType::ClassicalBit) &&
+                   std::get<ArrType>(target).subtype == StdType::ClassicalBit;
+        } else if (std::holds_alternative<ArrType>(source) &&
                    std::holds_alternative<StdType>(target)) {
-            return castable(StdType::ClassicalBit, std::get<StdType>(target));
+            return (std::get<StdType>(target) == StdType::Int ||
+                    std::get<StdType>(target) == StdType::Angle ||
+                    std::get<StdType>(target) == StdType::ClassicalBit) &&
+                   std::get<ArrType>(source).subtype == StdType::ClassicalBit;
         }
         return false;
     }
@@ -1491,7 +1508,7 @@ class TypeChecker final : public Visitor {
     }
     void visit(QubitType& type) override {
         if (type.size()) {
-            type_ = QREG;
+            type_ = ArrType{StdType::QuantumBit, 1};
         } else {
             type_ = StdType::QuantumBit;
         }
@@ -1514,7 +1531,9 @@ class TypeChecker final : public Visitor {
             case BinaryOp::BitOr:
             case BinaryOp::XOr:
             case BinaryOp::BitAnd:
-                if (general_castable(t1, CREG) && is_same(t1, t2)) {
+                if ((is_same(t1, StdType::Bool) || is_same(t1, StdType::Int) ||
+                     is_classical_bit(t1)) &&
+                    is_same(t1, t2)) {
                     type_ = t1;
                     return;
                 }
@@ -1604,7 +1623,8 @@ class TypeChecker final : public Visitor {
         exp.subexp().accept(*this);
         switch (exp.op()) {
             case UnaryOp::BitNot:
-                if (general_castable(type_, CREG)) {
+                if (is_same(type_, StdType::Bool) ||
+                    is_same(type_, StdType::Int) || is_classical_bit(type_)) {
                     return; // type of ~x is same as type of x
                 }
                 break;
@@ -2278,7 +2298,6 @@ class TypeChecker final : public Visitor {
   private:
     const NoneType NONE{};
     const ArrType CREG{StdType::ClassicalBit, 1};
-    const ArrType QREG{StdType::QuantumBit, 1};
 
     bool error_ = false;   ///< whether errors have occurred
     bool in_loop_ = false; ///< whether we are in the body of a loop
