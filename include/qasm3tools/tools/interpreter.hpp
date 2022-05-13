@@ -40,11 +40,21 @@
 
 #include <algorithm>
 #include <cmath>
+#include <climits>
 #include <numeric>
 #include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include <xtensor/xarray.hpp>
+#include <xtensor/xadapt.hpp>
+#include <xtensor/xbuilder.hpp>
+#include <xtensor/xio.hpp>
+#include <xtensor/xvectorize.hpp>
+#include <xtensor/xview.hpp>
+
+using namespace xt::placeholders;
 
 #define WHILE_ITERATION_LIMIT 1000
 
@@ -184,126 +194,77 @@ struct QASM_cbit {
     }
 };
 
-/**
- * Assume little-endian ordering
- * e.g. [1, 0, 0, 0] is 1 when cast to int
- *      [1, 1, 0, 0] is 1 + 2 when cast to int
- *      etc.
- */
-struct QASM_creg {
-    int width;
-    std::vector<bool> bits;
-
-    QASM_creg(std::vector<bool> bits) : width(bits.size()), bits(bits) {}
-    QASM_creg(int width) : width(width), bits(width, false) {}
-
-    unsigned long long to_int() const {
-        unsigned long long ans = 0;
-        for (auto it = bits.rbegin(); it != bits.rend(); it++) {
-            ans <<= 1;
-            ans += *it;
-        }
-        return ans;
-    }
-
-    friend std::ostream& operator<<(std::ostream& os, const QASM_creg& r) {
-        // print in big-endian order
-        os << "\"";
-        for (auto it = r.bits.rbegin(); it != r.bits.rend(); it++)
-            os << *it;
-        os << "\"";
-        return os;
-    }
-};
-
 struct QASM_qubit {
     idx id = 0;
+
+    friend std::ostream& operator<<(std::ostream& os, const QASM_qubit& q) {
+        return os << "$" << q.id;
+    }
 };
 
-struct QASM_qreg {
-    int width;
-    std::vector<idx> ids;
+using BasicType = std::variant<QASM_bool, QASM_int, QASM_float, QASM_angle,
+                               QASM_cbit, QASM_qubit>;
 
-    QASM_qreg(std::vector<idx> ids) : width(ids.size()), ids(ids) {}
-    QASM_qreg(int width) : width(width), ids(width, 0) {}
-};
+std::ostream& operator<<(std::ostream& os, const BasicType& exp) {
+    std::visit([&os](auto&& arg) { os << arg; }, exp);
+    return os;
+}
 
-using QASM_type =
-    std::variant<QASM_none, QASM_bool, QASM_int, QASM_float, QASM_angle,
-                 QASM_cbit, QASM_creg, QASM_qubit, QASM_qreg>;
+using ExprType = std::variant<QASM_none, BasicType, BasicType*,
+                              xt::xarray<BasicType>, xt::xarray<BasicType*>>;
 
 /**
  * \brief Cast source expression to target type
  */
-inline QASM_type QASM_cast(const QASM_type& source, const QASM_type& target) {
+inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
     return std::visit(
         utils::overloaded{
             /* casting from bool */
-            [](const QASM_bool& s, const QASM_bool&) -> QASM_type { return s; },
-            [](const QASM_bool& s, const QASM_int& t) -> QASM_type {
+            [](const QASM_bool& s, const QASM_bool&) -> BasicType { return s; },
+            [](const QASM_bool& s, const QASM_int& t) -> BasicType {
                 return QASM_int(t.width, t.is_signed, s.value);
             },
-            [](const QASM_bool& s, const QASM_float&) -> QASM_type {
+            [](const QASM_bool& s, const QASM_float&) -> BasicType {
                 return QASM_float{(double) s.value};
             },
-            [](const QASM_bool& s, const QASM_cbit&) -> QASM_type {
+            [](const QASM_bool& s, const QASM_cbit&) -> BasicType {
                 return QASM_cbit{s.value};
             },
-            [](const QASM_bool& s, const QASM_creg& t) -> QASM_type {
-                if (t.width == 1)
-                    return QASM_creg{std::vector<bool>{s.value}};
-                std::cerr << "Can't cast bool to bit[" << t.width << "]!\n";
-                throw RuntimeError();
-            },
             /* casting from int */
-            [](const QASM_int& s, const QASM_bool&) -> QASM_type {
+            [](const QASM_int& s, const QASM_bool&) -> BasicType {
                 return QASM_bool{(bool) s.value};
             },
-            [](const QASM_int& s, const QASM_int& t) -> QASM_type {
+            [](const QASM_int& s, const QASM_int& t) -> BasicType {
                 return QASM_int(t.width, t.is_signed, s.value);
             },
-            [](const QASM_int& s, const QASM_float&) -> QASM_type {
+            [](const QASM_int& s, const QASM_float&) -> BasicType {
                 return QASM_float{(double) s.value};
             },
-            [](const QASM_int& s, const QASM_creg& t) -> QASM_type {
-                if (s.width == t.width) {
-                    std::vector<bool> reg(s.width);
-                    long long nth_bit = 1;
-                    for (auto it = reg.begin(); it != reg.end(); it++) {
-                        *it = s.value & nth_bit;
-                        nth_bit <<= 1;
-                    }
-                    return QASM_creg(std::move(reg));
-                }
-                std::cerr << "Can't cast int[" << s.width << "] to bit["
-                          << t.width << "]!\n";
-                throw RuntimeError();
-            },
             /* casting from float */
-            [](const QASM_float& s, const QASM_bool&) -> QASM_type {
+            [](const QASM_float& s, const QASM_bool&) -> BasicType {
                 return QASM_bool{(bool) s.value};
             },
-            [](const QASM_float& s, const QASM_int& t) -> QASM_type {
+            [](const QASM_float& s, const QASM_int& t) -> BasicType {
                 return QASM_int(t.width, t.is_signed, s.value);
             },
-            [](const QASM_float& s, const QASM_float&) -> QASM_type {
+            [](const QASM_float& s, const QASM_float&) -> BasicType {
                 return s;
             },
-            [](const QASM_float& s, const QASM_angle& t) -> QASM_type {
+            [](const QASM_float& s, const QASM_angle& t) -> BasicType {
                 return QASM_angle(t.width, s.value);
             },
             /* casting from angle */
-            [](const QASM_angle& s, const QASM_bool&) -> QASM_type {
+            [](const QASM_angle& s, const QASM_bool&) -> BasicType {
                 for (bool bit : s.bits) {
                     if (bit)
                         return QASM_bool{true};
                 }
                 return QASM_bool{false};
             },
-            [](const QASM_angle& s, const QASM_float&) -> QASM_type {
+            [](const QASM_angle& s, const QASM_float&) -> BasicType {
                 return QASM_float{s.to_float()};
             },
-            [](const QASM_angle& s, const QASM_angle& t) -> QASM_type {
+            [](const QASM_angle& s, const QASM_angle& t) -> BasicType {
                 if (s.width == t.width)
                     return s;
                 else if (s.width > t.width) {
@@ -317,71 +278,20 @@ inline QASM_type QASM_cast(const QASM_type& source, const QASM_type& target) {
                     return QASM_angle(std::move(ang));
                 }
             },
-            [](const QASM_angle& s, const QASM_creg& t) -> QASM_type {
-                if (s.width == t.width)
-                    return QASM_creg(s.bits);
-                std::cerr << "Can't cast angle[" << s.width << "] to bit["
-                          << t.width << "]!\n";
-                throw RuntimeError();
-            },
             /* casting from bit */
-            [](const QASM_cbit& s, const QASM_bool&) -> QASM_type {
+            [](const QASM_cbit& s, const QASM_bool&) -> BasicType {
                 return QASM_bool{s.bit};
             },
-            [](const QASM_cbit& s, const QASM_cbit&) -> QASM_type { return s; },
-            /* casting from bit[n] */
-            [](const QASM_creg& s, const QASM_bool&) -> QASM_type {
-                for (bool bit : s.bits) {
-                    if (bit)
-                        return QASM_bool{true};
-                }
-                return QASM_bool{false};
+            [](const QASM_cbit& s, const QASM_int&) -> BasicType {
+                return QASM_int{s.bit};
             },
-            [](const QASM_creg& s, const QASM_int& t) -> QASM_type {
-                if (s.width == t.width)
-                    return QASM_int(t.width, t.is_signed, s.to_int());
-                std::cerr << "Can't cast bit[" << s.width << "] to int["
-                          << t.width << "]!\n";
-                throw RuntimeError();
-            },
-            [](const QASM_creg& s, const QASM_angle& t) -> QASM_type {
-                if (s.width == t.width)
-                    return QASM_angle(s.bits);
-                std::cerr << "Can't cast bit[" << s.width << "] to angle["
-                          << t.width << "]!\n";
-                throw RuntimeError();
-            },
-            /**
-             * bit[1] -> bit cast is needed because visit(QuantumMeasurement)
-             * produces a classical register, which may be assigned to a bit
-             */
-            [](const QASM_creg& s, const QASM_cbit&) -> QASM_type {
-                if (s.width == 1)
-                    return QASM_cbit{s.bits[0]};
-                std::cerr << "Can't cast bit[" << s.width << "] to bit!\n";
-                throw RuntimeError();
-            },
-            [](const QASM_creg& s, const QASM_creg& t) -> QASM_type {
-                if (s.width == t.width)
-                    return s;
-                std::cerr << "Can't cast bit[" << s.width << "] to bit["
-                          << t.width << "]!\n";
-                throw RuntimeError();
-            },
+            [](const QASM_cbit& s, const QASM_cbit&) -> BasicType { return s; },
             /* the rest can't be casted */
-            [](const QASM_none& s, const QASM_none&) -> QASM_type { return s; },
-            [](const QASM_qubit& s, const QASM_qubit&) -> QASM_type {
+            [](const QASM_qubit& s, const QASM_qubit&) -> BasicType {
                 return s;
             },
-            [](const QASM_qreg& s, const QASM_qreg& t) -> QASM_type {
-                if (s.width == t.width)
-                    return s;
-                std::cerr << "Can't cast qubit[" << s.width << "] to qubit["
-                          << t.width << "]!\n";
-                throw RuntimeError();
-            },
             /* catch-all for invalid casting */
-            [](auto, auto) -> QASM_type {
+            [](auto, auto) -> BasicType {
                 std::cerr << "Invalid cast!\n";
                 throw RuntimeError();
             }},
@@ -392,44 +302,241 @@ inline QASM_type QASM_cast(const QASM_type& source, const QASM_type& target) {
  * \brief Cast but return target type instead of a std::variant
  */
 template <typename T>
-inline T smart_cast(const QASM_type& source, const T& target) {
-    return std::get<T>(QASM_cast(source, target));
+inline T smart_cast(const BasicType& source, const T& target) {
+    return std::get<T>(basic_cast(source, target));
+}
+
+/* array -> basic helpers */
+inline BasicType deref(BasicType* x) { return *x; }
+inline xt::xarray<BasicType> deref_xarray(xt::xarray<BasicType*> x) {
+    auto vec_deref = xt::vectorize(deref);
+    return vec_deref(x);
+}
+
+/* basic -> basic */
+inline void overwrite_help(const BasicType& s, BasicType& t) {
+    t = basic_cast(s, t);
+}
+/* array -> basic */
+inline void overwrite_help(xt::xarray<BasicType>& s, BasicType& t) {
+    std::visit(
+        utils::overloaded{
+            [&s](QASM_int& v) {
+                if (s.size() == v.width) {
+                    unsigned long long ans = 0;
+                    for (auto it = s.rbegin(); it != s.rend(); it++) {
+                        ans <<= 1;
+                        ans += smart_cast(*it, QASM_cbit()).bit;
+                    }
+                    v = QASM_int(v.width, v.is_signed, ans);
+                    return;
+                }
+                std::cerr << "Failed to assign bit array to integer (size "
+                             "mismatch)\n";
+                throw RuntimeError();
+            },
+            [&s](QASM_angle& v) {
+                if (s.size() == v.width) {
+                    std::vector<bool> bits;
+                    std::transform(s.begin(), s.end(), std::back_inserter(bits),
+                                   [](BasicType c) -> bool {
+                                       return smart_cast(c, QASM_cbit()).bit;
+                                   });
+                    v = QASM_angle(std::move(bits));
+                    return;
+                }
+                std::cerr
+                    << "Failed to assign bit array to angle (size mismatch)\n";
+                throw RuntimeError();
+            },
+            [&s](QASM_cbit& v) {
+                if (s.size() == 1) {
+                    v = smart_cast(*s.begin(), v);
+                    return;
+                }
+                std::cerr
+                    << "Failed to assign bit array to bit (array size != 1)\n";
+                throw RuntimeError();
+            },
+            [](auto) {
+                std::cerr << "Failed to convert array to basic_type\n";
+                throw RuntimeError();
+            }},
+        t);
+}
+/* basic -> array */
+inline void overwrite_help(BasicType& s, xt::xarray<BasicType*>& t) {
+    std::visit(
+        utils::overloaded{
+            [&t](QASM_int& v) {
+                if (t.size() == v.width) {
+                    long long nth_bit = 1;
+                    for (auto it = t.begin(); it != t.end(); it++) {
+                        overwrite_help(
+                            QASM_cbit{static_cast<bool>(v.value & nth_bit)},
+                            **it);
+                        nth_bit <<= 1;
+                    }
+                    return;
+                }
+                std::cerr << "Failed to assign integer to bit array (size "
+                             "mismatch)\n";
+                throw RuntimeError();
+            },
+            [&t](QASM_angle& v) {
+                if (t.size() == v.width) {
+                    auto it = t.begin();
+                    auto v_it = v.bits.begin();
+                    for (; it != t.end() && v_it != v.bits.end();
+                         it++, v_it++) {
+                        overwrite_help(QASM_cbit{*v_it}, **it);
+                    }
+                    return;
+                }
+                std::cerr
+                    << "Failed to assign angle to bit array (size mismatch)\n";
+                throw RuntimeError();
+            },
+            [&t](QASM_cbit& v) {
+                if (t.size() == 1) {
+                    overwrite_help(v, **t.begin());
+                    return;
+                }
+                std::cerr
+                    << "Failed to assign bit to bit array (array size != 1)\n";
+                throw RuntimeError();
+            },
+            [](auto) {
+                std::cerr << "Failed to convert basic_type to array\n";
+                throw RuntimeError();
+            }},
+        s);
+}
+
+/**
+ * \brief Set target expression to source expression without changing its type
+ */
+inline void overwrite(ExprType& source, ExprType& target) {
+    return std::visit(
+        utils::overloaded{
+            /* basic -> basic */
+            [](BasicType& s, BasicType& t) { overwrite_help(s, t); },
+            [](BasicType& s, BasicType* t) { overwrite_help(s, *t); },
+            /*[](BasicType* s, BasicType& t) { overwrite_help(*s, t); },*/
+            /*[](BasicType* s, BasicType* t) { overwrite_help(*s, *t); },*/
+            /* array -> basic */
+            [](xt::xarray<BasicType>& s, BasicType& t) {
+                overwrite_help(s, t);
+            },
+            [](xt::xarray<BasicType>& s, BasicType* t) {
+                overwrite_help(s, *t);
+            },
+            /*[](xt::xarray<BasicType*> s, BasicType& t) {
+                overwrite_help(deref_xarray(s), t);
+            },*/
+            /*[](xt::xarray<BasicType*> s, BasicType* t) {
+                overwrite_help(deref_xarray(s), *t);
+            },*/
+            /* basic -> array */
+            [](BasicType& s, xt::xarray<BasicType*>& t) {
+                overwrite_help(s, t);
+            },
+            /*[](BasicType* s, xt::xarray<BasicType*>& t) {
+                overwrite_help(*s, t);
+            },*/
+            /* array -> array */
+            [](xt::xarray<BasicType>& s, xt::xarray<BasicType*>& t) {
+                if (s.shape() != t.shape()) {
+                    std::cerr << "Overwrite: array shape mismatch!\n";
+                    throw RuntimeError();
+                }
+                auto it = t.begin();
+                auto s_it = s.begin();
+                for (; it != t.end() && s_it != s.end(); it++, s_it++) {
+                    overwrite_help(*s_it, **it);
+                }
+            },
+            /*[](xt::xarray<BasicType*>& s, xt::xarray<BasicType*>& t) {
+                if (s.shape() != t.shape()) {
+                    std::cerr << "Overwrite: array shape mismatch!\n";
+                    throw RuntimeError();
+                }
+                for (auto it = t.begin(), s_it = s.begin(); it != t.end() &&
+            s_it != s.end(); it++, s_it++) { overwrite_help(**s_it, **it);
+                }
+            },*/
+            [](QASM_none&, QASM_none&) {},
+            /* catch-all for invalid overwrite */
+            [](auto, auto) {
+                std::cerr << "Overwrite: target is not an lvalue!\n";
+                throw RuntimeError();
+            }},
+        source, target);
+}
+template <typename T>
+inline T cast_to_basic(ExprType& source, T&& target) {
+    ExprType tmp = std::move(target);
+    overwrite(source, tmp);
+    return std::get<T>(std::get<BasicType>(tmp));
 }
 
 /**
  * \brief Get numerical value of an expression
  */
 using value_type = std::variant<long long, unsigned long long, double>;
-inline value_type get_value(const QASM_type& t) {
+inline value_type get_value_help(const BasicType& t) {
     return std::visit(
         utils::overloaded{
-            [](const types::QASM_bool& v) -> value_type {
+            [](const QASM_bool& v) -> value_type {
                 return (long long) v.value;
             },
-            [](const types::QASM_int& v) -> value_type {
+            [](const QASM_int& v) -> value_type {
                 if (v.is_signed) {
                     return v.value;
                 }
                 return (unsigned long long) v.value;
             },
-            [](const types::QASM_float& v) -> value_type { return v.value; },
-            [](const types::QASM_angle& v) -> value_type {
-                return v.to_float();
-            },
-            [](const types::QASM_cbit& v) -> value_type {
-                return (long long) v.bit;
-            },
-            [](const types::QASM_creg& v) -> value_type { return v.to_int(); },
+            [](const QASM_float& v) -> value_type { return v.value; },
+            [](const QASM_angle& v) -> value_type { return v.to_float(); },
+            [](const QASM_cbit& v) -> value_type { return (long long) v.bit; },
             [](auto) -> value_type {
                 std::cerr << ": get_value called on type without a value\n";
                 throw RuntimeError();
             }},
         t);
 }
+inline value_type get_value_help(xt::xarray<BasicType>& s) {
+    unsigned long long ans = 0;
+    for (auto it = s.rbegin(); it != s.rend(); it++) {
+        ans <<= 1;
+        ans += smart_cast(*it, QASM_cbit()).bit;
+    }
+    return ans;
+}
+inline value_type get_value(ExprType& x) {
+    return std::visit(
+        utils::overloaded{
+            [](BasicType& v) -> value_type { return get_value_help(v); },
+            /*[](BasicType* v) -> value_type {
+                return get_value_help(*v);
+            },*/
+            [](xt::xarray<BasicType>& v) -> value_type {
+                return get_value_help(v);
+            },
+            /*[](xt::xarray<BasicType*>& v) -> value_type {
+                return get_value_help(deref_xarray(v));
+            },*/
+            [](auto) -> value_type {
+                std::cerr << ": get_value called on type without a value\n";
+                throw RuntimeError();
+            }},
+        x);
+}
 
 } // namespace types
 
-using QASM_type = types::QASM_type;
+using BasicType = types::BasicType;
+using ExprType = types::ExprType;
 
 /**
  * \class qasm3tools::tools::Executor
@@ -449,9 +556,9 @@ class Executor final : ast::Visitor {
      * \brief Data struct for subroutine types
      */
     struct SubroutineType {
-        std::vector<QASM_type> param_types;   ///< function signature
+        std::vector<ExprType> param_types;    ///< function signature
         std::vector<ast::symbol> param_names; ///< parameter names
-        QASM_type return_type; ///< return type (None if no return)
+        ExprType return_type; ///< return type (None if no return)
         ast::ProgramBlock* body;
     };
 
@@ -461,7 +568,7 @@ class Executor final : ast::Visitor {
      * Functional-style syntax trees in C++17 as a simpler alternative
      * to inheritance hierarchy. Support is still lacking for large-scale.
      */
-    using Type = std::variant<QASM_type, GateType, SubroutineType>;
+    using Type = std::variant<ExprType, GateType, SubroutineType>;
 
     /**
      * \brief Enum class for control statements
@@ -479,134 +586,148 @@ class Executor final : ast::Visitor {
         LoopRange(int x, int y, int z) : start(x), step(y), stop(z) {}
     };
 
-    /**
-     * \brief References to quantum or classical bits
-     * idx : id of qubit
-     * bool* : pointer to the bit of a types::QASM_cbit
-     * std::pair<std::vector<bool>*, int> : pointer to the bits of a
-     *     types::QASM_creg or types::QASM_angle, and an index
-     */
-    using BitReference =
-        std::variant<idx, bool*, std::pair<std::vector<bool>*, int>>;
-
   public:
     void run(ast::Program& prog) { prog.accept(*this); }
 
     // Index identifiers
-    void visit(ast::RangeSlice& slice) override {
-        int reg_size = register_.size();
-        /* step size */
-        int step = 1;
-        if (slice.step()) {
-            (**slice.step()).accept(*this);
-            step = types::smart_cast(value_, types::QASM_int(-1)).value;
-            if (step == 0) {
-                std::cerr << slice.pos()
+    void visit(ast::SingleIndex& index) override {
+        index.index().accept(*this);
+        auto val = types::cast_to_basic(value_, types::QASM_int(-1));
+        index_entities_.push_back(val.value);
+    }
+    void visit(ast::RangeIndex& index) override {
+        types::QASM_int start{-1, true, INT_MAX};
+        types::QASM_int step{-1, true, INT_MAX};
+        types::QASM_int stop{-1, true, INT_MAX};
+        if (index.start()) {
+            (**index.start()).accept(*this);
+            start = types::cast_to_basic(value_, types::QASM_int(-1));
+        }
+        if (index.step()) {
+            (**index.step()).accept(*this);
+            step = types::cast_to_basic(value_, types::QASM_int(-1));
+            if (step.value == 0) {
+                std::cerr << index.pos()
                           << ": error : range step size is zero\n";
                 throw RuntimeError();
             }
         }
-        int max_index = reg_size - 1;
-        /* start = front by default; or back when step is negative */
-        int start = step > 0 ? 0 : max_index;
-        if (slice.start()) {
-            (**slice.start()).accept(*this);
-            start = types::smart_cast(value_, types::QASM_int(-1)).value;
-            if (start > max_index) {
-                start = max_index;
-            } else if (start < -reg_size) {
-                start = 0;
-            } else if (start < 0) {
-                start += register_.size();
-            }
+        if (index.stop()) {
+            (**index.stop()).accept(*this);
+            stop = types::cast_to_basic(value_, types::QASM_int(-1));
         }
-        /* stop = back by default; or front when step is negative */
-        int stop = step > 0 ? max_index : 0;
-        if (slice.stop()) {
-            (**slice.stop()).accept(*this);
-            stop = types::smart_cast(value_, types::QASM_int(-1)).value;
-            if (stop > max_index) {
-                stop = max_index;
-            } else if (stop < -reg_size) {
-                stop = 0;
-            } else if (stop < 0) {
-                stop += register_.size();
-            }
-        }
-
-        std::vector<BitReference> new_reg{};
-        for (int i = start; (step > 0) ? (i <= stop) : (i >= stop); i += step) {
-            new_reg.push_back(register_[i]);
-        }
-        register_ = std::move(new_reg);
-        if (register_.empty()) {
-            std::cerr << slice.pos()
-                      << ": error : slice results in empty register\n";
-            throw RuntimeError();
-        }
+        int a = start.value, c = step.value, b = stop.value;
+        if (a == INT_MAX && b == INT_MAX && c == INT_MAX)
+            index_entities_.push_back(xt::all());
+        else if (a == INT_MAX && b == INT_MAX)
+            index_entities_.push_back(xt::range(_, _, c));
+        else if (a == INT_MAX && c == INT_MAX)
+            index_entities_.push_back(xt::range(_, b));
+        else if (b == INT_MAX && c == INT_MAX)
+            index_entities_.push_back(xt::range(a, _));
+        else if (a == INT_MAX)
+            index_entities_.push_back(xt::range(_, b, c));
+        else if (b == INT_MAX)
+            index_entities_.push_back(xt::range(a, _, c));
+        else if (c == INT_MAX)
+            index_entities_.push_back(xt::range(a, b));
+        else
+            index_entities_.push_back(xt::range(a, b, c));
     }
-    void visit(ast::ListSlice& slice) override {
-        std::vector<BitReference> new_reg{};
-        int reg_size = register_.size();
-        for (auto& exp : slice.indices()) {
-            exp->accept(*this);
-            int i = types::smart_cast(value_, types::QASM_int(-1)).value;
-            if (i < -reg_size || i >= reg_size) {
-                std::cerr << exp->pos()
-                          << ": error : index is out of bounds: index " << i
-                          << ", size " << reg_size << "\n";
-                throw RuntimeError();
-            } else if (i < 0) {
-                i += reg_size;
-            }
-            new_reg.push_back(register_[i]);
-        }
-        register_ = std::move(new_reg);
-    }
-    void visit(ast::VarAccess& va) override {
-        auto& entry = std::get<QASM_type>(lookup(va.var()));
-        register_.clear();
+    void visit(ast::IndexEntityList& indices) override {
+        // save array
+        auto tmp = std::move(value_);
+        // get index entities
+        index_entities_.clear();
+        indices.foreach_index(
+            [this](ast::IndexEntity& index) { index.accept(*this); });
+        // apply index operation
         std::visit(
             utils::overloaded{
-                [this](types::QASM_angle& x) {
-                    for (int i = 0; i < x.width; i++)
-                        register_.push_back(std::make_pair(&x.bits, i));
+                [this](xt::xarray<BasicType>& x) {
+                    xt::xarray<BasicType> tmp =
+                        xt::strided_view(x, index_entities_);
+                    if (tmp.dimension() == 0) {
+                        value_ = *tmp.begin();
+                    } else {
+                        value_ = std::move(tmp);
+                    }
                 },
-                [this](types::QASM_cbit& x) { register_.push_back(&x.bit); },
-                [this](types::QASM_creg& x) {
-                    for (int i = 0; i < x.width; i++)
-                        register_.push_back(std::make_pair(&x.bits, i));
+                [this](xt::xarray<BasicType*>& x) {
+                    xt::xarray<BasicType*> tmp =
+                        xt::strided_view(x, index_entities_);
+                    if (tmp.dimension() == 0) {
+                        value_ = *tmp.begin();
+                    } else {
+                        value_ = std::move(tmp);
+                    }
                 },
-                [this](const types::QASM_qubit& x) {
-                    register_.push_back(x.id);
-                },
-                [this](const types::QASM_qreg& x) {
-                    std::transform(x.ids.begin(), x.ids.end(),
-                                   std::back_inserter(register_),
-                                   [](idx i) -> BitReference { return i; });
-                },
-                [&va](auto) {
-                    std::cerr << va.pos() << ": error : not a register\n";
+                [&indices](auto) {
+                    std::cerr << indices.pos()
+                              << ": error : non-array type cannot be indexed\n";
                     throw RuntimeError();
                 }},
-            entry);
-
-        if (va.slice()) {
-            (**va.slice()).accept(*this);
-        }
+            tmp);
     }
-    void visit(ast::Concat& c) override {
-        // get right register first
-        c.rreg().accept(*this);
-        auto rreg = register_;
-        // append right register to left one
-        c.lreg().accept(*this);
-        register_.insert(register_.end(), rreg.begin(), rreg.end());
+    void visit(ast::ListSlice& slice) override {
+        // save array
+        auto tmp = std::move(value_);
+        // get indices
+        std::vector<int> indices;
+        for (auto& index : slice.indices()) {
+            index->accept(*this);
+            indices.push_back(
+                types::cast_to_basic(value_, types::QASM_int(-1)).value);
+        }
+        // apply index operation
+        std::visit(
+            utils::overloaded{
+                [this, &indices](xt::xarray<BasicType>& x) {
+                    value_ = xt::xarray<BasicType>(
+                        xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
+                },
+                [this, &indices](xt::xarray<BasicType*>& x) {
+                    value_ = xt::xarray<BasicType*>(
+                        xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
+                },
+                [&slice](auto) {
+                    std::cerr << slice.pos()
+                              << ": error : non-array type cannot be indexed\n";
+                    throw RuntimeError();
+                }},
+            tmp);
+    }
+    void visit(ast::IndexId& indexid) override {
+        auto& entry = std::get<ExprType>(lookup(indexid.var()));
+        if (std::holds_alternative<xt::xarray<BasicType>>(entry)) {
+            // pointers to elements of array
+            auto& x = std::get<xt::xarray<BasicType>>(entry);
+            std::vector<BasicType*> x_ref;
+            x_ref.reserve(x.size());
+            for (BasicType& i : x)
+                x_ref.push_back(std::addressof(i));
+            value_ = xt::xarray<BasicType*>(xt::adapt(x_ref, x.shape()));
+        } else if (std::holds_alternative<BasicType>(entry)) {
+            // pointer to variable
+            value_ = std::addressof(std::get<BasicType>(entry));
+        } else {
+            value_ = entry;
+        }
+        indexid.foreach_index_op(
+            [this](ast::IndexOp& op) { op.accept(*this); });
     }
     // Types
     void visit(ast::SingleDesignatorType& type) override {
-        type.size().accept(*this);
-        int n = std::get<types::QASM_int>(value_).value;
+        int n;
+        if (type.size()) {
+            (**type.size()).accept(*this);
+            n = std::get<types::QASM_int>(std::get<BasicType>(value_)).value;
+        } else {
+            std::cerr << type.pos()
+                      << ": error : single designator type must have specified "
+                         "size\n";
+            throw RuntimeError();
+        }
         switch (type.type()) {
             case ast::SDType::Int:
                 value_ = types::QASM_int{n};
@@ -636,8 +757,11 @@ class Executor final : ast::Visitor {
     void visit(ast::BitType& type) override {
         if (type.size()) {
             (**type.size()).accept(*this);
-            int n = std::get<types::QASM_int>(value_).value;
-            value_ = types::QASM_creg{n};
+            unsigned long n =
+                std::get<types::QASM_int>(std::get<BasicType>(value_)).value;
+            auto tmp = xt::xarray<BasicType>::from_shape({n});
+            tmp.fill(types::QASM_cbit());
+            value_ = std::move(tmp);
         } else {
             value_ = types::QASM_cbit();
         }
@@ -646,11 +770,30 @@ class Executor final : ast::Visitor {
         std::cerr << type.pos() << ": complex types not supported\n";
         throw NotImplementedError();
     }
+    void visit(ast::ArrayType& type) override {
+        std::vector<unsigned long> shape;
+        for (int i = 0; i < type.dims(); i++) {
+            type.dim(i).accept(*this);
+            shape.push_back(
+                std::get<types::QASM_int>(std::get<BasicType>(value_)).value);
+        }
+        type.subtype().accept(*this);
+        auto tmp = xt::xarray<BasicType>::from_shape(shape);
+        tmp.fill(std::get<BasicType>(value_));
+        value_ = std::move(tmp);
+    }
+    void visit(ast::ArrayRefType& type) override {
+        std::cerr << type.pos() << ": arrays in subroutines not supported\n";
+        throw NotImplementedError();
+    }
     void visit(ast::QubitType& type) override {
         if (type.size()) {
             (**type.size()).accept(*this);
-            int n = std::get<types::QASM_int>(value_).value;
-            value_ = types::QASM_qreg{n};
+            unsigned long n =
+                std::get<types::QASM_int>(std::get<BasicType>(value_)).value;
+            auto tmp = xt::xarray<BasicType>::from_shape({n});
+            tmp.fill(types::QASM_qubit());
+            value_ = std::move(tmp);
         } else {
             value_ = types::QASM_qubit();
         }
@@ -665,8 +808,8 @@ class Executor final : ast::Visitor {
         switch (exp.op()) {
             case ast::BinaryOp::LogicalOr:
             case ast::BinaryOp::LogicalAnd: {
-                auto b1 = types::smart_cast(v1, types::QASM_bool());
-                auto b2 = types::smart_cast(v2, types::QASM_bool());
+                auto b1 = types::cast_to_basic(v1, types::QASM_bool{});
+                auto b2 = types::cast_to_basic(v2, types::QASM_bool{});
                 if (exp.op() == ast::BinaryOp::LogicalOr) {
                     value_ = types::QASM_bool{b1.value || b2.value};
                 } else {
@@ -677,67 +820,74 @@ class Executor final : ast::Visitor {
             case ast::BinaryOp::BitOr:
             case ast::BinaryOp::XOr:
             case ast::BinaryOp::BitAnd: {
-                value_ = std::visit(
-                    utils::overloaded{
-                        [&exp](const types::QASM_bool& x,
-                               const types::QASM_bool& y) -> QASM_type {
-                            if (exp.op() == ast::BinaryOp::BitOr) {
-                                return types::QASM_bool{x.value || y.value};
-                            } else if (exp.op() == ast::BinaryOp::XOr) {
-                                return types::QASM_bool{x.value != y.value};
-                            } else {
-                                return types::QASM_bool{x.value && y.value};
-                            }
-                        },
-                        [&exp](const types::QASM_int& x,
-                               const types::QASM_int& y) -> QASM_type {
-                            if (exp.op() == ast::BinaryOp::BitOr) {
-                                return types::QASM_int(-1, true,
-                                                       x.value | y.value);
-                            } else if (exp.op() == ast::BinaryOp::XOr) {
-                                return types::QASM_int(-1, true,
-                                                       x.value ^ y.value);
-                            } else {
-                                return types::QASM_int(-1, true,
-                                                       x.value & y.value);
-                            }
-                        },
-                        [&exp](const types::QASM_cbit& x,
-                               const types::QASM_cbit& y) -> QASM_type {
-                            if (exp.op() == ast::BinaryOp::BitOr) {
-                                return types::QASM_cbit{x.bit || y.bit};
-                            } else if (exp.op() == ast::BinaryOp::XOr) {
-                                return types::QASM_cbit{x.bit != y.bit};
-                            } else {
-                                return types::QASM_cbit{x.bit && y.bit};
-                            }
-                        },
-                        [&exp](const types::QASM_creg& x,
-                               const types::QASM_creg& y) -> QASM_type {
-                            if (x.width == y.width) {
-                                std::vector<bool> reg(x.width);
-                                for (int i = 0; i < x.width; i++) {
-                                    if (exp.op() == ast::BinaryOp::BitOr) {
-                                        reg[i] = x.bits[i] || y.bits[i];
-                                    } else if (exp.op() == ast::BinaryOp::XOr) {
-                                        reg[i] = x.bits[i] != y.bits[i];
-                                    } else {
-                                        reg[i] = x.bits[i] && y.bits[i];
-                                    }
+                if (std::holds_alternative<BasicType>(v1) &&
+                    std::holds_alternative<BasicType>(v2)) {
+                    value_ = std::visit(
+                        utils::overloaded{
+                            [&exp](const types::QASM_bool& x,
+                                   const types::QASM_bool& y) -> ExprType {
+                                if (exp.op() == ast::BinaryOp::BitOr) {
+                                    return types::QASM_bool{x.value || y.value};
+                                } else if (exp.op() == ast::BinaryOp::XOr) {
+                                    return types::QASM_bool{x.value != y.value};
+                                } else {
+                                    return types::QASM_bool{x.value && y.value};
                                 }
-                                return types::QASM_creg(std::move(reg));
+                            },
+                            [&exp](const types::QASM_int& x,
+                                   const types::QASM_int& y) -> ExprType {
+                                if (exp.op() == ast::BinaryOp::BitOr) {
+                                    return types::QASM_int(-1, true,
+                                                           x.value | y.value);
+                                } else if (exp.op() == ast::BinaryOp::XOr) {
+                                    return types::QASM_int(-1, true,
+                                                           x.value ^ y.value);
+                                } else {
+                                    return types::QASM_int(-1, true,
+                                                           x.value & y.value);
+                                }
+                            },
+                            [&exp](const types::QASM_cbit& x,
+                                   const types::QASM_cbit& y) -> ExprType {
+                                if (exp.op() == ast::BinaryOp::BitOr) {
+                                    return types::QASM_cbit{x.bit || y.bit};
+                                } else if (exp.op() == ast::BinaryOp::XOr) {
+                                    return types::QASM_cbit{x.bit != y.bit};
+                                } else {
+                                    return types::QASM_cbit{x.bit && y.bit};
+                                }
+                            },
+                            [](auto, auto) -> ExprType {
+                                return types::QASM_none();
+                            }},
+                        std::get<BasicType>(v1), std::get<BasicType>(v2));
+                } else if (std::holds_alternative<xt::xarray<BasicType>>(v1) &&
+                           std::holds_alternative<xt::xarray<BasicType>>(v2)) {
+                    auto x = std::get<xt::xarray<BasicType>>(v1);
+                    auto y = std::get<xt::xarray<BasicType>>(v2);
+                    if (x.shape() == y.shape()) {
+                        std::vector<BasicType> result;
+                        result.reserve(x.size());
+                        auto it1 = x.begin();
+                        auto it2 = y.begin();
+                        for (; it1 != x.end() && it2 != y.end(); it1++, it2++) {
+                            auto& x1 = std::get<types::QASM_cbit>(*it1);
+                            auto& x2 = std::get<types::QASM_cbit>(*it2);
+                            if (exp.op() == ast::BinaryOp::BitOr) {
+                                result.push_back(
+                                    types::QASM_cbit{x1.bit || x2.bit});
+                            } else if (exp.op() == ast::BinaryOp::XOr) {
+                                result.push_back(
+                                    types::QASM_cbit{x1.bit != x2.bit});
+                            } else {
+                                result.push_back(
+                                    types::QASM_cbit{x1.bit && x2.bit});
                             }
-                            std::cerr
-                                << exp.pos()
-                                << ": error : operands to binary operator "
-                                << exp.op() << " are different sizes, bit["
-                                << x.width << "] and bit[" << y.width << "]\n";
-                            throw RuntimeError();
-                        },
-                        [](auto, auto) -> QASM_type {
-                            return types::QASM_none();
-                        }},
-                    v1, v2);
+                        }
+                        value_ =
+                            xt::xarray<BasicType>(xt::adapt(result, x.shape()));
+                    }
+                }
                 break; // catch None type below
             }
             case ast::BinaryOp::EQ:
@@ -770,48 +920,56 @@ class Executor final : ast::Visitor {
             }
             case ast::BinaryOp::LeftBitShift:
             case ast::BinaryOp::RightBitShift: {
-                auto shift = types::smart_cast(v2, types::QASM_int(-1));
-                value_ = std::visit(
-                    utils::overloaded{
-                        [&exp, &shift](const types::QASM_int& v) -> QASM_type {
-                            if (exp.op() == ast::BinaryOp::LeftBitShift) {
-                                return types::QASM_int(
-                                    v.width, v.is_signed,
-                                    v.is_signed ? v.value << shift.value
-                                                : (unsigned long long) v.value
-                                                      << shift.value);
-                            } else {
-                                return types::QASM_int(
-                                    v.width, v.is_signed,
-                                    v.is_signed
-                                        ? v.value >> shift.value
-                                        : (unsigned long long) v.value >>
-                                              shift.value);
-                            }
-                        },
-                        [&exp,
-                         &shift](const types::QASM_angle& v) -> QASM_type {
-                            // bits are little-endian, so we shift the other way
-                            if (exp.op() == ast::BinaryOp::LeftBitShift) {
-                                return types::QASM_angle(
-                                    right_shift(v.bits, shift.value));
-                            } else {
-                                return types::QASM_angle(
-                                    left_shift(v.bits, shift.value));
-                            }
-                        },
-                        [&exp, &shift](const types::QASM_creg& v) -> QASM_type {
-                            // bits are little-endian, so we shift the other way
-                            if (exp.op() == ast::BinaryOp::LeftBitShift) {
-                                return types::QASM_creg(
-                                    right_shift(v.bits, shift.value));
-                            } else {
-                                return types::QASM_creg(
-                                    left_shift(v.bits, shift.value));
-                            }
-                        },
-                        [](auto) -> QASM_type { return types::QASM_none(); }},
-                    v1);
+                auto shift = types::cast_to_basic(v2, types::QASM_int(-1));
+                if (std::holds_alternative<BasicType>(v1)) {
+                    value_ = std::visit(
+                        utils::overloaded{
+                            [&exp,
+                             &shift](const types::QASM_int& v) -> ExprType {
+                                if (exp.op() == ast::BinaryOp::LeftBitShift) {
+                                    return types::QASM_int(
+                                        v.width, v.is_signed,
+                                        v.is_signed
+                                            ? v.value << shift.value
+                                            : (unsigned long long) v.value
+                                                  << shift.value);
+                                } else {
+                                    return types::QASM_int(
+                                        v.width, v.is_signed,
+                                        v.is_signed
+                                            ? v.value >> shift.value
+                                            : (unsigned long long) v.value >>
+                                                  shift.value);
+                                }
+                            },
+                            [&exp,
+                             &shift](const types::QASM_angle& v) -> ExprType {
+                                // bits are little-endian, so we shift the other
+                                // way
+                                if (exp.op() == ast::BinaryOp::LeftBitShift) {
+                                    return types::QASM_angle(
+                                        right_shift(v.bits, shift.value));
+                                } else {
+                                    return types::QASM_angle(
+                                        left_shift(v.bits, shift.value));
+                                }
+                            },
+                            [](auto) -> ExprType {
+                                return types::QASM_none();
+                            }},
+                        std::get<BasicType>(v1));
+                } else if (std::holds_alternative<xt::xarray<BasicType>>(v1)) {
+                    auto& x = std::get<xt::xarray<BasicType>>(v1);
+                    std::vector<BasicType> result(x.begin(), x.end());
+                    // bits are little-endian, so we shift the other way
+                    if (exp.op() == ast::BinaryOp::LeftBitShift) {
+                        result = right_shift(result, shift.value);
+                    } else {
+                        result = left_shift(result, shift.value);
+                    }
+                    value_ =
+                        xt::xarray<BasicType>(xt::adapt(result, x.shape()));
+                }
                 break; // catch None type below
             }
             case ast::BinaryOp::Plus:
@@ -844,13 +1002,13 @@ class Executor final : ast::Visitor {
                     },
                     x, y);
                 value_ = std::visit(
-                    utils::overloaded{[](long long v) -> QASM_type {
+                    utils::overloaded{[](long long v) -> BasicType {
                                           return types::QASM_int(-1, true, v);
                                       },
-                                      [](unsigned long long v) -> QASM_type {
+                                      [](unsigned long long v) -> BasicType {
                                           return types::QASM_int(-1, false, v);
                                       },
-                                      [](double v) -> QASM_type {
+                                      [](double v) -> BasicType {
                                           return types::QASM_float{v};
                                       }},
                     val);
@@ -867,55 +1025,63 @@ class Executor final : ast::Visitor {
     void visit(ast::UExpr& exp) override {
         exp.subexp().accept(*this);
         switch (exp.op()) {
-            case ast::UnaryOp::BitNot:
-                value_ = std::visit(
-                    utils::overloaded{
-                        [](const types::QASM_bool& v) -> QASM_type {
-                            return types::QASM_bool{!v.value};
-                        },
-                        [](const types::QASM_int& v) -> QASM_type {
-                            return types::QASM_int(v.width, v.is_signed,
-                                                   ~v.value);
-                        },
-                        [](const types::QASM_cbit& v) -> QASM_type {
-                            return types::QASM_cbit{!v.bit};
-                        },
-                        [](const types::QASM_creg& v) -> QASM_type {
-                            auto reg = v.bits;
-                            std::transform(reg.begin(), reg.end(), reg.begin(),
-                                           [](bool b) -> bool { return !b; });
-                            return types::QASM_creg(std::move(reg));
-                        },
-                        [&exp](auto) -> QASM_type {
-                            std::cerr << exp.pos()
-                                      << ": error : invalid operand to unary "
-                                         "operator ~\n";
-                            throw RuntimeError();
-                        }},
-                    value_);
+            case ast::UnaryOp::BitNot: {
+                if (std::holds_alternative<BasicType>(value_)) {
+                    value_ = std::visit(
+                        utils::overloaded{
+                            [](const types::QASM_bool& v) -> BasicType {
+                                return types::QASM_bool{!v.value};
+                            },
+                            [](const types::QASM_int& v) -> BasicType {
+                                return types::QASM_int(v.width, v.is_signed,
+                                                       ~v.value);
+                            },
+                            [](const types::QASM_cbit& v) -> BasicType {
+                                return types::QASM_cbit{!v.bit};
+                            },
+                            [&exp](auto) -> BasicType {
+                                std::cerr
+                                    << exp.pos()
+                                    << ": error : invalid operand to unary "
+                                       "operator ~\n";
+                                throw RuntimeError();
+                            }},
+                        std::get<BasicType>(value_));
+                } else if (std::holds_alternative<xt::xarray<BasicType>>(
+                               value_)) {
+                    auto& x = std::get<xt::xarray<BasicType>>(value_);
+                    std::vector<BasicType> result(x.begin(), x.end());
+                    for (auto& elem : result) {
+                        std::get<types::QASM_cbit>(elem).bit ^= true; // flip
+                    }
+                    value_ =
+                        xt::xarray<BasicType>(xt::adapt(result, x.shape()));
+                }
                 break;
+            }
             case ast::UnaryOp::LogicalNot: {
-                auto tmp = types::smart_cast(value_, types::QASM_bool());
+                auto tmp = types::cast_to_basic(value_, types::QASM_bool());
                 value_ = types::QASM_bool{!tmp.value};
                 break;
             }
-            case ast::UnaryOp::Neg:
+            case ast::UnaryOp::Neg: {
                 value_ = std::visit(
                     utils::overloaded{
-                        [](const types::QASM_int& v) -> QASM_type {
+                        [](const types::QASM_int& v) -> BasicType {
                             return types::QASM_int(-1, true, -v.value);
                         },
-                        [](const types::QASM_float& v) -> QASM_type {
+                        [](const types::QASM_float& v) -> BasicType {
                             return types::QASM_float{-v.value};
                         },
-                        [&exp](auto) -> QASM_type {
+                        [&exp](auto) -> BasicType {
                             std::cerr << exp.pos()
                                       << ": error : invalid operand to unary "
                                          "operator -\n";
                             throw RuntimeError();
                         }},
-                    value_);
+                    std::get<BasicType>(value_));
                 break;
+            }
         }
     }
     void visit(ast::MathExpr& exp) override {
@@ -962,81 +1128,115 @@ class Executor final : ast::Visitor {
                 exp.arg(0).accept(*this);
                 auto reg = value_;
                 exp.arg(1).accept(*this);
-                auto shift = types::smart_cast(value_, types::QASM_int(-1));
-                value_ = std::visit(
-                    utils::overloaded{
-                        [&exp,
-                         &shift](const types::QASM_angle& v) -> QASM_type {
-                            // bits are little-endian, so we shift the other way
-                            if (exp.op() == ast::MathOp::Rotl) {
-                                return types::QASM_angle(
-                                    right_rotate_shift(v.bits, shift.value));
-                            } else {
-                                return types::QASM_angle(
-                                    left_rotate_shift(v.bits, shift.value));
-                            }
-                        },
-                        [&exp, &shift](const types::QASM_creg& v) -> QASM_type {
-                            // bits are little-endian, so we shift the other way
-                            if (exp.op() == ast::MathOp::Rotl) {
-                                return types::QASM_creg(
-                                    right_rotate_shift(v.bits, shift.value));
-                            } else {
-                                return types::QASM_creg(
-                                    left_rotate_shift(v.bits, shift.value));
-                            }
-                        },
-                        [&exp](auto) -> QASM_type {
-                            std::cerr << exp.pos()
-                                      << ": error : invalid first argument to "
-                                      << exp.op() << "\n";
-                            throw RuntimeError();
-                        }},
-                    reg);
+                auto shift = types::cast_to_basic(value_, types::QASM_int(-1));
+                if (std::holds_alternative<BasicType>(reg)) {
+                    value_ = std::visit(
+                        utils::overloaded{
+                            [&exp,
+                             &shift](const types::QASM_angle& v) -> BasicType {
+                                // bits are little-endian, so we shift the other
+                                // way
+                                if (exp.op() == ast::MathOp::Rotl) {
+                                    return types::QASM_angle(right_rotate_shift(
+                                        v.bits, shift.value));
+                                } else {
+                                    return types::QASM_angle(
+                                        left_rotate_shift(v.bits, shift.value));
+                                }
+                            },
+                            [&exp](auto) -> BasicType {
+                                std::cerr
+                                    << exp.pos()
+                                    << ": error : invalid first argument to "
+                                    << exp.op() << "\n";
+                                throw RuntimeError();
+                            }},
+                        std::get<BasicType>(reg));
+                } else if (std::holds_alternative<xt::xarray<BasicType>>(reg)) {
+                    auto& x = std::get<xt::xarray<BasicType>>(reg);
+                    std::vector<BasicType> result(x.begin(), x.end());
+                    // bits are little-endian, so we shift the other way
+                    if (exp.op() == ast::MathOp::Rotl) {
+                        result = right_rotate_shift(result, shift.value);
+                    } else {
+                        result = left_rotate_shift(result, shift.value);
+                    }
+                    value_ =
+                        xt::xarray<BasicType>(xt::adapt(result, x.shape()));
+                }
                 return;
             }
             case ast::MathOp::Popcount: {
                 exp.arg(0).accept(*this);
-                int val = std::visit(
-                    utils::overloaded{
-                        [](const types::QASM_angle& v) -> int {
-                            int ans = 0;
-                            for (bool bit : v.bits)
-                                ans += bit;
-                            return ans;
-                        },
-                        [](const types::QASM_creg& v) -> int {
-                            int ans = 0;
-                            for (bool bit : v.bits)
-                                ans += bit;
-                            return ans;
-                        },
-                        [&exp](auto) -> int {
-                            std::cerr << exp.pos()
-                                      << ": error : invalid first argument to "
-                                      << exp.op() << "\n";
-                            throw RuntimeError();
-                        }},
-                    value_);
-                value_ = types::QASM_int(-1, true, val);
+                int n = 0;
+                if (std::holds_alternative<BasicType>(value_)) {
+                    n = std::visit(
+                        utils::overloaded{
+                            [](const types::QASM_angle& v) -> int {
+                                int ans = 0;
+                                for (bool bit : v.bits)
+                                    ans += bit;
+                                return ans;
+                            },
+                            [&exp](auto) -> int {
+                                std::cerr
+                                    << exp.pos()
+                                    << ": error : invalid first argument to "
+                                    << exp.op() << "\n";
+                                throw RuntimeError();
+                            }},
+                        std::get<BasicType>(value_));
+                } else if (std::holds_alternative<xt::xarray<BasicType>>(
+                               value_)) {
+                    auto& x = std::get<xt::xarray<BasicType>>(value_);
+                    for (auto& i : x) {
+                        n += std::get<types::QASM_cbit>(i).bit;
+                    }
+                }
+                value_ = types::QASM_int(-1, true, n);
                 return;
             }
         }
     }
     void visit(ast::CastExpr& exp) override {
-        exp.type().accept(*this);
-        auto tmp = value_;
         exp.subexp().accept(*this);
-        value_ = types::QASM_cast(value_, tmp);
+        auto tmp = value_;
+        exp.type().accept(*this);
+        types::overwrite(tmp, value_);
+    }
+    void visit(ast::SizeofExpr& exp) override {
+        int dim = 0;
+        if (exp.dim()) {
+            (**exp.dim()).accept(*this);
+            dim = types::cast_to_basic(value_, types::QASM_int(-1)).value;
+        }
+        exp.arr().accept(*this);
+        std::visit(utils::overloaded{
+                       [this, dim](xt::xarray<BasicType>& x) {
+                           long long ans = x.shape()[dim];
+                           value_ = types::QASM_int{-1, true, ans};
+                       },
+                       [this, dim](xt::xarray<BasicType*>& x) {
+                           long long ans = x.shape()[dim];
+                           value_ = types::QASM_int{-1, true, ans};
+                       },
+                       [&exp](auto) {
+                           std::cerr
+                               << exp.pos()
+                               << ": error : sizeof() accepts arrays only\n";
+                           throw RuntimeError();
+                       }},
+                   value_);
     }
     void visit(ast::FunctionCall& exp) override {
         auto func = std::get<SubroutineType>(lookup(exp.name()));
 
         // compute args
-        std::vector<types::QASM_type> args;
+        std::vector<types::ExprType> args;
         for (int i = 0; i < exp.num_args(); i++) {
+            args.push_back(func.param_types[i]);
             exp.arg(i).accept(*this);
-            args.push_back(value_);
+            types::overwrite(value_, args.back());
         }
 
         // store local symbols; subroutine body can only refer to globals
@@ -1048,8 +1248,7 @@ class Executor final : ast::Visitor {
 
         // pass in arguments by value
         for (int i = 0; i < func.param_types.size(); i++) {
-            set(func.param_names[i],
-                types::QASM_cast(args[i], func.param_types[i]));
+            set(func.param_names[i], args[i]);
         }
 
         // execute body and obtain return value
@@ -1062,7 +1261,8 @@ class Executor final : ast::Visitor {
                       << ": error : function did not return a value\n";
             throw RuntimeError();
         }
-        value_ = types::QASM_cast(return_value_, func.return_type);
+        value_ = func.return_type;
+        types::overwrite(return_value_, value_);
 
         pop_scope();
         // put back local symbols
@@ -1070,52 +1270,7 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::AccessExpr& exp) override {
         exp.exp().accept(*this);
-        auto reg = value_;
-        exp.index().accept(*this);
-        auto index = types::smart_cast(value_, types::QASM_int(-1));
-        value_ = std::visit(
-            utils::overloaded{
-                [&exp, &index](const types::QASM_angle& v) -> QASM_type {
-                    if (index.value < -v.width || index.value >= v.width) {
-                        std::cerr << exp.pos() << ": error : index "
-                                  << index.value
-                                  << " is out of bounds for angle[" << v.width
-                                  << "] type\n";
-                        throw RuntimeError();
-                    } else if (index.value < 0) {
-                        index.value += v.width;
-                    }
-                    return types::QASM_cbit{v.bits[index.value]};
-                },
-                [&exp, &index](const types::QASM_creg& v) -> QASM_type {
-                    if (index.value < -v.width || index.value >= v.width) {
-                        std::cerr << exp.pos() << ": error : index "
-                                  << index.value << " is out of bounds for bit["
-                                  << v.width << "] type\n";
-                        throw RuntimeError();
-                    } else if (index.value < 0) {
-                        index.value += v.width;
-                    }
-                    return types::QASM_cbit{v.bits[index.value]};
-                },
-                [&exp, &index](const types::QASM_qreg& v) -> QASM_type {
-                    if (index.value < -v.width || index.value >= v.width) {
-                        std::cerr << exp.pos() << ": error : index "
-                                  << index.value
-                                  << " is out of bounds for qubit[" << v.width
-                                  << "] type\n";
-                        throw RuntimeError();
-                    } else if (index.value < 0) {
-                        index.value += v.width;
-                    }
-                    return types::QASM_qubit{v.ids[index.value]};
-                },
-                [&exp](auto) -> QASM_type {
-                    std::cerr << exp.pos()
-                              << ": error : invalid access expression\n";
-                    throw RuntimeError();
-                }},
-            reg);
+        exp.index_op().accept(*this);
     }
     void visit(ast::ConstantExpr& exp) override {
         switch (exp.constant()) {
@@ -1144,16 +1299,60 @@ class Executor final : ast::Visitor {
         value_ = types::QASM_bool{exp.value()};
     }
     void visit(ast::VarExpr& exp) override {
-        value_ = std::get<QASM_type>(lookup(exp.var()));
+        auto& entry = std::get<ExprType>(lookup(exp.var()));
+        if (std::holds_alternative<xt::xarray<BasicType*>>(entry)) {
+            // dereference pointers
+            auto& x = std::get<xt::xarray<BasicType*>>(entry);
+            std::vector<BasicType> x_deref;
+            x_deref.reserve(x.size());
+            for (BasicType* i : x)
+                x_deref.push_back(*i);
+            value_ = xt::xarray<BasicType>(xt::adapt(x_deref, x.shape()));
+        } else if (std::holds_alternative<BasicType*>(entry)) {
+            // dereference pointer
+            value_ = *(std::get<BasicType*>(entry));
+        } else {
+            value_ = entry;
+        }
     }
-    void visit(ast::StringExpr& exp) override {
+    void visit(ast::BitString& exp) override {
         std::string content = exp.text().substr(1, exp.text().length() - 2);
-        std::vector<bool> reg{};
+        std::vector<BasicType> reg{};
         // binary strings are big-endian; cregs are stored in little-endian
-        std::transform(content.rbegin(), content.rend(),
-                       std::back_inserter(reg),
-                       [](char c) -> bool { return c != '0'; });
-        value_ = types::QASM_creg(std::move(reg));
+        std::transform(
+            content.rbegin(), content.rend(), std::back_inserter(reg),
+            [](char c) -> BasicType { return types::QASM_cbit{c != '0'}; });
+        value_ = xt::xarray<BasicType>(xt::adapt(reg));
+    }
+    void visit(ast::ArrayInitExpr& exp) override {
+        exp.at(0).accept(*this);
+        unsigned long n = exp.size();
+        if (std::holds_alternative<BasicType>(value_)) {
+            auto tmp = xt::xarray<BasicType>::from_shape({n});
+            tmp(0) = std::get<BasicType>(value_);
+            for (int i = 1; i < n; i++) {
+                exp.at(i).accept(*this);
+                tmp(i) = std::get<BasicType>(value_);
+            }
+            value_ = std::move(tmp);
+        } else if (std::holds_alternative<xt::xarray<BasicType>>(value_)) {
+            std::vector<unsigned long> shape = {n};
+            auto element = std::get<xt::xarray<BasicType>>(value_);
+            for (auto i : element.shape())
+                shape.push_back(i);
+            auto tmp = xt::xarray<BasicType>::from_shape(shape);
+            xt::view(tmp, 0) = std::move(element);
+            for (int i = 1; i < exp.size(); i++) {
+                exp.at(i).accept(*this);
+                xt::view(tmp, i) =
+                    std::move(std::get<xt::xarray<BasicType>>(value_));
+            }
+            value_ = std::move(tmp);
+        } else {
+            std::cerr << exp.pos()
+                      << ": unable to interpret array initializer\n";
+            throw RuntimeError();
+        }
     }
     void visit(ast::TimeExpr& exp) override {
         std::cerr << exp.pos() << ": circuit timing not supported\n";
@@ -1172,16 +1371,24 @@ class Executor final : ast::Visitor {
         msmt.q_arg().accept(*this);
         // always produce bit[n]; if n = 1 then can be cast to bit later
         std::vector<idx> ids;
-        std::transform(register_.begin(), register_.end(),
-                       std::back_inserter(ids),
-                       [](BitReference b) -> idx { return std::get<idx>(b); });
+        if (std::holds_alternative<BasicType*>(value_)) {
+            ids.push_back(
+                std::get<types::QASM_qubit>(*std::get<BasicType*>(value_)).id);
+        } else if (std::holds_alternative<xt::xarray<BasicType*>>(value_)) {
+            auto& x = std::get<xt::xarray<BasicType*>>(value_);
+            std::transform(x.begin(), x.end(), std::back_inserter(ids),
+                           [](BasicType* b) -> idx {
+                               return std::get<types::QASM_qubit>(*b).id;
+                           });
+        }
         std::tie(ids, std::ignore, psi_) =
             qpp::measure_seq(psi_, ids, 2, false);
 
-        std::vector<bool> result;
-        std::transform(ids.begin(), ids.end(), std::back_inserter(result),
-                       [this](idx b) -> bool { return b; });
-        value_ = types::QASM_creg(std::move(result));
+        std::vector<BasicType> result;
+        std::transform(
+            ids.begin(), ids.end(), std::back_inserter(result),
+            [this](idx b) -> BasicType { return types::QASM_cbit{b != 0}; });
+        value_ = xt::xarray<BasicType>(xt::adapt(result));
     }
     void visit(ast::ProgramBlock& block) override {
         block.foreach_stmt([this](ast::Stmt& stmt) {
@@ -1201,41 +1408,25 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::MeasureAsgnStmt& stmt) override {
         stmt.measurement().accept(*this);
-        auto result = std::get<types::QASM_creg>(value_).bits;
+        auto result = value_;
         stmt.c_arg().accept(*this);
-        if (result.size() != register_.size()) {
-            std::cerr << stmt.pos()
-                      << ": error : measurement assignment registers have "
-                         "different sizes : bit["
-                      << register_.size() << "] and qubit[" << result.size()
-                      << "]\n";
-            throw RuntimeError();
-        }
-        for (int i = 0; i < result.size(); i++) {
-            std::visit(utils::overloaded{
-                           [&result, i](bool* b) { *b = result[i]; },
-                           [&result, i](std::pair<std::vector<bool>*, int> ri) {
-                               (*ri.first)[ri.second] = result[i];
-                           },
-                           [&stmt](int) {
-                               /* qubit; should be caught by sematic checker */
-                               std::cerr << stmt.pos()
-                                         << ": error : semantic error\n";
-                               throw RuntimeError();
-                           }},
-                       register_[i]);
-        }
+        types::overwrite(result, value_);
     }
     void visit(ast::ExprStmt& stmt) override { stmt.exp().accept(*this); }
     void visit(ast::ResetStmt& stmt) override {
-        stmt.foreach_arg([this](ast::IndexId& arg) {
-            arg.accept(*this);
-            std::vector<idx> ids;
-            std::transform(
-                register_.begin(), register_.end(), std::back_inserter(ids),
-                [](BitReference b) -> idx { return std::get<idx>(b); });
-            psi_ = qpp::reset(psi_, ids);
-        });
+        stmt.q_arg().accept(*this);
+        std::vector<idx> ids;
+        if (std::holds_alternative<BasicType*>(value_)) {
+            ids.push_back(
+                std::get<types::QASM_qubit>(*std::get<BasicType*>(value_)).id);
+        } else if (std::holds_alternative<xt::xarray<BasicType*>>(value_)) {
+            auto& x = std::get<xt::xarray<BasicType*>>(value_);
+            std::transform(x.begin(), x.end(), std::back_inserter(ids),
+                           [](BasicType* b) -> idx {
+                               return std::get<types::QASM_qubit>(*b).id;
+                           });
+        }
+        psi_ = qpp::reset(psi_, ids);
     }
     void visit(ast::BarrierStmt& stmt) override {
         // check validity of registers, but do nothing with them
@@ -1243,7 +1434,7 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::IfStmt& stmt) override {
         stmt.cond().accept(*this);
-        auto cond = types::smart_cast(value_, types::QASM_bool());
+        auto cond = types::cast_to_basic(value_, types::QASM_bool());
 
         push_scope();
         if (cond.value)
@@ -1272,43 +1463,23 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::EndStmt&) override { control_flow_ = ControlFlow::End; }
     void visit(ast::AliasStmt& stmt) override {
-        stmt.qreg().accept(*this);
-
-        std::vector<idx> reg{};
-        std::transform(register_.begin(), register_.end(),
-                       std::back_inserter(reg),
-                       [](BitReference b) -> idx { return std::get<idx>(b); });
-        set(stmt.alias(), types::QASM_qreg(std::move(reg)));
+        std::vector<BasicType> result;
+        stmt.foreach_reg([this, &result](ast::Expr& reg) {
+            reg.accept(*this);
+            if (std::holds_alternative<BasicType>(value_)) {
+                result.push_back(std::get<BasicType>(value_));
+            } else if (std::holds_alternative<xt::xarray<BasicType>>(value_)) {
+                auto& x = std::get<xt::xarray<BasicType>>(value_);
+                result.insert(result.end(), x.begin(), x.end());
+            }
+        });
+        set(stmt.alias(), xt::xarray<BasicType>(xt::adapt(result)));
     }
     void visit(ast::AssignmentStmt& stmt) override {
-        auto& entry = std::get<QASM_type>(lookup(stmt.var()));
-        if (stmt.index()) {
-            if (std::holds_alternative<types::QASM_creg>(entry)) {
-                auto& reg = std::get<types::QASM_creg>(entry);
-                (**stmt.index()).accept(*this);
-                auto index = types::smart_cast(value_, types::QASM_int(-1));
-                if (index.value < -reg.width || index.value >= reg.width) {
-                    std::cerr << stmt.pos() << ": error : index " << index.value
-                              << " is out of bounds for bit[" << reg.width
-                              << "] type\n";
-                    throw RuntimeError();
-                } else if (index.value < 0) {
-                    index.value += reg.width;
-                }
-                stmt.exp().accept(*this);
-                auto result = types::smart_cast(value_, types::QASM_cbit());
-                reg.bits[index.value] = result.bit;
-            } else {
-                std::cerr << stmt.pos() << ": error : identifier \""
-                          << stmt.var()
-                          << "\" cannot be indexed because it is not a "
-                             "classical register type\n";
-                throw RuntimeError();
-            }
-        } else {
-            stmt.exp().accept(*this);
-            entry = types::QASM_cast(value_, entry);
-        }
+        stmt.exp().accept(*this);
+        auto result = value_;
+        stmt.lval().accept(*this);
+        types::overwrite(result, value_);
     }
     void visit(ast::PragmaStmt& stmt) override {
         std::cerr << stmt.pos() << ": pragmas not supported\n";
@@ -1326,18 +1497,25 @@ class Executor final : ast::Visitor {
 
         expect_float_div_ = true;
         gate.theta().accept(*this);
-        double theta = types::smart_cast(value_, types::QASM_float()).value;
+        double theta = types::cast_to_basic(value_, types::QASM_float()).value;
         gate.phi().accept(*this);
-        double phi = types::smart_cast(value_, types::QASM_float()).value;
+        double phi = types::cast_to_basic(value_, types::QASM_float()).value;
         gate.lambda().accept(*this);
-        double lambda = types::smart_cast(value_, types::QASM_float()).value;
+        double lambda = types::cast_to_basic(value_, types::QASM_float()).value;
         expect_float_div_ = false;
 
         gate.qarg(0).accept(*this);
         std::vector<idx> args;
-        std::transform(register_.begin(), register_.end(),
-                       std::back_inserter(args),
-                       [](BitReference b) -> idx { return std::get<idx>(b); });
+        if (std::holds_alternative<BasicType*>(value_)) {
+            args.push_back(
+                std::get<types::QASM_qubit>(*std::get<BasicType*>(value_)).id);
+        } else if (std::holds_alternative<xt::xarray<BasicType*>>(value_)) {
+            auto& x = std::get<xt::xarray<BasicType*>>(value_);
+            std::transform(x.begin(), x.end(), std::back_inserter(args),
+                           [](BasicType* b) -> idx {
+                               return std::get<types::QASM_qubit>(*b).id;
+                           });
+        }
 
         // generate the matrix
         qpp::cmat u{qpp::cmat::Zero(2, 2)};
@@ -1370,15 +1548,23 @@ class Executor final : ast::Visitor {
         expect_float_div_ = true;
         for (int i = 0; i < dgate.num_cargs(); i++) {
             dgate.carg(i).accept(*this);
-            c_args[i] = types::smart_cast(value_, types::QASM_float()).value;
+            c_args[i] = types::cast_to_basic(value_, types::QASM_float()).value;
         }
         expect_float_div_ = false;
         for (int i = 0; i < dgate.num_qargs(); i++) {
             dgate.qarg(i).accept(*this);
-            std::transform(
-                register_.begin(), register_.end(),
-                std::back_inserter(q_args[i]),
-                [](BitReference b) -> idx { return std::get<idx>(b); });
+            if (std::holds_alternative<BasicType*>(value_)) {
+                q_args[i].push_back(
+                    std::get<types::QASM_qubit>(*std::get<BasicType*>(value_))
+                        .id);
+            } else if (std::holds_alternative<xt::xarray<BasicType*>>(value_)) {
+                auto& x = std::get<xt::xarray<BasicType*>>(value_);
+                std::transform(x.begin(), x.end(),
+                               std::back_inserter(q_args[i]),
+                               [](BasicType* b) -> idx {
+                                   return std::get<types::QASM_qubit>(*b).id;
+                               });
+            }
         }
 
         // map gate across registers
@@ -1440,18 +1626,18 @@ class Executor final : ast::Visitor {
     // Loops
     void visit(ast::RangeSet& set) override {
         (**set.start()).accept(*this);
-        int start = types::smart_cast(value_, types::QASM_int(-1)).value;
+        int start = types::cast_to_basic(value_, types::QASM_int(-1)).value;
         int step = 1;
         if (set.step()) {
             (**set.step()).accept(*this);
-            step = types::smart_cast(value_, types::QASM_int(-1)).value;
+            step = types::cast_to_basic(value_, types::QASM_int(-1)).value;
             if (step == 0) {
                 std::cerr << set.pos() << ": error : range step size is zero\n";
                 throw RuntimeError();
             }
         }
         (**set.stop()).accept(*this);
-        int stop = types::smart_cast(value_, types::QASM_int(-1)).value;
+        int stop = types::cast_to_basic(value_, types::QASM_int(-1)).value;
         loop_set_ = LoopRange(start, step, stop);
     }
     void visit(ast::ListSet& set) override { loop_set_ = std::addressof(set); }
@@ -1469,7 +1655,7 @@ class Executor final : ast::Visitor {
                         exp->accept(*this);
                         push_scope();
                         set(stmt.var(),
-                            types::smart_cast(value_, types::QASM_int(-1)));
+                            types::cast_to_basic(value_, types::QASM_int(-1)));
                         stmt.body().accept(*this);
                         pop_scope();
                         if (control_flow_) {
@@ -1515,7 +1701,7 @@ class Executor final : ast::Visitor {
         int iterations = 0;
         while (true) {
             stmt.cond().accept(*this);
-            auto cond = types::smart_cast(value_, types::QASM_bool());
+            auto cond = types::cast_to_basic(value_, types::QASM_bool());
             if (cond.value) {
                 if (iterations >= WHILE_ITERATION_LIMIT) {
                     std::cerr << stmt.pos()
@@ -1551,7 +1737,7 @@ class Executor final : ast::Visitor {
                         exp->accept(*this);
                         push_scope();
                         set(stmt.var(),
-                            types::smart_cast(value_, types::QASM_int(-1)));
+                            types::cast_to_basic(value_, types::QASM_int(-1)));
                         stmt.body().accept(*this);
                         pop_scope();
                         if (control_flow_) {
@@ -1597,7 +1783,7 @@ class Executor final : ast::Visitor {
         int iterations = 0;
         while (true) {
             stmt.cond().accept(*this);
-            auto cond = types::smart_cast(value_, types::QASM_bool());
+            auto cond = types::cast_to_basic(value_, types::QASM_bool());
             if (cond.value) {
                 if (iterations >= WHILE_ITERATION_LIMIT) {
                     std::cerr << stmt.pos()
@@ -1644,7 +1830,7 @@ class Executor final : ast::Visitor {
         param.type().accept(*this);
     }
     void visit(ast::SubroutineDecl& decl) override {
-        std::vector<QASM_type> param_types;
+        std::vector<ExprType> param_types;
         std::vector<ast::symbol> param_names;
 
         // signature
@@ -1673,17 +1859,21 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::QuantumDecl& decl) override {
         decl.type().accept(*this);
-        if (std::holds_alternative<types::QASM_qreg>(value_)) {
-            auto reg = std::get<types::QASM_qreg>(value_);
-            // new ids are N, N+1, ..., N+width-1
-            std::vector<idx> ids(reg.width);
-            std::iota(ids.begin(), ids.end(), allocated_qubits_);
-            set(decl.id(), types::QASM_qreg(std::move(ids)));
-            allocated_qubits_ += reg.width;
-        } else { // qubit
+        if (std::holds_alternative<BasicType>(value_)) { // qubit
             // new id is N
             set(decl.id(), types::QASM_qubit{allocated_qubits_});
             allocated_qubits_ += 1;
+        } else {
+            // new ids are N, N+1, ..., N+width-1
+            int width = std::get<xt::xarray<BasicType>>(value_).size();
+            std::vector<BasicType> ids;
+            ids.reserve(width);
+            while (width > 0) {
+                ids.push_back(types::QASM_qubit{allocated_qubits_});
+                allocated_qubits_ += 1;
+                width -= 1;
+            }
+            set(decl.id(), xt::xarray<BasicType>(xt::adapt(ids)));
         }
     }
     void visit(ast::ClassicalDecl& decl) override {
@@ -1691,12 +1881,14 @@ class Executor final : ast::Visitor {
             set(decl.id(), types::QASM_none());
         } else {
             decl.type().accept(*this);
-            auto tmp = value_;
+            set(decl.id(), value_);
             if (decl.equalsexp()) {
+                auto lval = ast::IndexId::create({}, decl.id(), {});
+                lval->accept(*this);
+                auto tmp = value_;
                 (**decl.equalsexp()).accept(*this);
-                tmp = types::QASM_cast(value_, tmp);
+                types::overwrite(value_, tmp);
             }
-            set(decl.id(), tmp);
         }
     }
     void visit(ast::CalGrammarDecl& decl) override {
@@ -1732,11 +1924,11 @@ class Executor final : ast::Visitor {
         false; ///< true when float (not integer) division is required
     std::optional<ControlFlow> control_flow_ =
         std::nullopt; ///< signifies when a control statment is executed
-    QASM_type value_ = types::QASM_none(); ///< stores intermediate values
-    QASM_type return_value_ = types::QASM_none(); ///< stores return values
+    ExprType value_ = types::QASM_none();        ///< stores intermediate values
+    ExprType return_value_ = types::QASM_none(); ///< stores return values
     std::variant<ast::ListSet*, LoopRange>
-        loop_set_{};                       ///< for-loop values to iterate over
-    std::vector<BitReference> register_{}; ///< stores intermediate registers
+        loop_set_{}; ///< for-loop values to iterate over
+    xt::xstrided_slice_vector index_entities_{}; /// index entities
     idx allocated_qubits_ = 0; ///< total number qubits from visited decls
     qpp::ket psi_{};           ///< state vector
     std::list<std::unordered_map<ast::symbol, Type>>
@@ -1790,28 +1982,15 @@ class Executor final : ast::Visitor {
     void print_global_vars() const {
         std::cout << "Final values:\n";
         for (const auto& v : symbol_table_.back()) {
-            if (std::holds_alternative<QASM_type>(v.second)) {
-                std::visit(utils::overloaded{
-                               [&v](const types::QASM_bool& val) {
-                                   std::cout << v.first << ": " << val << "\n";
-                               },
-                               [&v](const types::QASM_int& val) {
-                                   std::cout << v.first << ": " << val << "\n";
-                               },
-                               [&v](const types::QASM_float& val) {
-                                   std::cout << v.first << ": " << val << "\n";
-                               },
-                               [&v](const types::QASM_angle& val) {
-                                   std::cout << v.first << ": " << val << "\n";
-                               },
-                               [&v](const types::QASM_cbit& val) {
-                                   std::cout << v.first << ": " << val << "\n";
-                               },
-                               [&v](const types::QASM_creg& val) {
-                                   std::cout << v.first << ": " << val << "\n";
-                               },
-                               [](auto val) {}},
-                           std::get<QASM_type>(v.second));
+            if (std::holds_alternative<ExprType>(v.second)) {
+                auto& tmp = std::get<ExprType>(v.second);
+                if (std::holds_alternative<BasicType>(tmp)) {
+                    std::cout << v.first << ": " << std::get<BasicType>(tmp)
+                              << "\n";
+                } else if (std::holds_alternative<xt::xarray<BasicType>>(tmp)) {
+                    std::cout << v.first << ":\n"
+                              << std::get<xt::xarray<BasicType>>(tmp) << "\n";
+                }
             }
         }
     }
@@ -1832,13 +2011,28 @@ class Executor final : ast::Visitor {
         }
         return bits;
     }
+    static std::vector<BasicType> left_shift(std::vector<BasicType> bits,
+                                             int shift) {
+        if (shift < 0) {
+            std::cerr << ": error : left shift by negative amount " << shift
+                      << "\n";
+            throw RuntimeError();
+        } else if (shift > 0) {
+            for (int i = 0; i < bits.size(); i++) {
+                int index = i + shift;
+                bits[i] = index >= bits.size() ? types::QASM_cbit{false}
+                                               : bits[index];
+            }
+        }
+        return bits;
+    }
 
     /**
      * \brief Left rotate shift bit vector
      */
-    static std::vector<bool> left_rotate_shift(std::vector<bool> bits,
-                                               int shift) {
-        shift %= (int)bits.size();
+    template <typename T>
+    static std::vector<T> left_rotate_shift(std::vector<T> bits, int shift) {
+        shift %= (int) bits.size();
         if (shift < 0)
             shift += bits.size();
         std::rotate(bits.begin(), bits.begin() + shift, bits.end());
@@ -1861,12 +2055,26 @@ class Executor final : ast::Visitor {
         }
         return bits;
     }
+    static std::vector<BasicType> right_shift(std::vector<BasicType> bits,
+                                              int shift) {
+        if (shift < 0) {
+            std::cerr << ": error : right shift by negative amount " << shift
+                      << "\n";
+            throw RuntimeError();
+        } else if (shift > 0) {
+            for (int i = bits.size() - 1; i >= 0; i--) {
+                int index = i - shift;
+                bits[i] = index < 0 ? types::QASM_cbit{false} : bits[index];
+            }
+        }
+        return bits;
+    }
 
     /**
      * \brief Right rotate shift bit vector
      */
-    static std::vector<bool> right_rotate_shift(std::vector<bool> bits,
-                                                int shift) {
+    template <typename T>
+    static std::vector<T> right_rotate_shift(std::vector<T> bits, int shift) {
         return left_rotate_shift(bits, -shift);
     }
 };
