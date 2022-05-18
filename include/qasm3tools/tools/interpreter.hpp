@@ -812,8 +812,8 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::IndexId& indexid) override {
         auto& entry = std::get<ExprType>(lookup(indexid.var()));
+        // get pointer(s), if applicable
         if (std::holds_alternative<xt::xarray<BasicType>>(entry)) {
-            // pointers to elements of array
             auto& x = std::get<xt::xarray<BasicType>>(entry);
             std::vector<BasicType*> x_ref;
             x_ref.reserve(x.size());
@@ -821,11 +821,11 @@ class Executor final : ast::Visitor {
                 x_ref.push_back(std::addressof(i));
             value_ = xt::xarray<BasicType*>(xt::adapt(x_ref, x.shape()));
         } else if (std::holds_alternative<BasicType>(entry)) {
-            // pointer to variable
             value_ = std::addressof(std::get<BasicType>(entry));
         } else {
             value_ = entry;
         }
+        // apply index operations
         indexid.foreach_index_op(
             [this](ast::IndexOp& op) { op.accept(*this); });
     }
@@ -896,8 +896,9 @@ class Executor final : ast::Visitor {
         value_ = std::move(tmp);
     }
     void visit(ast::ArrayRefType& type) override {
-        std::cerr << type.pos() << ": arrays in subroutines not supported\n";
-        throw NotImplementedError();
+        // Arrays in functions are passed by reference; no casting occurs
+        // Here we just signify that it's an array type
+        value_ = xt::xarray<BasicType>();
     }
     void visit(ast::QubitType& type) override {
         if (type.size()) {
@@ -1347,9 +1348,17 @@ class Executor final : ast::Visitor {
         // compute args
         std::vector<types::ExprType> args;
         for (int i = 0; i < exp.num_args(); i++) {
-            args.push_back(func.param_types[i]);
-            exp.arg(i).accept(*this);
-            types::overwrite(value_, args.back());
+            if (std::holds_alternative<xt::xarray<BasicType>>(
+                    func.param_types[i])) {
+                expect_array_reference_ = true;
+                exp.arg(i).accept(*this);
+                args.push_back(std::move(value_));
+                expect_array_reference_ = false;
+            } else {
+                args.push_back(func.param_types[i]);
+                exp.arg(i).accept(*this);
+                types::overwrite(value_, args.back());
+            }
         }
 
         // store local symbols; subroutine body can only refer to globals
@@ -1413,19 +1422,34 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::VarExpr& exp) override {
         auto& entry = std::get<ExprType>(lookup(exp.var()));
-        if (std::holds_alternative<xt::xarray<BasicType*>>(entry)) {
-            // dereference pointers
-            auto& x = std::get<xt::xarray<BasicType*>>(entry);
-            std::vector<BasicType> x_deref;
-            x_deref.reserve(x.size());
-            for (BasicType* i : x)
-                x_deref.push_back(*i);
-            value_ = xt::xarray<BasicType>(xt::adapt(x_deref, x.shape()));
-        } else if (std::holds_alternative<BasicType*>(entry)) {
-            // dereference pointer
-            value_ = *(std::get<BasicType*>(entry));
+        if (expect_array_reference_) {
+            // get pointer(s), if applicable
+            if (std::holds_alternative<xt::xarray<BasicType>>(entry)) {
+                auto& x = std::get<xt::xarray<BasicType>>(entry);
+                std::vector<BasicType*> x_ref;
+                x_ref.reserve(x.size());
+                for (BasicType& i : x)
+                    x_ref.push_back(std::addressof(i));
+                value_ = xt::xarray<BasicType*>(xt::adapt(x_ref, x.shape()));
+            } else if (std::holds_alternative<BasicType>(entry)) {
+                value_ = std::addressof(std::get<BasicType>(entry));
+            } else {
+                value_ = entry;
+            }
         } else {
-            value_ = entry;
+            // dereference pointer(s), if applicable
+            if (std::holds_alternative<xt::xarray<BasicType*>>(entry)) {
+                auto& x = std::get<xt::xarray<BasicType*>>(entry);
+                std::vector<BasicType> x_deref;
+                x_deref.reserve(x.size());
+                for (BasicType* i : x)
+                    x_deref.push_back(*i);
+                value_ = xt::xarray<BasicType>(xt::adapt(x_deref, x.shape()));
+            } else if (std::holds_alternative<BasicType*>(entry)) {
+                value_ = *(std::get<BasicType*>(entry));
+            } else {
+                value_ = entry;
+            }
         }
     }
     void visit(ast::BitString& exp) override {
@@ -2035,6 +2059,8 @@ class Executor final : ast::Visitor {
   private:
     bool expect_float_div_ =
         false; ///< true when float (not integer) division is required
+    bool expect_array_reference_ =
+        false; ///< true when the argument of a function is an array type
     std::optional<ControlFlow> control_flow_ =
         std::nullopt; ///< signifies when a control statment is executed
     ExprType value_ = types::QASM_none();        ///< stores intermediate values
