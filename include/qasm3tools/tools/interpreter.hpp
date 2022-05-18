@@ -1779,8 +1779,9 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::ListSet& set) override { loop_set_ = std::addressof(set); }
     void visit(ast::VarSet& set) override {
-        std::cerr << set.pos() << ": lists not supported\n";
-        throw NotImplementedError();
+        auto exp = ast::VarExpr::create({}, set.var());
+        exp->accept(*this);
+        loop_set_ = std::move(std::get<xt::xarray<BasicType>>(value_));
     }
     void visit(ast::ForStmt& stmt) override {
         stmt.index_set().accept(*this);
@@ -1816,6 +1817,26 @@ class Executor final : ast::Visitor {
                          i += range.step) {
                         push_scope();
                         set(stmt.var(), types::QASM_int(-1, true, i));
+                        stmt.body().accept(*this);
+                        pop_scope();
+                        if (control_flow_) {
+                            if (*control_flow_ == ControlFlow::Break) {
+                                control_flow_ = std::nullopt;
+                                break;
+                            } else if (*control_flow_ ==
+                                       ControlFlow::Continue) {
+                                control_flow_ = std::nullopt;
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                },
+                [this, &stmt](xt::xarray<BasicType>& list) {
+                    for (auto& x : list) {
+                        push_scope();
+                        set(stmt.var(), std::get<types::QASM_int>(x));
                         stmt.body().accept(*this);
                         pop_scope();
                         if (control_flow_) {
@@ -1898,6 +1919,26 @@ class Executor final : ast::Visitor {
                          i += range.step) {
                         push_scope();
                         set(stmt.var(), types::QASM_int(-1, true, i));
+                        stmt.body().accept(*this);
+                        pop_scope();
+                        if (control_flow_) {
+                            if (*control_flow_ == ControlFlow::Break) {
+                                control_flow_ = std::nullopt;
+                                break;
+                            } else if (*control_flow_ ==
+                                       ControlFlow::Continue) {
+                                control_flow_ = std::nullopt;
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                },
+                [this, &stmt](xt::xarray<BasicType>& list) {
+                    for (auto& x : list) {
+                        push_scope();
+                        set(stmt.var(), std::get<types::QASM_int>(x));
                         stmt.body().accept(*this);
                         pop_scope();
                         if (control_flow_) {
@@ -2065,7 +2106,7 @@ class Executor final : ast::Visitor {
         std::nullopt; ///< signifies when a control statment is executed
     ExprType value_ = types::QASM_none();        ///< stores intermediate values
     ExprType return_value_ = types::QASM_none(); ///< stores return values
-    std::variant<ast::ListSet*, LoopRange>
+    std::variant<ast::ListSet*, LoopRange, xt::xarray<BasicType>>
         loop_set_{}; ///< for-loop values to iterate over
     xt::xstrided_slice_vector index_entities_{}; /// index entities
     idx allocated_qubits_ = 0; ///< total number qubits from visited decls
