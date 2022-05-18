@@ -1231,6 +1231,21 @@ class TypeChecker final : public Visitor {
     }
 
     /**
+     * \brief Checks whether a data type can be indexed
+     *
+     * \return True if the data type can be indexed, false otherwise
+     */
+    static bool is_indexable(const ExprType& type) {
+        if (std::holds_alternative<StdType>(type)) {
+            auto t = std::get<StdType>(type);
+            return t == StdType::Int || t == StdType::Angle;
+        } else if (std::holds_alternative<ArrType>(type)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * \brief Checks whether the source type is castable to the target type
      *
      * \return True if the source type is castable to the target type
@@ -1386,14 +1401,16 @@ class TypeChecker final : public Visitor {
         visit_optional_classical_expr(index.stop(), StdType::Int);
     }
     void visit(IndexEntityList& indices) override {
-        if (!std::holds_alternative<ArrType>(type_)) {
+        auto tmp = type_;
+        if (!is_indexable(tmp)) {
             std::cerr << indices.pos()
                       << ": error : non-array type cannot be indexed\n";
             error_ = true;
             type_ = NONE;
             return;
+        } else if (std::holds_alternative<StdType>(tmp)) {
+            tmp = CREG;
         }
-        auto tmp = type_;
         if (indices.num_index_entities() > std::get<ArrType>(tmp).dims) {
             std::cerr << indices.pos()
                       << ": error : more index entities than dimensions\n";
@@ -1408,14 +1425,16 @@ class TypeChecker final : public Visitor {
         type_ = tmp;
     }
     void visit(ListSlice& slice) override {
-        if (!std::holds_alternative<ArrType>(type_)) {
+        auto tmp = type_;
+        if (!is_indexable(tmp)) {
             std::cerr << slice.pos()
                       << ": error : non-array type cannot be indexed\n";
             error_ = true;
             type_ = NONE;
             return;
+        } else if (std::holds_alternative<StdType>(tmp)) {
+            tmp = CREG;
         }
-        auto tmp = type_;
         for (auto& index : slice.indices()) {
             visit_classical_expr(*index, StdType::Int);
         }

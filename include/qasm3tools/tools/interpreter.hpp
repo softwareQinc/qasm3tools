@@ -54,13 +54,12 @@
 #include <xtensor/xvectorize.hpp>
 #include <xtensor/xview.hpp>
 
-using namespace xt::placeholders;
-
 #define WHILE_ITERATION_LIMIT 1000
 
 namespace qasm3tools {
 namespace tools {
 
+using namespace xt::placeholders;
 using namespace qpp::literals;
 
 using idx = qpp::idx;
@@ -210,8 +209,39 @@ std::ostream& operator<<(std::ostream& os, const BasicType& exp) {
     return os;
 }
 
-using ExprType = std::variant<QASM_none, BasicType, BasicType*,
-                              xt::xarray<BasicType>, xt::xarray<BasicType*>>;
+/**
+ * \brief Reference to a bit in an integer or angle
+ */
+class BitReference {
+  public:
+    virtual void assign(bool value) {}
+};
+class IntBitReference : public BitReference {
+    QASM_int* ref_;
+    int index_;
+
+  public:
+    IntBitReference(QASM_int* ref, int index) : ref_(ref), index_(index) {}
+    void assign(bool value) override {
+        if (value) {
+            ref_->value |= 1UL << index_;
+        } else {
+            ref_->value &= ~(1UL << index_);
+        }
+    }
+};
+class AngleBitReference : public BitReference {
+    QASM_angle* ref_;
+    int index_;
+
+  public:
+    AngleBitReference(QASM_angle* ref, int index) : ref_(ref), index_(index) {}
+    void assign(bool value) override { ref_->bits[index_] = value; }
+};
+
+using ExprType = std::variant<QASM_none, BasicType, xt::xarray<BasicType>,
+                              BasicType*, xt::xarray<BasicType*>, BitReference,
+                              xt::xarray<BitReference>>;
 
 /**
  * \brief Cast source expression to target type
@@ -465,6 +495,21 @@ inline void overwrite(ExprType& source, ExprType& target) {
             s_it != s.end(); it++, s_it++) { overwrite_help(**s_it, **it);
                 }
             },*/
+            /* assigning to bits of int/angle */
+            [](BasicType& s, BitReference& t) {
+                t.assign(smart_cast(s, QASM_cbit()).bit);
+            },
+            [](xt::xarray<BasicType>& s, xt::xarray<BitReference>& t) {
+                if (s.shape() != t.shape()) {
+                    std::cerr << "Overwrite: slicing shape mismatch!\n";
+                    throw RuntimeError();
+                }
+                auto it = t.begin();
+                auto s_it = s.begin();
+                for (; it != t.end() && s_it != s.end(); it++, s_it++) {
+                    it->assign(smart_cast(*s_it, QASM_cbit()).bit);
+                }
+            },
             [](QASM_none&, QASM_none&) {},
             /* catch-all for invalid overwrite */
             [](auto, auto) {
@@ -531,6 +576,62 @@ inline value_type get_value(ExprType& x) {
                 throw RuntimeError();
             }},
         x);
+}
+
+xt::xarray<BitReference> to_creg_ref(BasicType* type) {
+    if (std::holds_alternative<QASM_int>(*type)) {
+        auto& i = std::get<QASM_int>(*type);
+        if (i.width < 0) {
+            std::cerr
+                << ": error : int of unspecified width cannot be indexed\n";
+            throw RuntimeError();
+        }
+        auto creg = xt::xarray<BitReference>::from_shape(
+            {static_cast<unsigned long>(i.width)});
+        for (int j = 0; j < i.width; j++) {
+            creg(j) = IntBitReference(std::addressof(i), j);
+        }
+        return creg;
+    } else if (std::holds_alternative<QASM_angle>(*type)) {
+        auto& a = std::get<QASM_angle>(*type);
+        auto creg = xt::xarray<BitReference>::from_shape(
+            {static_cast<unsigned long>(a.width)});
+        for (int j = 0; j < a.width; j++) {
+            creg(j) = AngleBitReference(std::addressof(a), j);
+        }
+        return creg;
+    }
+    std::cerr << ": error : to_creg_ref() : basic type cannot be indexed\n";
+    throw RuntimeError();
+}
+
+xt::xarray<BasicType> to_creg(const BasicType& type) {
+    if (std::holds_alternative<QASM_int>(type)) {
+        auto& i = std::get<QASM_int>(type);
+        if (i.width < 0) {
+            std::cerr
+                << ": error : int of unspecified width cannot be indexed\n";
+            throw RuntimeError();
+        }
+        auto creg = xt::xarray<BasicType>::from_shape(
+            {static_cast<unsigned long>(i.width)});
+        long long mask = 1;
+        for (int j = 0; j < i.width; j++) {
+            creg(j) = QASM_cbit{static_cast<bool>(i.value & mask)};
+            mask <<= 1;
+        }
+        return creg;
+    } else if (std::holds_alternative<QASM_angle>(type)) {
+        auto& a = std::get<QASM_angle>(type);
+        auto creg = xt::xarray<BasicType>::from_shape(
+            {static_cast<unsigned long>(a.width)});
+        for (int j = 0; j < a.width; j++) {
+            creg(j) = QASM_cbit{a.bits[j]};
+        }
+        return creg;
+    }
+    std::cerr << ": error : to_creg() : basic type cannot be indexed\n";
+    throw RuntimeError();
 }
 
 } // namespace types
@@ -637,6 +738,12 @@ class Executor final : ast::Visitor {
     void visit(ast::IndexEntityList& indices) override {
         // save array
         auto tmp = std::move(value_);
+        // convert int/angle to creg
+        if (std::holds_alternative<BasicType*>(tmp)) {
+            tmp = to_creg_ref(std::get<BasicType*>(tmp));
+        } else if (std::holds_alternative<BasicType>(tmp)) {
+            tmp = to_creg(std::get<BasicType>(tmp));
+        }
         // get index entities
         index_entities_.clear();
         indices.foreach_index(
@@ -672,6 +779,12 @@ class Executor final : ast::Visitor {
     void visit(ast::ListSlice& slice) override {
         // save array
         auto tmp = std::move(value_);
+        // convert int/angle to creg
+        if (std::holds_alternative<BasicType*>(tmp)) {
+            tmp = to_creg_ref(std::get<BasicType*>(tmp));
+        } else if (std::holds_alternative<BasicType>(tmp)) {
+            tmp = to_creg(std::get<BasicType>(tmp));
+        }
         // get indices
         std::vector<int> indices;
         for (auto& index : slice.indices()) {

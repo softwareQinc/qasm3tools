@@ -9,8 +9,8 @@ using namespace qasm3tools;
 /******************************************************************************/
 TEST(Parsing, Standard_Compliance) {
     // generic circuits
-    /*EXPECT_NO_THROW(
-        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/adder.qasm"));*/
+    EXPECT_NO_THROW(
+        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/adder.qasm"));
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/alignment.qasm"));
     EXPECT_NO_THROW(
@@ -27,8 +27,8 @@ TEST(Parsing, Standard_Compliance) {
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/inverseqft1.qasm"));
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/inverseqft2.qasm"));
-    /*EXPECT_NO_THROW(
-        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/ipe.qasm"));*/
+    EXPECT_NO_THROW(
+        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/ipe.qasm"));
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/msd.qasm"));
     /*EXPECT_NO_THROW(
