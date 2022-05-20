@@ -294,7 +294,7 @@ class BExpr final : public Expr {
      */
     void set_rexp(ptr<Expr> exp) { rexp_ = std::move(exp); }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         auto lexp = lexp_->constant_eval();
         auto rexp = rexp_->constant_eval();
 
@@ -392,7 +392,7 @@ class UExpr final : public Expr {
      */
     void set_subexp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         auto expr = exp_->constant_eval();
 
         if (!expr)
@@ -479,7 +479,7 @@ class MathExpr final : public Expr {
      */
     void set_arg(int i, ptr<Expr> expr) { args_[i] = std::move(expr); }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         if (args_.size() != 1)
             return std::nullopt;
 
@@ -588,7 +588,7 @@ class CastExpr final : public Expr {
      */
     void set_subexp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return exp_->constant_eval(); // return without casting
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -658,7 +658,7 @@ class SizeofExpr final : public Expr {
      */
     void set_arr(ptr<Expr> arr) { arr_ = std::move(arr); }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return std::nullopt;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -741,7 +741,7 @@ class FunctionCall final : public Expr {
      */
     void set_arg(int i, ptr<Expr> expr) { args_[i] = std::move(expr); }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return std::nullopt;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -824,7 +824,7 @@ class AccessExpr final : public Expr {
         index_op_ = std::move(index_op);
     }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return std::nullopt;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -876,7 +876,7 @@ class ConstantExpr final : public Expr {
      */
     Constant constant() const { return constant_; }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         switch (constant_) {
             case Constant::Pi:
                 return utils::pi;
@@ -933,7 +933,7 @@ class IntExpr final : public Expr {
      */
     int value() const { return value_; }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return value_;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -979,7 +979,7 @@ class RealExpr final : public Expr {
      */
     double value() const { return value_; }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return value_;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -1026,8 +1026,8 @@ class ImagExpr final : public Expr {
      */
     double value() const { return value_; }
 
-    std::optional<std::complex<double>> constant_eval() const override {
-        return std::complex<double>(value_) * std::complex<double>(0, 1);
+    std::optional<double> constant_eval() const override {
+        return std::nullopt;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
@@ -1073,7 +1073,7 @@ class BoolExpr final : public Expr {
      */
     bool value() const { return value_; }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return value_;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -1119,7 +1119,7 @@ class VarExpr final : public Expr {
      */
     const symbol& var() const { return var_; }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return std::nullopt;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -1168,7 +1168,7 @@ class BitString final : public Expr {
      */
     const std::string& text() const { return text_; }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return std::nullopt;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -1231,7 +1231,7 @@ class ArrayInitExpr final : public Expr {
      */
     void set_at(int i, ptr<Expr> expr) { arr_[i] = std::move(expr); }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return std::nullopt;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }

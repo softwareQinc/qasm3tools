@@ -33,7 +33,6 @@
 
 #include "base.hpp"
 
-#include <complex>
 #include <optional>
 
 namespace qasm3tools {
@@ -56,7 +55,7 @@ class Expr : public ASTNode {
      * \return Returns the value of the expression if it
      *         is constant, or nullopt otherwise
      */
-    virtual std::optional<std::complex<double>> constant_eval() const = 0;
+    virtual std::optional<double> constant_eval() const = 0;
 
     /**
      * \brief Internal pretty-printer with associative context

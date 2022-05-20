@@ -112,7 +112,7 @@ class TimeExpr final : public Expr {
      */
     TimeUnit units() const { return units_; }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return std::nullopt;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -163,7 +163,7 @@ class DurationGateExpr final : public Expr {
      */
     const symbol& gate() const { return gate_; }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return std::nullopt;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
@@ -212,7 +212,7 @@ class DurationBlockExpr final : public Expr {
      */
     QuantumBlock& block() { return *block_; }
 
-    std::optional<std::complex<double>> constant_eval() const override {
+    std::optional<double> constant_eval() const override {
         return std::nullopt;
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
