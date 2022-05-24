@@ -14,7 +14,7 @@ This creates the `parser` executable.
 ./parser /path/to/circuit.qasm
 ```
 
-## Interpreter (still in development)
+## Interpreter
 To build the interpreter, you must have [qpp](https://github.com/softwareQinc/qpp) installed. In the build directory, do
 ```bash
 cmake .. -DWITH_INTERPRETER=ON
@@ -23,7 +23,6 @@ make -j8
 This creates the `interpreter` executable.
 
 ## Unit testing
-For unit testing, make sure to clone this repository with `--recursive`.
 ```bash
 make -j8 unit_tests
 ctest

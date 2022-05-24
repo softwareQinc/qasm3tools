@@ -933,9 +933,7 @@ class IntExpr final : public Expr {
      */
     int value() const { return value_; }
 
-    std::optional<double> constant_eval() const override {
-        return value_;
-    }
+    std::optional<double> constant_eval() const override { return value_; }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
         (void) ctx;
@@ -979,9 +977,7 @@ class RealExpr final : public Expr {
      */
     double value() const { return value_; }
 
-    std::optional<double> constant_eval() const override {
-        return value_;
-    }
+    std::optional<double> constant_eval() const override { return value_; }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
         (void) ctx;
@@ -1073,9 +1069,7 @@ class BoolExpr final : public Expr {
      */
     bool value() const { return value_; }
 
-    std::optional<double> constant_eval() const override {
-        return value_;
-    }
+    std::optional<double> constant_eval() const override { return value_; }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
         (void) ctx;

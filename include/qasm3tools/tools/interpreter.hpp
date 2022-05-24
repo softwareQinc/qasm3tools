@@ -56,6 +56,185 @@
 
 #define WHILE_ITERATION_LIMIT 1000
 
+namespace std {
+/**
+ * \brief Hash function for gate calls
+ *
+ * Allows gate calls to be used as keys in std::unordered_map.
+ * Implementation and magic numbers taken from boost::hash_combine.
+ */
+template <>
+struct hash<std::pair<qasmtools::ast::symbol, std::vector<double>>> {
+    std::size_t operator()(
+        const std::pair<qasmtools::ast::symbol, std::vector<double>>& k) const {
+        std::size_t lhs = std::hash<qasmtools::ast::symbol>{}(k.first);
+        for (auto& x : k.second) {
+            lhs ^=
+                std::hash<double>{}(x) + 0x9e3779b9 + (lhs << 6) + (lhs >> 2);
+        }
+        return lhs;
+    }
+};
+} // namespace std
+
+namespace qpp {
+/**
+ * \brief Copied from qpp::Gates::CTRL
+ */
+template <typename Derived>
+dyn_mat<typename Derived::Scalar>
+CTRL(const Eigen::MatrixBase<Derived>& A, const std::vector<idx>& ctrl,
+     const std::vector<idx>& target, idx n, idx d = 2,
+     std::vector<idx> shift = {}) {
+    const dyn_mat<typename Derived::Scalar>& rA = A.derived();
+
+    // EXCEPTION CHECKS
+
+    // check matrix zero-size
+    if (!internal::check_nonzero_size(rA))
+        throw exception::ZeroSize("qpp::Gates::CTRL()", "A");
+
+    // check square matrix
+    if (!internal::check_square_mat(rA))
+        throw exception::MatrixNotSquare("qpp::Gates::CTRL()", "A");
+
+    // check lists zero-size
+    //if (ctrl.empty())
+    //    throw exception::ZeroSize("qpp::Gates::CTRL()", "ctrl");
+    if (target.empty())
+        throw exception::ZeroSize("qpp::Gates::CTRL()", "target");
+
+    // check out of range
+    if (n == 0)
+        throw exception::OutOfRange("qpp::Gates::CTRL()", "n");
+
+    // check valid local dimension
+    if (d == 0)
+        throw exception::DimsInvalid("qpp::Gates::CTRL()", "d");
+
+    // ctrl + gate subsystem vector
+    std::vector<idx> ctrlgate = ctrl;
+    ctrlgate.insert(std::end(ctrlgate), std::begin(target), std::end(target));
+    std::sort(std::begin(ctrlgate), std::end(ctrlgate));
+
+    std::vector<idx> dims(n, d); // local dimensions vector
+
+    // check that ctrl + gate subsystem is valid
+    // with respect to local dimensions
+    if (!internal::check_subsys_match_dims(ctrlgate, dims))
+        throw exception::SubsysMismatchDims("qpp::Gates::CTRL()", "ctrl/dims");
+
+    // check that target list match the dimension of the matrix
+    using Index = typename dyn_mat<typename Derived::Scalar>::Index;
+    if (rA.rows() !=
+        static_cast<Index>(std::llround(std::pow(d, target.size()))))
+        throw exception::MatrixMismatchSubsys("qpp::Gates::CTRL()",
+                                              "A/d/target");
+
+    // check shift
+    if (!shift.empty() && (shift.size() != ctrl.size()))
+        throw exception::SizeMismatch("qpp::Gates::CTRL()", "ctrl/shift");
+    if (!shift.empty())
+        for (auto&& elem : shift)
+            if (elem >= d)
+                throw exception::OutOfRange("qpp::Gates::CTRL()", "shift");
+    // END EXCEPTION CHECKS
+
+    if (shift.empty())
+        shift = std::vector<idx>(ctrl.size(), 0);
+
+    // Use static allocation for speed!
+    idx Cdims[internal::maxn];
+    idx midx_row[internal::maxn];
+    idx midx_col[internal::maxn];
+
+    idx CdimsA[internal::maxn];
+    idx midxA_row[internal::maxn];
+    idx midxA_col[internal::maxn];
+
+    idx Cdims_bar[internal::maxn];
+    idx Csubsys_bar[internal::maxn];
+    idx midx_bar[internal::maxn];
+
+    idx n_gate = target.size();
+    idx n_ctrl = ctrl.size();
+    idx n_subsys_bar = n - ctrlgate.size();
+    idx D = static_cast<idx>(std::llround(std::pow(d, n)));
+    idx DA = static_cast<idx>(rA.rows());
+    idx Dsubsys_bar = static_cast<idx>(std::llround(std::pow(d, n_subsys_bar)));
+
+    // compute the complementary subsystem of ctrlgate w.r.t. dims
+    std::vector<idx> subsys_bar = complement(ctrlgate, n);
+    std::copy(std::begin(subsys_bar), std::end(subsys_bar),
+              std::begin(Csubsys_bar));
+
+    for (idx k = 0; k < n; ++k) {
+        midx_row[k] = midx_col[k] = 0;
+        Cdims[k] = d;
+    }
+
+    for (idx k = 0; k < n_subsys_bar; ++k) {
+        Cdims_bar[k] = d;
+        midx_bar[k] = 0;
+    }
+
+    for (idx k = 0; k < n_gate; ++k) {
+        midxA_row[k] = midxA_col[k] = 0;
+        CdimsA[k] = d;
+    }
+
+    dyn_mat<typename Derived::Scalar> result =
+        dyn_mat<typename Derived::Scalar>::Identity(D, D);
+    dyn_mat<typename Derived::Scalar> Ak;
+
+    // run over the complement indexes
+    for (idx i = 0; i < Dsubsys_bar; ++i) {
+        // get the complement row multi-index
+        internal::n2multiidx(i, n_subsys_bar, Cdims_bar, midx_bar);
+        for (idx k = 0; k < d; ++k) {
+            Ak = powm(rA, k); // compute rA^k
+            // run over the target row multi-index
+            for (idx a = 0; a < DA; ++a) {
+                // get the target row multi-index
+                internal::n2multiidx(a, n_gate, CdimsA, midxA_row);
+
+                // construct the result row multi-index
+
+                // first the ctrl part (equal for both row and column)
+                for (idx c = 0; c < n_ctrl; ++c)
+                    midx_row[ctrl[c]] = midx_col[ctrl[c]] =
+                        (k + d - shift[c]) % d;
+
+                // then the complement part (equal for column)
+                for (idx c = 0; c < n_subsys_bar; ++c)
+                    midx_row[Csubsys_bar[c]] = midx_col[Csubsys_bar[c]] =
+                        midx_bar[c];
+
+                // then the target part
+                for (idx c = 0; c < n_gate; ++c)
+                    midx_row[target[c]] = midxA_row[c];
+
+                // run over the target column multi-index
+                for (idx b = 0; b < DA; ++b) {
+                    // get the target column multi-index
+                    internal::n2multiidx(b, n_gate, CdimsA, midxA_col);
+
+                    // construct the result column multi-index
+                    for (idx c = 0; c < n_gate; ++c)
+                        midx_col[target[c]] = midxA_col[c];
+
+                    // finally write the values
+                    result(internal::multiidx2n(midx_row, n, Cdims),
+                           internal::multiidx2n(midx_col, n, Cdims)) = Ak(a, b);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+} // namespace qpp
+
 namespace qasm3tools {
 namespace tools {
 
@@ -110,9 +289,13 @@ struct QASM_int {
             std::cerr << "warning: int[" << width
                       << "] is too large to handle; using int[64] instead\n";
         }
+        normalize();
+    }
+
+    void normalize() {
         // mod by 2^width
         if (width > 0 && width < 64) {
-            const long long maxbits = (long long) 1 << width;
+            const long long maxbits = 1LL << width;
             value %= maxbits;
             if (!is_signed && value < 0) {
                 // unsigned means nonnegative
@@ -201,6 +384,9 @@ struct QASM_qubit {
     }
 };
 
+/**
+ * \brief OpenQASM non-array types as a std::variant
+ */
 using BasicType = std::variant<QASM_bool, QASM_int, QASM_float, QASM_angle,
                                QASM_cbit, QASM_qubit>;
 
@@ -213,32 +399,44 @@ std::ostream& operator<<(std::ostream& os, const BasicType& exp) {
  * \brief Reference to a bit in an integer or angle
  */
 class BitReference {
-  public:
-    virtual void assign(bool value) {}
-};
-class IntBitReference : public BitReference {
-    QASM_int* ref_;
+    using RefType = std::variant<std::monostate, QASM_int*, QASM_angle*>;
+    RefType ref_;
     int index_;
 
   public:
-    IntBitReference(QASM_int* ref, int index) : ref_(ref), index_(index) {}
-    void assign(bool value) override {
-        if (value) {
-            ref_->value |= 1UL << index_;
-        } else {
-            ref_->value &= ~(1UL << index_);
-        }
+    BitReference() : ref_(std::monostate()) {}
+    BitReference(RefType ref, int index) : ref_(ref), index_(index) {}
+
+    virtual void assign(bool value) {
+        std::visit(utils::overloaded{[this, value](QASM_int* ref) {
+                                         if (value) {
+                                             ref->value |= 1LL << index_;
+                                         } else {
+                                             ref->value &= ~(1LL << index_);
+                                         }
+                                         ref->normalize();
+                                     },
+                                     [this, value](QASM_angle* ref) {
+                                         ref->bits[index_] = value;
+                                     },
+                                     [](auto) {
+                                         std::cerr << "Invalid BitReference!\n";
+                                         throw RuntimeError();
+                                     }},
+                   ref_);
     }
 };
-class AngleBitReference : public BitReference {
-    QASM_angle* ref_;
-    int index_;
 
-  public:
-    AngleBitReference(QASM_angle* ref, int index) : ref_(ref), index_(index) {}
-    void assign(bool value) override { ref_->bits[index_] = value; }
-};
-
+/**
+ * \brief OpenQASM expression types as a std::variant
+ *
+ * BasicType and xt::xarray<BasicType> are used for computing most expressions.
+ *
+ * BasicType* and BitReference are used as references and should only be used
+ * when computing the left-hand side of an assignment (including measurements).
+ * Exception: xt::xarray<BasicType*> is used when passing an array into a
+ * subroutine, because in that case the array is passed by reference.
+ */
 using ExprType = std::variant<QASM_none, BasicType, xt::xarray<BasicType>,
                               BasicType*, xt::xarray<BasicType*>, BitReference,
                               xt::xarray<BitReference>>;
@@ -336,18 +534,11 @@ inline T smart_cast(const BasicType& source, const T& target) {
     return std::get<T>(basic_cast(source, target));
 }
 
-/* array -> basic helpers */
-inline BasicType deref(BasicType* x) { return *x; }
-inline xt::xarray<BasicType> deref_xarray(xt::xarray<BasicType*> x) {
-    auto vec_deref = xt::vectorize(deref);
-    return vec_deref(x);
-}
-
-/* basic -> basic */
+/* basic -> basic assignment */
 inline void overwrite_help(const BasicType& s, BasicType& t) {
     t = basic_cast(s, t);
 }
-/* array -> basic */
+/* array -> basic assignment */
 inline void overwrite_help(xt::xarray<BasicType>& s, BasicType& t) {
     std::visit(
         utils::overloaded{
@@ -394,7 +585,7 @@ inline void overwrite_help(xt::xarray<BasicType>& s, BasicType& t) {
             }},
         t);
 }
-/* basic -> array */
+/* basic -> array assignment */
 inline void overwrite_help(BasicType& s, xt::xarray<BasicType*>& t) {
     std::visit(
         utils::overloaded{
@@ -444,7 +635,7 @@ inline void overwrite_help(BasicType& s, xt::xarray<BasicType*>& t) {
 }
 
 /**
- * \brief Set target expression to source expression without changing its type
+ * \brief Assign source expression to target while preserving target's type
  */
 inline void overwrite(ExprType& source, ExprType& target) {
     return std::visit(
@@ -452,8 +643,6 @@ inline void overwrite(ExprType& source, ExprType& target) {
             /* basic -> basic */
             [](BasicType& s, BasicType& t) { overwrite_help(s, t); },
             [](BasicType& s, BasicType* t) { overwrite_help(s, *t); },
-            /*[](BasicType* s, BasicType& t) { overwrite_help(*s, t); },*/
-            /*[](BasicType* s, BasicType* t) { overwrite_help(*s, *t); },*/
             /* array -> basic */
             [](xt::xarray<BasicType>& s, BasicType& t) {
                 overwrite_help(s, t);
@@ -461,19 +650,10 @@ inline void overwrite(ExprType& source, ExprType& target) {
             [](xt::xarray<BasicType>& s, BasicType* t) {
                 overwrite_help(s, *t);
             },
-            /*[](xt::xarray<BasicType*> s, BasicType& t) {
-                overwrite_help(deref_xarray(s), t);
-            },*/
-            /*[](xt::xarray<BasicType*> s, BasicType* t) {
-                overwrite_help(deref_xarray(s), *t);
-            },*/
             /* basic -> array */
             [](BasicType& s, xt::xarray<BasicType*>& t) {
                 overwrite_help(s, t);
             },
-            /*[](BasicType* s, xt::xarray<BasicType*>& t) {
-                overwrite_help(*s, t);
-            },*/
             /* array -> array */
             [](xt::xarray<BasicType>& s, xt::xarray<BasicType*>& t) {
                 if (s.shape() != t.shape()) {
@@ -486,18 +666,17 @@ inline void overwrite(ExprType& source, ExprType& target) {
                     overwrite_help(*s_it, **it);
                 }
             },
-            /*[](xt::xarray<BasicType*>& s, xt::xarray<BasicType*>& t) {
-                if (s.shape() != t.shape()) {
-                    std::cerr << "Overwrite: array shape mismatch!\n";
-                    throw RuntimeError();
-                }
-                for (auto it = t.begin(), s_it = s.begin(); it != t.end() &&
-            s_it != s.end(); it++, s_it++) { overwrite_help(**s_it, **it);
-                }
-            },*/
             /* assigning to bits of int/angle */
             [](BasicType& s, BitReference& t) {
                 t.assign(smart_cast(s, QASM_cbit()).bit);
+            },
+            [](xt::xarray<BasicType>& s, BitReference& t) {
+                if (s.size() == 1) {
+                    t.assign(smart_cast(*s.begin(), QASM_cbit()).bit);
+                    return;
+                }
+                std::cerr << "Failed to assign bit array to BitReference\n";
+                throw RuntimeError();
             },
             [](xt::xarray<BasicType>& s, xt::xarray<BitReference>& t) {
                 if (s.shape() != t.shape()) {
@@ -518,6 +697,10 @@ inline void overwrite(ExprType& source, ExprType& target) {
             }},
         source, target);
 }
+
+/**
+ * \brief Cast expression to a basic type
+ */
 template <typename T>
 inline T cast_to_basic(ExprType& source, T&& target) {
     ExprType tmp = std::move(target);
@@ -525,10 +708,11 @@ inline T cast_to_basic(ExprType& source, T&& target) {
     return std::get<T>(std::get<BasicType>(tmp));
 }
 
-/**
- * \brief Get numerical value of an expression
- */
 using value_type = std::variant<long long, unsigned long long, double>;
+
+/**
+ * \brief Get numerical value of a non-array expression
+ */
 inline value_type get_value_help(const BasicType& t) {
     return std::visit(
         utils::overloaded{
@@ -550,6 +734,7 @@ inline value_type get_value_help(const BasicType& t) {
             }},
         t);
 }
+/* creg -> int */
 inline value_type get_value_help(xt::xarray<BasicType>& s) {
     unsigned long long ans = 0;
     for (auto it = s.rbegin(); it != s.rend(); it++) {
@@ -558,19 +743,16 @@ inline value_type get_value_help(xt::xarray<BasicType>& s) {
     }
     return ans;
 }
+/**
+ * \brief Get numerical value of an expression
+ */
 inline value_type get_value(ExprType& x) {
     return std::visit(
         utils::overloaded{
             [](BasicType& v) -> value_type { return get_value_help(v); },
-            /*[](BasicType* v) -> value_type {
-                return get_value_help(*v);
-            },*/
             [](xt::xarray<BasicType>& v) -> value_type {
                 return get_value_help(v);
             },
-            /*[](xt::xarray<BasicType*>& v) -> value_type {
-                return get_value_help(deref_xarray(v));
-            },*/
             [](auto) -> value_type {
                 std::cerr << ": get_value called on type without a value\n";
                 throw RuntimeError();
@@ -578,6 +760,9 @@ inline value_type get_value(ExprType& x) {
         x);
 }
 
+/**
+ * \brief Convert int/angle reference to a bit array reference
+ */
 xt::xarray<BitReference> to_creg_ref(BasicType* type) {
     if (std::holds_alternative<QASM_int>(*type)) {
         auto& i = std::get<QASM_int>(*type);
@@ -589,7 +774,7 @@ xt::xarray<BitReference> to_creg_ref(BasicType* type) {
         auto creg = xt::xarray<BitReference>::from_shape(
             {static_cast<unsigned long>(i.width)});
         for (int j = 0; j < i.width; j++) {
-            creg(j) = IntBitReference(std::addressof(i), j);
+            creg(j) = BitReference(std::addressof(i), j);
         }
         return creg;
     } else if (std::holds_alternative<QASM_angle>(*type)) {
@@ -597,7 +782,7 @@ xt::xarray<BitReference> to_creg_ref(BasicType* type) {
         auto creg = xt::xarray<BitReference>::from_shape(
             {static_cast<unsigned long>(a.width)});
         for (int j = 0; j < a.width; j++) {
-            creg(j) = AngleBitReference(std::addressof(a), j);
+            creg(j) = BitReference(std::addressof(a), j);
         }
         return creg;
     }
@@ -605,6 +790,9 @@ xt::xarray<BitReference> to_creg_ref(BasicType* type) {
     throw RuntimeError();
 }
 
+/**
+ * \brief Convert int/angle expression to a bit array expression
+ */
 xt::xarray<BasicType> to_creg(const BasicType& type) {
     if (std::holds_alternative<QASM_int>(type)) {
         auto& i = std::get<QASM_int>(type);
@@ -639,6 +827,25 @@ xt::xarray<BasicType> to_creg(const BasicType& type) {
 using BasicType = types::BasicType;
 using ExprType = types::ExprType;
 
+using cmat = qpp::cmat;
+
+/**
+ * \brief Table of computed matrices. Maps [gatename, {args}] -> cmat
+ */
+static std::unordered_map<std::pair<ast::symbol, std::vector<double>>, cmat>
+    known_matrices{};
+
+/**
+ * \brief Subsystem information used to compute gate matrices
+ *
+ * Example: gate ccx a, b, c { <body> }
+ * Then dims = 3 and ids = {{"a", 0}, {"b", 1}, {"c", 2}}
+ */
+struct Subsystem {
+    idx dims;                                 ///< number of dimesions
+    std::unordered_map<ast::symbol, idx> ids; ///< 0-based qubit indices
+};
+
 /**
  * \class qasm3tools::tools::Executor
  * \brief Program interpreter
@@ -665,9 +872,6 @@ class Executor final : ast::Visitor {
 
     /**
      * \brief OpenQASM types as a std::variant
-     *
-     * Functional-style syntax trees in C++17 as a simpler alternative
-     * to inheritance hierarchy. Support is still lacking for large-scale.
      */
     using Type = std::variant<ExprType, GateType, SubroutineType>;
 
@@ -686,6 +890,90 @@ class Executor final : ast::Visitor {
 
         LoopRange(int x, int y, int z) : start(x), step(y), stop(z) {}
     };
+
+    /**
+     * \brief Apply gate modifiers to the matrix_ member. Then:
+     *
+     * If we are computing a gate matrix, then we need to take a product of
+     * matrices. original_matrix is the product of the matrices of all quantum
+     * gates preceding this one, so we multiply on the left by the new matrix.
+     *
+     * Otherwise, we apply the gate to the quantum arguments.
+     */
+    void apply_with_modifiers(ast::Gate& gate, const cmat& original_matrix) {
+        // apply modifiers from innermost to outermost (modifies matrix_)
+        for (auto it = gate.modifiers().rbegin(); it != gate.modifiers().rend();
+             it++) {
+            (**it).accept(*this);
+        }
+        if (subsystem_) { // we are in the middle of computing a gate matrix
+            // get quantum argument indices within the subsytem
+            std::vector<idx> ids;
+            for (int i = 0; i < gate.num_qargs(); i++) {
+                auto it = subsystem_->ids.find(gate.qarg(i).var());
+                if (it != subsystem_->ids.end()) {
+                    ids.push_back(it->second);
+                } else {
+                    std::cerr << gate.qarg(i).pos() << ": error : variable '"
+                              << gate.qarg(i).var()
+                              << "' not accessible from this scope\n";
+                    throw RuntimeError();
+                }
+            }
+            if (ids.empty()) {
+                // must be gphase(gamma);
+                matrix_ = matrix_(0, 0) * original_matrix;
+            } else {
+                // multiply original matrix by the proper gate matrix
+                matrix_ = qpp::CTRL(matrix_, {}, ids, subsystem_->dims) *
+                          original_matrix;
+            }
+        } else { // apply the gate
+            // get quantum arguments
+            std::vector<std::vector<idx>> q_args(gate.num_qargs());
+            for (int i = 0; i < gate.num_qargs(); i++) {
+                gate.qarg(i).accept(*this);
+                if (std::holds_alternative<BasicType*>(value_)) {
+                    q_args[i].push_back(std::get<types::QASM_qubit>(
+                                            *std::get<BasicType*>(value_))
+                                            .id);
+                } else if (std::holds_alternative<xt::xarray<BasicType*>>(
+                               value_)) {
+                    auto& x = std::get<xt::xarray<BasicType*>>(value_);
+                    std::transform(
+                        x.begin(), x.end(), std::back_inserter(q_args[i]),
+                        [](BasicType* b) -> idx {
+                            return std::get<types::QASM_qubit>(*b).id;
+                        });
+                }
+            }
+            // map gate across registers
+            idx mapping_size = 1;
+            std::vector<bool> mapped(q_args.size(), false);
+            for (idx i = 0; i < q_args.size(); i++) {
+                if (q_args[i].size() > 1) {
+                    mapped[i] = true;
+                    if (mapping_size > 1 && mapping_size != q_args[i].size()) {
+                        std::cerr << gate.qarg(i).pos()
+                                  << ": error : incompatible register length\n";
+                        throw RuntimeError();
+                    } else {
+                        mapping_size = q_args[i].size();
+                    }
+                }
+            }
+            for (idx j = 0; j < mapping_size; j++) {
+                // map virtual qubits to physical qubits
+                std::vector<idx> mapped_args(q_args.size());
+                for (idx i = 0; i < q_args.size(); i++) {
+                    mapped_args[i] = mapped[i] ? q_args[i][j] : q_args[i][0];
+                }
+
+                // apply gate
+                psi_ = qpp::apply(psi_, matrix_, mapped_args);
+            }
+        }
+    }
 
   public:
     void run(ast::Program& prog) { prog.accept(*this); }
@@ -769,6 +1057,15 @@ class Executor final : ast::Visitor {
                         value_ = std::move(tmp);
                     }
                 },
+                [this](xt::xarray<types::BitReference>& x) {
+                    xt::xarray<types::BitReference> tmp =
+                        xt::strided_view(x, index_entities_);
+                    if (tmp.dimension() == 0) {
+                        value_ = *tmp.begin();
+                    } else {
+                        value_ = std::move(tmp);
+                    }
+                },
                 [&indices](auto) {
                     std::cerr << indices.pos()
                               << ": error : non-array type cannot be indexed\n";
@@ -801,6 +1098,10 @@ class Executor final : ast::Visitor {
                 },
                 [this, &indices](xt::xarray<BasicType*>& x) {
                     value_ = xt::xarray<BasicType*>(
+                        xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
+                },
+                [this, &indices](xt::xarray<types::BitReference>& x) {
+                    value_ = xt::xarray<types::BitReference>(
                         xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
                 },
                 [&slice](auto) {
@@ -1623,15 +1924,46 @@ class Executor final : ast::Visitor {
         throw NotImplementedError();
     }
     // Gates
-    void visit(ast::CtrlModifier&) override {}
-    void visit(ast::InvModifier&) override {}
-    void visit(ast::PowModifier&) override {}
+    void visit(ast::CtrlModifier& mod) override {
+        if (mod.neg()) {
+            if (mod.n()) {
+                auto expr = dynamic_cast<ast::IntExpr*>(mod.n()->get());
+                for (int i = 0; i < expr->value(); i++) {
+                    matrix_ =
+                        qpp::dirsum(matrix_, cmat::Identity(matrix_.rows(),
+                                                            matrix_.cols()));
+                }
+            } else {
+                matrix_ = qpp::dirsum(
+                    matrix_, cmat::Identity(matrix_.rows(), matrix_.cols()));
+            }
+        } else {
+            if (mod.n()) {
+                auto expr = dynamic_cast<ast::IntExpr*>(mod.n()->get());
+                for (int i = 0; i < expr->value(); i++) {
+                    matrix_ = qpp::dirsum(
+                        cmat::Identity(matrix_.rows(), matrix_.cols()),
+                        matrix_);
+                }
+            } else {
+                matrix_ = qpp::dirsum(
+                    cmat::Identity(matrix_.rows(), matrix_.cols()), matrix_);
+            }
+        }
+    }
+    void visit(ast::InvModifier&) override { matrix_ = qpp::inverse(matrix_); }
+    void visit(ast::PowModifier& mod) override {
+        expect_float_div_ = true;
+        mod.r().accept(*this);
+        double power = types::cast_to_basic(value_, types::QASM_float()).value;
+        expect_float_div_ = false;
+        matrix_ = qpp::spectralpowm(matrix_, power);
+    }
     void visit(ast::UGate& gate) override {
-        if (!gate.modifiers().empty()) {
-            std::cerr << gate.pos() << ": gate modifiers not supported\n";
-            throw NotImplementedError();
-        } // no modifiers -> there must be exactly one quantum argument
+        // save the current matrix
+        cmat matrix_copy = std::move(matrix_);
 
+        // evaluate classical arguments
         expect_float_div_ = true;
         gate.theta().accept(*this);
         double theta = types::cast_to_basic(value_, types::QASM_float()).value;
@@ -1641,124 +1973,76 @@ class Executor final : ast::Visitor {
         double lambda = types::cast_to_basic(value_, types::QASM_float()).value;
         expect_float_div_ = false;
 
-        gate.qarg(0).accept(*this);
-        std::vector<idx> args;
-        if (std::holds_alternative<BasicType*>(value_)) {
-            args.push_back(
-                std::get<types::QASM_qubit>(*std::get<BasicType*>(value_)).id);
-        } else if (std::holds_alternative<xt::xarray<BasicType*>>(value_)) {
-            auto& x = std::get<xt::xarray<BasicType*>>(value_);
-            std::transform(x.begin(), x.end(), std::back_inserter(args),
-                           [](BasicType* b) -> idx {
-                               return std::get<types::QASM_qubit>(*b).id;
-                           });
-        }
-
         // generate the matrix
-        qpp::cmat u{qpp::cmat::Zero(2, 2)};
-
-        u << std::cos(theta / 2),
+        matrix_ = cmat::Zero(2, 2);
+        matrix_ << std::cos(theta / 2),
             -(std::sin(theta / 2)) * std::exp(1_i * lambda),
             std::sin(theta / 2) * std::exp(1_i * phi),
             std::cos(theta / 2) * std::exp(1_i * (phi + lambda));
 
         // apply the gate
-        for (auto i : args) {
-            psi_ = qpp::apply(psi_, u, {i});
-        }
+        apply_with_modifiers(gate, matrix_copy);
     }
     void visit(ast::GPhase& gate) override {
-        std::cerr << gate.pos() << ": gphase gate not supported\n";
-        throw NotImplementedError();
+        // save the current matrix
+        cmat matrix_copy = std::move(matrix_);
+
+        // evaluate classical arguments
+        expect_float_div_ = true;
+        gate.gamma().accept(*this);
+        double gamma = types::cast_to_basic(value_, types::QASM_float()).value;
+        expect_float_div_ = false;
+
+        // generate the matrix
+        matrix_ = cmat::Zero(1, 1);
+        matrix_ << std::exp(1_i * gamma);
+
+        // apply the gate
+        apply_with_modifiers(gate, matrix_copy);
     }
     void visit(ast::DeclaredGate& dgate) override {
-        if (!dgate.modifiers().empty()) {
-            std::cerr << dgate.pos() << ": gate modifiers not supported\n";
-            throw NotImplementedError();
-        } // no modifiers -> there must be exactly one quantum argument
+        // save the current matrix
+        cmat matrix_copy = std::move(matrix_);
 
-        auto gate = std::get<GateType>(lookup(dgate.name()));
-
-        // evaluate arguments
+        // evaluate classical arguments
         std::vector<double> c_args(dgate.num_cargs());
-        std::vector<std::vector<idx>> q_args(dgate.num_qargs());
         expect_float_div_ = true;
         for (int i = 0; i < dgate.num_cargs(); i++) {
             dgate.carg(i).accept(*this);
             c_args[i] = types::cast_to_basic(value_, types::QASM_float()).value;
         }
         expect_float_div_ = false;
-        for (int i = 0; i < dgate.num_qargs(); i++) {
-            dgate.qarg(i).accept(*this);
-            if (std::holds_alternative<BasicType*>(value_)) {
-                q_args[i].push_back(
-                    std::get<types::QASM_qubit>(*std::get<BasicType*>(value_))
-                        .id);
-            } else if (std::holds_alternative<xt::xarray<BasicType*>>(value_)) {
-                auto& x = std::get<xt::xarray<BasicType*>>(value_);
-                std::transform(x.begin(), x.end(),
-                               std::back_inserter(q_args[i]),
-                               [](BasicType* b) -> idx {
-                                   return std::get<types::QASM_qubit>(*b).id;
-                               });
-            }
-        }
 
-        // map gate across registers
-        idx mapping_size = 1;
-        std::vector<bool> mapped(q_args.size(), false);
-        for (idx i = 0; i < q_args.size(); i++) {
-            if (q_args[i].size() > 1) {
-                mapped[i] = true;
-                if (mapping_size > 1 && mapping_size != q_args[i].size()) {
-                    std::cerr << dgate.qarg(i).pos()
-                              << ": error : incompatible register length\n";
-                    throw RuntimeError();
-                } else {
-                    mapping_size = q_args[i].size();
-                }
-            }
-        }
-
-        auto it = qpp::qasm::known_matrices.find(dgate.name());
-        if (it != qpp::qasm::known_matrices.end()) {
-            // apply the known matrix directly
-            auto mat = it->second(c_args);
-
-            // map the gate accross registers
-            for (idx j = 0; j < mapping_size; j++) {
-                // map virtual qubits to physical qubits
-                std::vector<idx> mapped_args(q_args.size());
-                for (idx i = 0; i < q_args.size(); i++) {
-                    mapped_args[i] = mapped[i] ? q_args[i][j] : q_args[i][0];
-                }
-
-                // apply gate
-                psi_ = qpp::apply(psi_, mat, mapped_args);
-            }
+        // generate the matrix
+        auto it = known_matrices.find({dgate.name(), c_args});
+        if (it != known_matrices.end()) {
+            matrix_ = it->second;
         } else {
+            auto gate = std::get<GateType>(lookup(dgate.name()));
+            // save the current subsytem
+            auto subsystem_copy = std::move(subsystem_);
+            // compute the matrix
+            idx n = gate.q_param_names.size();
+            subsystem_ = Subsystem{n, {}};
+            for (idx i = 0; i < n; i++) {
+                subsystem_->ids[gate.q_param_names[i]] = i;
+            }
+            matrix_ = cmat::Identity(1 << n, 1 << n);
             // push classical arguments onto a new scope
             push_scope();
             for (idx i = 0; i < c_args.size(); i++) {
                 set(gate.c_param_names[i], types::QASM_float{c_args[i]});
             }
-
-            // map the gate
-            for (idx j = 0; j < mapping_size; j++) {
-                push_scope();
-                for (idx i = 0; i < q_args.size(); i++) {
-                    set(gate.q_param_names[i],
-                        types::QASM_qubit{mapped[i] ? q_args[i][j]
-                                                    : q_args[i][0]});
-                }
-
-                // evaluate the gate
-                gate.body->accept(*this);
-
-                pop_scope();
-            }
+            gate.body->accept(*this);
             pop_scope();
+            // save the matrix
+            known_matrices[{dgate.name(), c_args}] = matrix_;
+            // restore the original subsystem
+            subsystem_ = std::move(subsystem_copy);
         }
+
+        // apply the gate
+        apply_with_modifiers(dgate, matrix_copy);
     }
     // Loops
     void visit(ast::RangeSet& set) override {
@@ -1812,8 +2096,7 @@ class Executor final : ast::Visitor {
                 },
                 [this, &stmt](LoopRange& range) {
                     for (int i = range.start;
-                         (range.step > 0) ? (i <= range.stop)
-                                          : (i >= range.stop);
+                         (range.step > 0) ? (i < range.stop) : (i > range.stop);
                          i += range.step) {
                         push_scope();
                         set(stmt.var(), types::QASM_int(-1, true, i));
@@ -1914,8 +2197,7 @@ class Executor final : ast::Visitor {
                 },
                 [this, &stmt](LoopRange& range) {
                     for (int i = range.start;
-                         (range.step > 0) ? (i <= range.stop)
-                                          : (i >= range.stop);
+                         (range.step > 0) ? (i < range.stop) : (i > range.stop);
                          i += range.step) {
                         push_scope();
                         set(stmt.var(), types::QASM_int(-1, true, i));
@@ -2093,6 +2375,9 @@ class Executor final : ast::Visitor {
         });
 
         print_global_vars();
+        if (prog.qubits() > 0) {
+            print_psi();
+        }
 
         pop_scope();
     }
@@ -2111,6 +2396,8 @@ class Executor final : ast::Visitor {
     xt::xstrided_slice_vector index_entities_{}; /// index entities
     idx allocated_qubits_ = 0; ///< total number qubits from visited decls
     qpp::ket psi_{};           ///< state vector
+    cmat matrix_{};            ///< stores intermediate gate matrices
+    std::optional<Subsystem> subsystem_; ///< current subsytem to get matrix for
     std::list<std::unordered_map<ast::symbol, Type>>
         symbol_table_{}; ///< a stack of symbol tables
 
@@ -2173,6 +2460,14 @@ class Executor final : ast::Visitor {
                 }
             }
         }
+    }
+
+    /**
+     * \brief Prints the state vector
+     */
+    void print_psi() {
+        std::cout << ">> Final state (transpose):\n";
+        std::cout << qpp::disp(qpp::transpose(psi_)) << '\n';
     }
 
     /**
