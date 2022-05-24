@@ -82,10 +82,10 @@ namespace qpp {
  * \brief Copied from qpp::Gates::CTRL
  */
 template <typename Derived>
-dyn_mat<typename Derived::Scalar>
-CTRL(const Eigen::MatrixBase<Derived>& A, const std::vector<idx>& ctrl,
-     const std::vector<idx>& target, idx n, idx d = 2,
-     std::vector<idx> shift = {}) {
+dyn_mat<typename Derived::Scalar> CTRL(const Eigen::MatrixBase<Derived>& A,
+                                       const std::vector<idx>& ctrl,
+                                       const std::vector<idx>& target, idx n,
+                                       idx d = 2, std::vector<idx> shift = {}) {
     const dyn_mat<typename Derived::Scalar>& rA = A.derived();
 
     // EXCEPTION CHECKS
@@ -99,7 +99,7 @@ CTRL(const Eigen::MatrixBase<Derived>& A, const std::vector<idx>& ctrl,
         throw exception::MatrixNotSquare("qpp::Gates::CTRL()", "A");
 
     // check lists zero-size
-    //if (ctrl.empty())
+    // if (ctrl.empty())
     //    throw exception::ZeroSize("qpp::Gates::CTRL()", "ctrl");
     if (target.empty())
         throw exception::ZeroSize("qpp::Gates::CTRL()", "target");
@@ -237,9 +237,6 @@ CTRL(const Eigen::MatrixBase<Derived>& A, const std::vector<idx>& ctrl,
 
 namespace qasm3tools {
 namespace tools {
-
-using namespace xt::placeholders;
-using namespace qpp::literals;
 
 using idx = qpp::idx;
 
@@ -836,17 +833,6 @@ static std::unordered_map<std::pair<ast::symbol, std::vector<double>>, cmat>
     known_matrices{};
 
 /**
- * \brief Subsystem information used to compute gate matrices
- *
- * Example: gate ccx a, b, c { <body> }
- * Then dims = 3 and ids = {{"a", 0}, {"b", 1}, {"c", 2}}
- */
-struct Subsystem {
-    idx dims;                                 ///< number of dimesions
-    std::unordered_map<ast::symbol, idx> ids; ///< 0-based qubit indices
-};
-
-/**
  * \class qasm3tools::tools::Executor
  * \brief Program interpreter
  */
@@ -892,15 +878,26 @@ class Executor final : ast::Visitor {
     };
 
     /**
+     * \brief Subsystem information used to compute gate matrices
+     *
+     * Example: gate ccx a, b, c { <body> }
+     * Then dims = 3 and ids = {{"a", 0}, {"b", 1}, {"c", 2}}
+     */
+    struct Subsystem {
+        idx dims;                                 ///< number of dimesions
+        std::unordered_map<ast::symbol, idx> ids; ///< 0-based qubit indices
+    };
+
+    /**
      * \brief Apply gate modifiers to the matrix_ member. Then:
      *
      * If we are computing a gate matrix, then we need to take a product of
-     * matrices. original_matrix is the product of the matrices of all quantum
+     * matrices. prev_matrix is the product of the matrices of all quantum
      * gates preceding this one, so we multiply on the left by the new matrix.
      *
      * Otherwise, we apply the gate to the quantum arguments.
      */
-    void apply_with_modifiers(ast::Gate& gate, const cmat& original_matrix) {
+    void apply_with_modifiers(ast::Gate& gate, const cmat& prev_matrix) {
         // apply modifiers from innermost to outermost (modifies matrix_)
         for (auto it = gate.modifiers().rbegin(); it != gate.modifiers().rend();
              it++) {
@@ -920,14 +917,9 @@ class Executor final : ast::Visitor {
                     throw RuntimeError();
                 }
             }
-            if (ids.empty()) {
-                // must be gphase(gamma);
-                matrix_ = matrix_(0, 0) * original_matrix;
-            } else {
-                // multiply original matrix by the proper gate matrix
-                matrix_ = qpp::CTRL(matrix_, {}, ids, subsystem_->dims) *
-                          original_matrix;
-            }
+            // multiply original matrix by the proper gate matrix
+            matrix_ =
+                qpp::CTRL(matrix_, {}, ids, subsystem_->dims) * prev_matrix;
         } else { // apply the gate
             // get quantum arguments
             std::vector<std::vector<idx>> q_args(gate.num_qargs());
@@ -985,6 +977,7 @@ class Executor final : ast::Visitor {
         index_entities_.push_back(val.value);
     }
     void visit(ast::RangeIndex& index) override {
+        using namespace xt::placeholders;
         types::QASM_int start{-1, true, INT_MAX};
         types::QASM_int step{-1, true, INT_MAX};
         types::QASM_int stop{-1, true, INT_MAX};
@@ -1960,6 +1953,7 @@ class Executor final : ast::Visitor {
         matrix_ = qpp::spectralpowm(matrix_, power);
     }
     void visit(ast::UGate& gate) override {
+        using namespace qpp::literals;
         // save the current matrix
         cmat matrix_copy = std::move(matrix_);
 
@@ -1984,6 +1978,7 @@ class Executor final : ast::Visitor {
         apply_with_modifiers(gate, matrix_copy);
     }
     void visit(ast::GPhase& gate) override {
+        using namespace qpp::literals;
         // save the current matrix
         cmat matrix_copy = std::move(matrix_);
 
@@ -1993,12 +1988,17 @@ class Executor final : ast::Visitor {
         double gamma = types::cast_to_basic(value_, types::QASM_float()).value;
         expect_float_div_ = false;
 
-        // generate the matrix
-        matrix_ = cmat::Zero(1, 1);
-        matrix_ << std::exp(1_i * gamma);
+        if (gate.num_qargs() == 0) {
+            // must be gphase(gamma); inside a gate definition
+            matrix_ = std::exp(1_i * gamma) * matrix_copy;
+        } else {
+            // generate the matrix
+            matrix_ = cmat::Zero(1, 1);
+            matrix_ << std::exp(1_i * gamma);
 
-        // apply the gate
-        apply_with_modifiers(gate, matrix_copy);
+            // apply the gate
+            apply_with_modifiers(gate, matrix_copy);
+        }
     }
     void visit(ast::DeclaredGate& dgate) override {
         // save the current matrix
