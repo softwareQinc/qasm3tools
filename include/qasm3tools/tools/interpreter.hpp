@@ -397,10 +397,11 @@ std::ostream& operator<<(std::ostream& os, const BasicType& exp) {
  */
 class BitReference {
     using RefType = std::variant<std::monostate, QASM_int*, QASM_angle*>;
-    RefType ref_;
-    int index_;
+    RefType ref_; ///< integer/angle pointer
+    int index_;   ///< index of the bit
 
   public:
+    // default constructor needed for xt::xarray
     BitReference() : ref_(std::monostate()) {}
     BitReference(RefType ref, int index) : ref_(ref), index_(index) {}
 
@@ -447,7 +448,7 @@ inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
             /* casting from bool */
             [](const QASM_bool& s, const QASM_bool&) -> BasicType { return s; },
             [](const QASM_bool& s, const QASM_int& t) -> BasicType {
-                return QASM_int(t.width, t.is_signed, s.value);
+                return QASM_int{t.width, t.is_signed, s.value};
             },
             [](const QASM_bool& s, const QASM_float&) -> BasicType {
                 return QASM_float{(double) s.value};
@@ -460,7 +461,7 @@ inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
                 return QASM_bool{(bool) s.value};
             },
             [](const QASM_int& s, const QASM_int& t) -> BasicType {
-                return QASM_int(t.width, t.is_signed, s.value);
+                return QASM_int{t.width, t.is_signed, s.value};
             },
             [](const QASM_int& s, const QASM_float&) -> BasicType {
                 return QASM_float{(double) s.value};
@@ -470,13 +471,13 @@ inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
                 return QASM_bool{(bool) s.value};
             },
             [](const QASM_float& s, const QASM_int& t) -> BasicType {
-                return QASM_int(t.width, t.is_signed, s.value);
+                return QASM_int{t.width, t.is_signed, (long long) s.value};
             },
             [](const QASM_float& s, const QASM_float&) -> BasicType {
                 return s;
             },
             [](const QASM_float& s, const QASM_angle& t) -> BasicType {
-                return QASM_angle(t.width, s.value);
+                return QASM_angle{t.width, s.value};
             },
             /* casting from angle */
             [](const QASM_angle& s, const QASM_bool&) -> BasicType {
@@ -494,21 +495,21 @@ inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
                     return s;
                 else if (s.width > t.width) {
                     // truncate
-                    return QASM_angle(std::vector<bool>(
-                        s.bits.begin() + (s.width - t.width), s.bits.end()));
+                    return QASM_angle{std::vector<bool>(
+                        s.bits.begin() + (s.width - t.width), s.bits.end())};
                 } else {
                     // pad with zeros
                     std::vector<bool> ang(t.width - s.width, false);
                     ang.insert(ang.end(), s.bits.begin(), s.bits.end());
-                    return QASM_angle(std::move(ang));
+                    return QASM_angle{std::move(ang)};
                 }
             },
             /* casting from bit */
             [](const QASM_cbit& s, const QASM_bool&) -> BasicType {
                 return QASM_bool{s.bit};
             },
-            [](const QASM_cbit& s, const QASM_int&) -> BasicType {
-                return QASM_int{s.bit};
+            [](const QASM_cbit& s, const QASM_int& t) -> BasicType {
+                return QASM_int{t.width, t.is_signed, s.bit};
             },
             [](const QASM_cbit& s, const QASM_cbit&) -> BasicType { return s; },
             /* the rest can't be casted */
@@ -544,9 +545,9 @@ inline void overwrite_help(xt::xarray<BasicType>& s, BasicType& t) {
                     unsigned long long ans = 0;
                     for (auto it = s.rbegin(); it != s.rend(); it++) {
                         ans <<= 1;
-                        ans += smart_cast(*it, QASM_cbit()).bit;
+                        ans += smart_cast(*it, QASM_cbit{}).bit;
                     }
-                    v = QASM_int(v.width, v.is_signed, ans);
+                    v = QASM_int{v.width, v.is_signed, (long long) ans};
                     return;
                 }
                 std::cerr << "Failed to assign bit array to integer (size "
@@ -558,9 +559,9 @@ inline void overwrite_help(xt::xarray<BasicType>& s, BasicType& t) {
                     std::vector<bool> bits;
                     std::transform(s.begin(), s.end(), std::back_inserter(bits),
                                    [](BasicType c) -> bool {
-                                       return smart_cast(c, QASM_cbit()).bit;
+                                       return smart_cast(c, QASM_cbit{}).bit;
                                    });
-                    v = QASM_angle(std::move(bits));
+                    v = QASM_angle{std::move(bits)};
                     return;
                 }
                 std::cerr
@@ -638,12 +639,8 @@ inline void overwrite(ExprType& source, ExprType& target) {
     return std::visit(
         utils::overloaded{
             /* basic -> basic */
-            [](BasicType& s, BasicType& t) { overwrite_help(s, t); },
             [](BasicType& s, BasicType* t) { overwrite_help(s, *t); },
             /* array -> basic */
-            [](xt::xarray<BasicType>& s, BasicType& t) {
-                overwrite_help(s, t);
-            },
             [](xt::xarray<BasicType>& s, BasicType* t) {
                 overwrite_help(s, *t);
             },
@@ -663,13 +660,13 @@ inline void overwrite(ExprType& source, ExprType& target) {
                     overwrite_help(*s_it, **it);
                 }
             },
-            /* assigning to bits of int/angle */
+            /* assigning to bits of integer/angle */
             [](BasicType& s, BitReference& t) {
-                t.assign(smart_cast(s, QASM_cbit()).bit);
+                t.assign(smart_cast(s, QASM_cbit{}).bit);
             },
             [](xt::xarray<BasicType>& s, BitReference& t) {
                 if (s.size() == 1) {
-                    t.assign(smart_cast(*s.begin(), QASM_cbit()).bit);
+                    t.assign(smart_cast(*s.begin(), QASM_cbit{}).bit);
                     return;
                 }
                 std::cerr << "Failed to assign bit array to BitReference\n";
@@ -683,10 +680,9 @@ inline void overwrite(ExprType& source, ExprType& target) {
                 auto it = t.begin();
                 auto s_it = s.begin();
                 for (; it != t.end() && s_it != s.end(); it++, s_it++) {
-                    it->assign(smart_cast(*s_it, QASM_cbit()).bit);
+                    it->assign(smart_cast(*s_it, QASM_cbit{}).bit);
                 }
             },
-            [](QASM_none&, QASM_none&) {},
             /* catch-all for invalid overwrite */
             [](auto, auto) {
                 std::cerr << "Overwrite: target is not an lvalue!\n";
@@ -698,11 +694,27 @@ inline void overwrite(ExprType& source, ExprType& target) {
 /**
  * \brief Cast expression to a basic type
  */
+inline BasicType cast_to_basic(ExprType& source, BasicType target) {
+    std::visit(utils::overloaded{[&target](BasicType& s) {
+                                     return overwrite_help(s, target);
+                                 },
+                                 [&target](xt::xarray<BasicType>& s) {
+                                     return overwrite_help(s, target);
+                                 },
+                                 [](auto) {
+                                     std::cerr << ": failed cast_to_basic()\n";
+                                     throw RuntimeError();
+                                 }},
+               source);
+    return target;
+}
+
+/**
+ * \brief Cast expression to a basic type and return target type
+ */
 template <typename T>
-inline T cast_to_basic(ExprType& source, T&& target) {
-    ExprType tmp = std::move(target);
-    overwrite(source, tmp);
-    return std::get<T>(std::get<BasicType>(tmp));
+inline T smart_cast_to_basic(ExprType& source, T target) {
+    return std::get<T>(cast_to_basic(source, target));
 }
 
 using value_type = std::variant<long long, unsigned long long, double>;
@@ -731,12 +743,14 @@ inline value_type get_value_help(const BasicType& t) {
             }},
         t);
 }
-/* creg -> int */
+/**
+ * \brief Get numerical value of a classical register (by converting to int)
+ */
 inline value_type get_value_help(xt::xarray<BasicType>& s) {
     unsigned long long ans = 0;
     for (auto it = s.rbegin(); it != s.rend(); it++) {
         ans <<= 1;
-        ans += smart_cast(*it, QASM_cbit()).bit;
+        ans += smart_cast(*it, QASM_cbit{}).bit;
     }
     return ans;
 }
@@ -758,7 +772,7 @@ inline value_type get_value(ExprType& x) {
 }
 
 /**
- * \brief Convert int/angle reference to a bit array reference
+ * \brief Convert integer/angle reference to a bit array reference
  */
 xt::xarray<BitReference> to_creg_ref(BasicType* type) {
     if (std::holds_alternative<QASM_int>(*type)) {
@@ -788,7 +802,7 @@ xt::xarray<BitReference> to_creg_ref(BasicType* type) {
 }
 
 /**
- * \brief Convert int/angle expression to a bit array expression
+ * \brief Convert integer/angle expression to a bit array expression
  */
 xt::xarray<BasicType> to_creg(const BasicType& type) {
     if (std::holds_alternative<QASM_int>(type)) {
@@ -973,7 +987,7 @@ class Executor final : ast::Visitor {
     // Index identifiers
     void visit(ast::SingleIndex& index) override {
         index.index().accept(*this);
-        auto val = types::cast_to_basic(value_, types::QASM_int(-1));
+        auto val = types::smart_cast_to_basic(value_, types::QASM_int{-1});
         index_entities_.push_back(val.value);
     }
     void visit(ast::RangeIndex& index) override {
@@ -983,11 +997,11 @@ class Executor final : ast::Visitor {
         types::QASM_int stop{-1, true, INT_MAX};
         if (index.start()) {
             (**index.start()).accept(*this);
-            start = types::cast_to_basic(value_, types::QASM_int(-1));
+            start = types::smart_cast_to_basic(value_, types::QASM_int{-1});
         }
         if (index.step()) {
             (**index.step()).accept(*this);
-            step = types::cast_to_basic(value_, types::QASM_int(-1));
+            step = types::smart_cast_to_basic(value_, types::QASM_int{-1});
             if (step.value == 0) {
                 std::cerr << index.pos()
                           << ": error : range step size is zero\n";
@@ -996,7 +1010,7 @@ class Executor final : ast::Visitor {
         }
         if (index.stop()) {
             (**index.stop()).accept(*this);
-            stop = types::cast_to_basic(value_, types::QASM_int(-1));
+            stop = types::smart_cast_to_basic(value_, types::QASM_int{-1});
         }
         int a = start.value, c = step.value, b = stop.value;
         if (a == INT_MAX && b == INT_MAX && c == INT_MAX)
@@ -1019,7 +1033,7 @@ class Executor final : ast::Visitor {
     void visit(ast::IndexEntityList& indices) override {
         // save array
         auto tmp = std::move(value_);
-        // convert int/angle to creg
+        // convert integer/angle to creg
         if (std::holds_alternative<BasicType*>(tmp)) {
             tmp = to_creg_ref(std::get<BasicType*>(tmp));
         } else if (std::holds_alternative<BasicType>(tmp)) {
@@ -1069,7 +1083,7 @@ class Executor final : ast::Visitor {
     void visit(ast::ListSlice& slice) override {
         // save array
         auto tmp = std::move(value_);
-        // convert int/angle to creg
+        // convert integer/angle to creg
         if (std::holds_alternative<BasicType*>(tmp)) {
             tmp = to_creg_ref(std::get<BasicType*>(tmp));
         } else if (std::holds_alternative<BasicType>(tmp)) {
@@ -1080,7 +1094,7 @@ class Executor final : ast::Visitor {
         for (auto& index : slice.indices()) {
             index->accept(*this);
             indices.push_back(
-                types::cast_to_basic(value_, types::QASM_int(-1)).value);
+                types::smart_cast_to_basic(value_, types::QASM_int{-1}).value);
         }
         // apply index operation
         std::visit(
@@ -1127,8 +1141,8 @@ class Executor final : ast::Visitor {
     void visit(ast::SingleDesignatorType& type) override {
         int n;
         if (type.size()) {
-            (**type.size()).accept(*this);
-            n = std::get<types::QASM_int>(std::get<BasicType>(value_)).value;
+            auto expr = dynamic_cast<ast::IntExpr*>(type.size()->get());
+            n = expr->value();
         } else {
             std::cerr << type.pos()
                       << ": error : single designator type must have specified "
@@ -1140,10 +1154,10 @@ class Executor final : ast::Visitor {
                 value_ = types::QASM_int{n};
                 break;
             case ast::SDType::Uint:
-                value_ = types::QASM_int(n, false);
+                value_ = types::QASM_int{n, false};
                 break;
             case ast::SDType::Float:
-                value_ = types::QASM_float();
+                value_ = types::QASM_float{};
                 break;
             case ast::SDType::Angle:
                 value_ = types::QASM_angle{n};
@@ -1163,14 +1177,13 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::BitType& type) override {
         if (type.size()) {
-            (**type.size()).accept(*this);
-            unsigned long n =
-                std::get<types::QASM_int>(std::get<BasicType>(value_)).value;
-            auto tmp = xt::xarray<BasicType>::from_shape({n});
-            tmp.fill(types::QASM_cbit());
+            auto expr = dynamic_cast<ast::IntExpr*>(type.size()->get());
+            auto tmp = xt::xarray<BasicType>::from_shape(
+                {(unsigned long) expr->value()});
+            tmp.fill(types::QASM_cbit{});
             value_ = std::move(tmp);
         } else {
-            value_ = types::QASM_cbit();
+            value_ = types::QASM_cbit{};
         }
     }
     void visit(ast::ComplexType& type) override {
@@ -1180,9 +1193,9 @@ class Executor final : ast::Visitor {
     void visit(ast::ArrayType& type) override {
         std::vector<unsigned long> shape;
         for (int i = 0; i < type.dims(); i++) {
-            type.dim(i).accept(*this);
-            shape.push_back(
-                std::get<types::QASM_int>(std::get<BasicType>(value_)).value);
+            auto expr =
+                dynamic_cast<ast::IntExpr*>(std::addressof(type.dim(i)));
+            shape.push_back(expr->value());
         }
         type.subtype().accept(*this);
         auto tmp = xt::xarray<BasicType>::from_shape(shape);
@@ -1196,14 +1209,13 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::QubitType& type) override {
         if (type.size()) {
-            (**type.size()).accept(*this);
-            unsigned long n =
-                std::get<types::QASM_int>(std::get<BasicType>(value_)).value;
-            auto tmp = xt::xarray<BasicType>::from_shape({n});
-            tmp.fill(types::QASM_qubit());
+            auto expr = dynamic_cast<ast::IntExpr*>(type.size()->get());
+            auto tmp = xt::xarray<BasicType>::from_shape(
+                {(unsigned long) expr->value()});
+            tmp.fill(types::QASM_qubit{});
             value_ = std::move(tmp);
         } else {
-            value_ = types::QASM_qubit();
+            value_ = types::QASM_qubit{};
         }
     }
     // Expressions
@@ -1216,8 +1228,8 @@ class Executor final : ast::Visitor {
         switch (exp.op()) {
             case ast::BinaryOp::LogicalOr:
             case ast::BinaryOp::LogicalAnd: {
-                auto b1 = types::cast_to_basic(v1, types::QASM_bool{});
-                auto b2 = types::cast_to_basic(v2, types::QASM_bool{});
+                auto b1 = types::smart_cast_to_basic(v1, types::QASM_bool{});
+                auto b2 = types::smart_cast_to_basic(v2, types::QASM_bool{});
                 if (exp.op() == ast::BinaryOp::LogicalOr) {
                     value_ = types::QASM_bool{b1.value || b2.value};
                 } else {
@@ -1245,14 +1257,14 @@ class Executor final : ast::Visitor {
                             [&exp](const types::QASM_int& x,
                                    const types::QASM_int& y) -> ExprType {
                                 if (exp.op() == ast::BinaryOp::BitOr) {
-                                    return types::QASM_int(-1, true,
-                                                           x.value | y.value);
+                                    return types::QASM_int{-1, true,
+                                                           x.value | y.value};
                                 } else if (exp.op() == ast::BinaryOp::XOr) {
-                                    return types::QASM_int(-1, true,
-                                                           x.value ^ y.value);
+                                    return types::QASM_int{-1, true,
+                                                           x.value ^ y.value};
                                 } else {
-                                    return types::QASM_int(-1, true,
-                                                           x.value & y.value);
+                                    return types::QASM_int{-1, true,
+                                                           x.value & y.value};
                                 }
                             },
                             [&exp](const types::QASM_cbit& x,
@@ -1328,7 +1340,8 @@ class Executor final : ast::Visitor {
             }
             case ast::BinaryOp::LeftBitShift:
             case ast::BinaryOp::RightBitShift: {
-                auto shift = types::cast_to_basic(v2, types::QASM_int(-1));
+                auto shift =
+                    types::smart_cast_to_basic(v2, types::QASM_int{-1});
                 if (std::holds_alternative<BasicType>(v1)) {
                     value_ = std::visit(
                         utils::overloaded{
@@ -1355,11 +1368,11 @@ class Executor final : ast::Visitor {
                                 // bits are little-endian, so we shift the other
                                 // way
                                 if (exp.op() == ast::BinaryOp::LeftBitShift) {
-                                    return types::QASM_angle(
-                                        right_shift(v.bits, shift.value));
+                                    return types::QASM_angle{
+                                        right_shift(v.bits, shift.value)};
                                 } else {
-                                    return types::QASM_angle(
-                                        left_shift(v.bits, shift.value));
+                                    return types::QASM_angle{
+                                        left_shift(v.bits, shift.value)};
                                 }
                             },
                             [](auto) -> ExprType {
@@ -1410,15 +1423,16 @@ class Executor final : ast::Visitor {
                     },
                     x, y);
                 value_ = std::visit(
-                    utils::overloaded{[](long long v) -> BasicType {
-                                          return types::QASM_int(-1, true, v);
-                                      },
-                                      [](unsigned long long v) -> BasicType {
-                                          return types::QASM_int(-1, false, v);
-                                      },
-                                      [](double v) -> BasicType {
-                                          return types::QASM_float{v};
-                                      }},
+                    utils::overloaded{
+                        [](long long v) -> BasicType {
+                            return types::QASM_int{-1, true, v};
+                        },
+                        [](unsigned long long v) -> BasicType {
+                            return types::QASM_int{-1, false, (long long) v};
+                        },
+                        [](double v) -> BasicType {
+                            return types::QASM_float{v};
+                        }},
                     val);
                 return;
             }
@@ -1441,8 +1455,8 @@ class Executor final : ast::Visitor {
                                 return types::QASM_bool{!v.value};
                             },
                             [](const types::QASM_int& v) -> BasicType {
-                                return types::QASM_int(v.width, v.is_signed,
-                                                       ~v.value);
+                                return types::QASM_int{v.width, v.is_signed,
+                                                       ~v.value};
                             },
                             [](const types::QASM_cbit& v) -> BasicType {
                                 return types::QASM_cbit{!v.bit};
@@ -1468,7 +1482,8 @@ class Executor final : ast::Visitor {
                 break;
             }
             case ast::UnaryOp::LogicalNot: {
-                auto tmp = types::cast_to_basic(value_, types::QASM_bool());
+                auto tmp =
+                    types::smart_cast_to_basic(value_, types::QASM_bool());
                 value_ = types::QASM_bool{!tmp.value};
                 break;
             }
@@ -1476,7 +1491,7 @@ class Executor final : ast::Visitor {
                 value_ = std::visit(
                     utils::overloaded{
                         [](const types::QASM_int& v) -> BasicType {
-                            return types::QASM_int(-1, true, -v.value);
+                            return types::QASM_int{-1, true, -v.value};
                         },
                         [](const types::QASM_float& v) -> BasicType {
                             return types::QASM_float{-v.value};
@@ -1536,7 +1551,8 @@ class Executor final : ast::Visitor {
                 exp.arg(0).accept(*this);
                 auto reg = value_;
                 exp.arg(1).accept(*this);
-                auto shift = types::cast_to_basic(value_, types::QASM_int(-1));
+                auto shift =
+                    types::smart_cast_to_basic(value_, types::QASM_int{-1});
                 if (std::holds_alternative<BasicType>(reg)) {
                     value_ = std::visit(
                         utils::overloaded{
@@ -1545,11 +1561,11 @@ class Executor final : ast::Visitor {
                                 // bits are little-endian, so we shift the other
                                 // way
                                 if (exp.op() == ast::MathOp::Rotl) {
-                                    return types::QASM_angle(right_rotate_shift(
-                                        v.bits, shift.value));
+                                    return types::QASM_angle{right_rotate_shift(
+                                        v.bits, shift.value)};
                                 } else {
-                                    return types::QASM_angle(
-                                        left_rotate_shift(v.bits, shift.value));
+                                    return types::QASM_angle{
+                                        left_rotate_shift(v.bits, shift.value)};
                                 }
                             },
                             [&exp](auto) -> BasicType {
@@ -1601,7 +1617,7 @@ class Executor final : ast::Visitor {
                         n += std::get<types::QASM_cbit>(i).bit;
                     }
                 }
-                value_ = types::QASM_int(-1, true, n);
+                value_ = types::QASM_int{-1, true, n};
                 return;
             }
         }
@@ -1610,13 +1626,23 @@ class Executor final : ast::Visitor {
         exp.subexp().accept(*this);
         auto tmp = value_;
         exp.type().accept(*this);
-        types::overwrite(tmp, value_);
+        value_ = std::visit(
+            utils::overloaded{[&tmp](BasicType& v) -> ExprType {
+                                  return types::cast_to_basic(tmp, v);
+                              },
+                              [&exp](auto) -> ExprType {
+                                  std::cerr
+                                      << exp.pos()
+                                      << ": error : can't cast to array type\n";
+                                  throw RuntimeError();
+                              }},
+            value_);
     }
     void visit(ast::SizeofExpr& exp) override {
         int dim = 0;
         if (exp.dim()) {
             (**exp.dim()).accept(*this);
-            dim = types::cast_to_basic(value_, types::QASM_int(-1)).value;
+            dim = types::smart_cast_to_basic(value_, types::QASM_int{-1}).value;
         }
         exp.arr().accept(*this);
         std::visit(utils::overloaded{
@@ -1649,9 +1675,18 @@ class Executor final : ast::Visitor {
                 args.push_back(std::move(value_));
                 expect_array_reference_ = false;
             } else {
-                args.push_back(func.param_types[i]);
                 exp.arg(i).accept(*this);
-                types::overwrite(value_, args.back());
+                args.push_back(std::visit(
+                    utils::overloaded{
+                        [this](BasicType& v) -> ExprType {
+                            return types::cast_to_basic(value_, v);
+                        },
+                        [&exp](auto) -> ExprType {
+                            std::cerr << exp.pos()
+                                      << ": error : can't compute arg\n";
+                            throw RuntimeError();
+                        }},
+                    func.param_types[i]));
             }
         }
 
@@ -1677,8 +1712,20 @@ class Executor final : ast::Visitor {
                       << ": error : function did not return a value\n";
             throw RuntimeError();
         }
-        value_ = func.return_type;
-        types::overwrite(return_value_, value_);
+        value_ = std::visit(
+            utils::overloaded{[this](BasicType& v) -> ExprType {
+                                  return types::cast_to_basic(return_value_, v);
+                              },
+                              [](types::QASM_none&) -> ExprType {
+                                  return types::QASM_none{};
+                              },
+                              [&exp](auto) -> ExprType {
+                                  std::cerr
+                                      << exp.pos()
+                                      << ": error : can't return array type\n";
+                                  throw RuntimeError();
+                              }},
+            func.return_type);
 
         pop_scope();
         // put back local symbols
@@ -1702,7 +1749,7 @@ class Executor final : ast::Visitor {
         }
     }
     void visit(ast::IntExpr& exp) override {
-        value_ = types::QASM_int(-1, false, exp.value());
+        value_ = types::QASM_int{-1, false, exp.value()};
     }
     void visit(ast::RealExpr& exp) override {
         value_ = types::QASM_float{exp.value()};
@@ -1865,7 +1912,7 @@ class Executor final : ast::Visitor {
     }
     void visit(ast::IfStmt& stmt) override {
         stmt.cond().accept(*this);
-        auto cond = types::cast_to_basic(value_, types::QASM_bool());
+        auto cond = types::smart_cast_to_basic(value_, types::QASM_bool());
 
         push_scope();
         if (cond.value)
@@ -1948,7 +1995,8 @@ class Executor final : ast::Visitor {
     void visit(ast::PowModifier& mod) override {
         expect_float_div_ = true;
         mod.r().accept(*this);
-        double power = types::cast_to_basic(value_, types::QASM_float()).value;
+        double power =
+            types::smart_cast_to_basic(value_, types::QASM_float{}).value;
         expect_float_div_ = false;
         matrix_ = qpp::spectralpowm(matrix_, power);
     }
@@ -1960,11 +2008,14 @@ class Executor final : ast::Visitor {
         // evaluate classical arguments
         expect_float_div_ = true;
         gate.theta().accept(*this);
-        double theta = types::cast_to_basic(value_, types::QASM_float()).value;
+        double theta =
+            types::smart_cast_to_basic(value_, types::QASM_float{}).value;
         gate.phi().accept(*this);
-        double phi = types::cast_to_basic(value_, types::QASM_float()).value;
+        double phi =
+            types::smart_cast_to_basic(value_, types::QASM_float{}).value;
         gate.lambda().accept(*this);
-        double lambda = types::cast_to_basic(value_, types::QASM_float()).value;
+        double lambda =
+            types::smart_cast_to_basic(value_, types::QASM_float{}).value;
         expect_float_div_ = false;
 
         // generate the matrix
@@ -1985,7 +2036,8 @@ class Executor final : ast::Visitor {
         // evaluate classical arguments
         expect_float_div_ = true;
         gate.gamma().accept(*this);
-        double gamma = types::cast_to_basic(value_, types::QASM_float()).value;
+        double gamma =
+            types::smart_cast_to_basic(value_, types::QASM_float{}).value;
         expect_float_div_ = false;
 
         if (gate.num_qargs() == 0) {
@@ -2009,7 +2061,8 @@ class Executor final : ast::Visitor {
         expect_float_div_ = true;
         for (int i = 0; i < dgate.num_cargs(); i++) {
             dgate.carg(i).accept(*this);
-            c_args[i] = types::cast_to_basic(value_, types::QASM_float()).value;
+            c_args[i] =
+                types::smart_cast_to_basic(value_, types::QASM_float{}).value;
         }
         expect_float_div_ = false;
 
@@ -2047,18 +2100,21 @@ class Executor final : ast::Visitor {
     // Loops
     void visit(ast::RangeSet& set) override {
         (**set.start()).accept(*this);
-        int start = types::cast_to_basic(value_, types::QASM_int(-1)).value;
+        int start =
+            types::smart_cast_to_basic(value_, types::QASM_int{-1}).value;
         int step = 1;
         if (set.step()) {
             (**set.step()).accept(*this);
-            step = types::cast_to_basic(value_, types::QASM_int(-1)).value;
+            step =
+                types::smart_cast_to_basic(value_, types::QASM_int{-1}).value;
             if (step == 0) {
                 std::cerr << set.pos() << ": error : range step size is zero\n";
                 throw RuntimeError();
             }
         }
         (**set.stop()).accept(*this);
-        int stop = types::cast_to_basic(value_, types::QASM_int(-1)).value;
+        int stop =
+            types::smart_cast_to_basic(value_, types::QASM_int{-1}).value;
         loop_set_ = LoopRange(start, step, stop);
     }
     void visit(ast::ListSet& set) override { loop_set_ = std::addressof(set); }
@@ -2076,8 +2132,8 @@ class Executor final : ast::Visitor {
                     for (auto& exp : list_set->indices()) {
                         exp->accept(*this);
                         push_scope();
-                        set(stmt.var(),
-                            types::cast_to_basic(value_, types::QASM_int(-1)));
+                        set(stmt.var(), types::smart_cast_to_basic(
+                                            value_, types::QASM_int{-1}));
                         stmt.body().accept(*this);
                         pop_scope();
                         if (control_flow_) {
@@ -2099,7 +2155,7 @@ class Executor final : ast::Visitor {
                          (range.step > 0) ? (i < range.stop) : (i > range.stop);
                          i += range.step) {
                         push_scope();
-                        set(stmt.var(), types::QASM_int(-1, true, i));
+                        set(stmt.var(), types::QASM_int{-1, true, i});
                         stmt.body().accept(*this);
                         pop_scope();
                         if (control_flow_) {
@@ -2142,7 +2198,7 @@ class Executor final : ast::Visitor {
         int iterations = 0;
         while (true) {
             stmt.cond().accept(*this);
-            auto cond = types::cast_to_basic(value_, types::QASM_bool());
+            auto cond = types::smart_cast_to_basic(value_, types::QASM_bool());
             if (cond.value) {
                 if (iterations >= WHILE_ITERATION_LIMIT) {
                     std::cerr << stmt.pos()
@@ -2177,8 +2233,8 @@ class Executor final : ast::Visitor {
                     for (auto& exp : list_set->indices()) {
                         exp->accept(*this);
                         push_scope();
-                        set(stmt.var(),
-                            types::cast_to_basic(value_, types::QASM_int(-1)));
+                        set(stmt.var(), types::smart_cast_to_basic(
+                                            value_, types::QASM_int{-1}));
                         stmt.body().accept(*this);
                         pop_scope();
                         if (control_flow_) {
@@ -2200,7 +2256,7 @@ class Executor final : ast::Visitor {
                          (range.step > 0) ? (i < range.stop) : (i > range.stop);
                          i += range.step) {
                         push_scope();
-                        set(stmt.var(), types::QASM_int(-1, true, i));
+                        set(stmt.var(), types::QASM_int{-1, true, i});
                         stmt.body().accept(*this);
                         pop_scope();
                         if (control_flow_) {
@@ -2243,7 +2299,7 @@ class Executor final : ast::Visitor {
         int iterations = 0;
         while (true) {
             stmt.cond().accept(*this);
-            auto cond = types::cast_to_basic(value_, types::QASM_bool());
+            auto cond = types::smart_cast_to_basic(value_, types::QASM_bool());
             if (cond.value) {
                 if (iterations >= WHILE_ITERATION_LIMIT) {
                     std::cerr << stmt.pos()
