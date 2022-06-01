@@ -1047,6 +1047,7 @@ class Executor final : ast::Visitor {
         std::visit(
             utils::overloaded{
                 [this](xt::xarray<BasicType>& x) {
+                    check_index_entities_in_bounds(x, index_entities_);
                     xt::xarray<BasicType> tmp =
                         xt::strided_view(x, index_entities_);
                     if (tmp.dimension() == 0) {
@@ -1056,6 +1057,7 @@ class Executor final : ast::Visitor {
                     }
                 },
                 [this](xt::xarray<BasicType*>& x) {
+                    check_index_entities_in_bounds(x, index_entities_);
                     xt::xarray<BasicType*> tmp =
                         xt::strided_view(x, index_entities_);
                     if (tmp.dimension() == 0) {
@@ -1065,6 +1067,7 @@ class Executor final : ast::Visitor {
                     }
                 },
                 [this](xt::xarray<types::BitReference>& x) {
+                    check_index_entities_in_bounds(x, index_entities_);
                     xt::xarray<types::BitReference> tmp =
                         xt::strided_view(x, index_entities_);
                     if (tmp.dimension() == 0) {
@@ -1100,14 +1103,17 @@ class Executor final : ast::Visitor {
         std::visit(
             utils::overloaded{
                 [this, &indices](xt::xarray<BasicType>& x) {
+                    check_indicies_in_bounds(x, indices);
                     value_ = xt::xarray<BasicType>(
                         xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
                 },
                 [this, &indices](xt::xarray<BasicType*>& x) {
+                    check_indicies_in_bounds(x, indices);
                     value_ = xt::xarray<BasicType*>(
                         xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
                 },
                 [this, &indices](xt::xarray<types::BitReference>& x) {
+                    check_indicies_in_bounds(x, indices);
                     value_ = xt::xarray<types::BitReference>(
                         xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
                 },
@@ -1647,11 +1653,11 @@ class Executor final : ast::Visitor {
         exp.arr().accept(*this);
         std::visit(utils::overloaded{
                        [this, dim](xt::xarray<BasicType>& x) {
-                           long long ans = x.shape()[dim];
+                           long long ans = x.shape(dim);
                            value_ = types::QASM_int{-1, true, ans};
                        },
                        [this, dim](xt::xarray<BasicType*>& x) {
-                           long long ans = x.shape()[dim];
+                           long long ans = x.shape(dim);
                            value_ = types::QASM_int{-1, true, ans};
                        },
                        [&exp](auto) {
@@ -2524,6 +2530,47 @@ class Executor final : ast::Visitor {
     void print_psi() {
         std::cout << ">> Final state (transpose):\n";
         std::cout << qpp::disp(qpp::transpose(psi_)) << '\n';
+    }
+
+    /**
+     * \brief Check indices in entities are in bounds for array x
+     */
+    template <typename T>
+    static void
+    check_index_entities_in_bounds(const xt::xarray<T>& x,
+                                   xt::xstrided_slice_vector& entities) {
+        for (int i = 0; i < entities.size(); i++) {
+            if (xtl::holds_alternative<std::ptrdiff_t>(entities[i])) {
+                int ind = xtl::get<std::ptrdiff_t>(entities[i]);
+                int size = x.shape(i);
+                if (ind >= size || ind < -size) {
+                    std::cerr << ": error : index " << ind
+                              << " is out of bounds for axis " << i
+                              << " with size " << size << "\n";
+                    throw RuntimeError();
+                }
+                if (ind < 0) { // fix negative indices
+                    entities[i] = ind + size;
+                }
+            }
+        }
+    }
+
+    /**
+     * \brief Check indices for a list slice are in bounds for array x
+     */
+    template <typename T>
+    static void check_indicies_in_bounds(const xt::xarray<T>& x,
+                                         const std::vector<int>& indices) {
+        int size = x.shape(0);
+        for (int ind : indices) {
+            if (ind >= size || ind < -size) {
+                std::cerr << ": error : index " << ind
+                          << " is out of bounds for array of size " << size
+                          << "\n";
+                throw RuntimeError();
+            }
+        }
     }
 
     /**
