@@ -30,7 +30,9 @@ ctest
 
 ## Notes
 
-The OpenQASM 3.0 standard library defines the `u3` and `u2` gates differently than the Qiskit specifications.
+1. The interpreter is implemented to *exclude* the endpoints of ranges. As of June 3, 2022, in the OpenQASM 3.0 live specification, range endpoints are included.
+
+2. The OpenQASM 3.0 standard library defines the `u3` and `u2` gates differently than the Qiskit specifications.
 
 | Gate | OpenQASM 3.0 | Qiskit | Phase inconsistency|
 | - | - | - | - |
