@@ -537,7 +537,7 @@ inline void overwrite_help(const BasicType& s, BasicType& t) {
     t = basic_cast(s, t);
 }
 /* array -> basic assignment */
-inline void overwrite_help(xt::xarray<BasicType>& s, BasicType& t) {
+inline void overwrite_help(const xt::xarray<BasicType>& s, BasicType& t) {
     std::visit(
         utils::overloaded{
             [&s](QASM_int& v) {
@@ -584,10 +584,10 @@ inline void overwrite_help(xt::xarray<BasicType>& s, BasicType& t) {
         t);
 }
 /* basic -> array assignment */
-inline void overwrite_help(BasicType& s, xt::xarray<BasicType*>& t) {
+inline void overwrite_help(const BasicType& s, xt::xarray<BasicType*>& t) {
     std::visit(
         utils::overloaded{
-            [&t](QASM_int& v) {
+            [&t](const QASM_int& v) {
                 if (t.size() == v.width) {
                     long long nth_bit = 1;
                     for (auto it = t.begin(); it != t.end(); it++) {
@@ -602,7 +602,7 @@ inline void overwrite_help(BasicType& s, xt::xarray<BasicType*>& t) {
                              "mismatch)\n";
                 throw RuntimeError();
             },
-            [&t](QASM_angle& v) {
+            [&t](const QASM_angle& v) {
                 if (t.size() == v.width) {
                     auto it = t.begin();
                     auto v_it = v.bits.begin();
@@ -616,7 +616,7 @@ inline void overwrite_help(BasicType& s, xt::xarray<BasicType*>& t) {
                     << "Failed to assign angle to bit array (size mismatch)\n";
                 throw RuntimeError();
             },
-            [&t](QASM_cbit& v) {
+            [&t](const QASM_cbit& v) {
                 if (t.size() == 1) {
                     overwrite_help(v, **t.begin());
                     return;
@@ -635,21 +635,21 @@ inline void overwrite_help(BasicType& s, xt::xarray<BasicType*>& t) {
 /**
  * \brief Assign source expression to target while preserving target's type
  */
-inline void overwrite(ExprType& source, ExprType& target) {
+inline void overwrite(const ExprType& source, ExprType& target) {
     return std::visit(
         utils::overloaded{
             /* basic -> basic */
-            [](BasicType& s, BasicType* t) { overwrite_help(s, *t); },
+            [](const BasicType& s, BasicType* t) { overwrite_help(s, *t); },
             /* array -> basic */
-            [](xt::xarray<BasicType>& s, BasicType* t) {
+            [](const xt::xarray<BasicType>& s, BasicType* t) {
                 overwrite_help(s, *t);
             },
             /* basic -> array */
-            [](BasicType& s, xt::xarray<BasicType*>& t) {
+            [](const BasicType& s, xt::xarray<BasicType*>& t) {
                 overwrite_help(s, t);
             },
             /* array -> array */
-            [](xt::xarray<BasicType>& s, xt::xarray<BasicType*>& t) {
+            [](const xt::xarray<BasicType>& s, xt::xarray<BasicType*>& t) {
                 if (s.shape() != t.shape()) {
                     std::cerr << "Overwrite: array shape mismatch!\n";
                     throw RuntimeError();
@@ -661,10 +661,10 @@ inline void overwrite(ExprType& source, ExprType& target) {
                 }
             },
             /* assigning to bits of integer/angle */
-            [](BasicType& s, BitReference& t) {
+            [](const BasicType& s, BitReference& t) {
                 t.assign(smart_cast(s, QASM_cbit{}).bit);
             },
-            [](xt::xarray<BasicType>& s, BitReference& t) {
+            [](const xt::xarray<BasicType>& s, BitReference& t) {
                 if (s.size() == 1) {
                     t.assign(smart_cast(*s.begin(), QASM_cbit{}).bit);
                     return;
@@ -672,7 +672,7 @@ inline void overwrite(ExprType& source, ExprType& target) {
                 std::cerr << "Failed to assign bit array to BitReference\n";
                 throw RuntimeError();
             },
-            [](xt::xarray<BasicType>& s, xt::xarray<BitReference>& t) {
+            [](const xt::xarray<BasicType>& s, xt::xarray<BitReference>& t) {
                 if (s.shape() != t.shape()) {
                     std::cerr << "Overwrite: slicing shape mismatch!\n";
                     throw RuntimeError();
@@ -694,11 +694,11 @@ inline void overwrite(ExprType& source, ExprType& target) {
 /**
  * \brief Cast expression to a basic type
  */
-inline BasicType cast_to_basic(ExprType& source, BasicType target) {
-    std::visit(utils::overloaded{[&target](BasicType& s) {
+inline BasicType cast_to_basic(const ExprType& source, BasicType target) {
+    std::visit(utils::overloaded{[&target](const BasicType& s) {
                                      return overwrite_help(s, target);
                                  },
-                                 [&target](xt::xarray<BasicType>& s) {
+                                 [&target](const xt::xarray<BasicType>& s) {
                                      return overwrite_help(s, target);
                                  },
                                  [](auto) {
@@ -713,7 +713,7 @@ inline BasicType cast_to_basic(ExprType& source, BasicType target) {
  * \brief Cast expression to a basic type and return target type
  */
 template <typename T>
-inline T smart_cast_to_basic(ExprType& source, T target) {
+inline T smart_cast_to_basic(const ExprType& source, T target) {
     return std::get<T>(cast_to_basic(source, target));
 }
 
@@ -746,7 +746,7 @@ inline value_type get_value_help(const BasicType& t) {
 /**
  * \brief Get numerical value of a classical register (by converting to int)
  */
-inline value_type get_value_help(xt::xarray<BasicType>& s) {
+inline value_type get_value_help(const xt::xarray<BasicType>& s) {
     unsigned long long ans = 0;
     for (auto it = s.rbegin(); it != s.rend(); it++) {
         ans <<= 1;
@@ -757,11 +757,11 @@ inline value_type get_value_help(xt::xarray<BasicType>& s) {
 /**
  * \brief Get numerical value of an expression
  */
-inline value_type get_value(ExprType& x) {
+inline value_type get_value(const ExprType& x) {
     return std::visit(
         utils::overloaded{
-            [](BasicType& v) -> value_type { return get_value_help(v); },
-            [](xt::xarray<BasicType>& v) -> value_type {
+            [](const BasicType& v) -> value_type { return get_value_help(v); },
+            [](const xt::xarray<BasicType>& v) -> value_type {
                 return get_value_help(v);
             },
             [](auto) -> value_type {
@@ -981,6 +981,117 @@ class Executor final : ast::Visitor {
         }
     }
 
+    /**
+     * \brief Execute ForStmt and QuantumForStmt
+     */
+    template <typename T>
+    void execute_forloop(T& stmt) {
+        stmt.index_set().accept(*this);
+
+        std::visit(
+            utils::overloaded{
+                [this, &stmt](ast::ListSet* list_set) {
+                    for (auto& exp : list_set->indices()) {
+                        exp->accept(*this);
+                        push_scope();
+                        set(stmt.var(), types::smart_cast_to_basic(
+                                            value_, types::QASM_int{-1}));
+                        stmt.body().accept(*this);
+                        pop_scope();
+                        if (control_flow_) {
+                            if (*control_flow_ == ControlFlow::Break) {
+                                control_flow_ = std::nullopt;
+                                break;
+                            } else if (*control_flow_ ==
+                                       ControlFlow::Continue) {
+                                control_flow_ = std::nullopt;
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                },
+                [this, &stmt](LoopRange& range) {
+                    for (int i = range.start;
+                         (range.step > 0) ? (i < range.stop) : (i > range.stop);
+                         i += range.step) {
+                        push_scope();
+                        set(stmt.var(), types::QASM_int{-1, true, i});
+                        stmt.body().accept(*this);
+                        pop_scope();
+                        if (control_flow_) {
+                            if (*control_flow_ == ControlFlow::Break) {
+                                control_flow_ = std::nullopt;
+                                break;
+                            } else if (*control_flow_ ==
+                                       ControlFlow::Continue) {
+                                control_flow_ = std::nullopt;
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                },
+                [this, &stmt](xt::xarray<BasicType>& list) {
+                    for (auto& x : list) {
+                        push_scope();
+                        set(stmt.var(), std::get<types::QASM_int>(x));
+                        stmt.body().accept(*this);
+                        pop_scope();
+                        if (control_flow_) {
+                            if (*control_flow_ == ControlFlow::Break) {
+                                control_flow_ = std::nullopt;
+                                break;
+                            } else if (*control_flow_ ==
+                                       ControlFlow::Continue) {
+                                control_flow_ = std::nullopt;
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                }},
+            loop_set_);
+    }
+
+    /**
+     * \brief Execute WhileStmt and QuantumWhileStmt
+     */
+    template <typename T>
+    void execute_whileloop(T& stmt) {
+        int iterations = 0;
+        while (true) {
+            stmt.cond().accept(*this);
+            auto cond = types::smart_cast_to_basic(value_, types::QASM_bool());
+            if (cond.value) {
+                if (iterations >= WHILE_ITERATION_LIMIT) {
+                    std::cerr << stmt.pos()
+                              << ": error : iteration limit reached\n";
+                    break;
+                }
+                push_scope();
+                stmt.body().accept(*this);
+                ++iterations;
+                pop_scope();
+                if (control_flow_) {
+                    if (*control_flow_ == ControlFlow::Break) {
+                        control_flow_ = std::nullopt;
+                        break;
+                    } else if (*control_flow_ == ControlFlow::Continue) {
+                        control_flow_ = std::nullopt;
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+            } else
+                break;
+        }
+    }
+
   public:
     void run(ast::Program& prog) { prog.accept(*this); }
 
@@ -1102,17 +1213,17 @@ class Executor final : ast::Visitor {
         // apply index operation
         std::visit(
             utils::overloaded{
-                [this, &indices](xt::xarray<BasicType>& x) {
+                [this, &indices](const xt::xarray<BasicType>& x) {
                     check_indicies_in_bounds(x, indices);
                     value_ = xt::xarray<BasicType>(
                         xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
                 },
-                [this, &indices](xt::xarray<BasicType*>& x) {
+                [this, &indices](const xt::xarray<BasicType*>& x) {
                     check_indicies_in_bounds(x, indices);
                     value_ = xt::xarray<BasicType*>(
                         xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
                 },
-                [this, &indices](xt::xarray<types::BitReference>& x) {
+                [this, &indices](const xt::xarray<types::BitReference>& x) {
                     check_indicies_in_bounds(x, indices);
                     value_ = xt::xarray<types::BitReference>(
                         xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
@@ -1128,12 +1239,7 @@ class Executor final : ast::Visitor {
         auto& entry = std::get<ExprType>(lookup(indexid.var()));
         // get pointer(s), if applicable
         if (std::holds_alternative<xt::xarray<BasicType>>(entry)) {
-            auto& x = std::get<xt::xarray<BasicType>>(entry);
-            std::vector<BasicType*> x_ref;
-            x_ref.reserve(x.size());
-            for (BasicType& i : x)
-                x_ref.push_back(std::addressof(i));
-            value_ = xt::xarray<BasicType*>(xt::adapt(x_ref, x.shape()));
+            value_ = get_reference(std::get<xt::xarray<BasicType>>(entry));
         } else if (std::holds_alternative<BasicType>(entry)) {
             value_ = std::addressof(std::get<BasicType>(entry));
         } else {
@@ -1560,28 +1666,23 @@ class Executor final : ast::Visitor {
                 auto shift =
                     types::smart_cast_to_basic(value_, types::QASM_int{-1});
                 if (std::holds_alternative<BasicType>(reg)) {
-                    value_ = std::visit(
-                        utils::overloaded{
-                            [&exp,
-                             &shift](const types::QASM_angle& v) -> BasicType {
-                                // bits are little-endian, so we shift the other
-                                // way
-                                if (exp.op() == ast::MathOp::Rotl) {
-                                    return types::QASM_angle{right_rotate_shift(
-                                        v.bits, shift.value)};
-                                } else {
-                                    return types::QASM_angle{
-                                        left_rotate_shift(v.bits, shift.value)};
-                                }
-                            },
-                            [&exp](auto) -> BasicType {
-                                std::cerr
-                                    << exp.pos()
-                                    << ": error : invalid first argument to "
-                                    << exp.op() << "\n";
-                                throw RuntimeError();
-                            }},
-                        std::get<BasicType>(reg));
+                    auto& val = std::get<BasicType>(reg);
+                    if (std::holds_alternative<types::QASM_angle>(val)) {
+                        auto& ang = std::get<types::QASM_angle>(val);
+                        // bits are little-endian, so we shift the other way
+                        if (exp.op() == ast::MathOp::Rotl) {
+                            value_ = types::QASM_angle{
+                                right_rotate_shift(ang.bits, shift.value)};
+                        } else {
+                            value_ = types::QASM_angle{
+                                left_rotate_shift(ang.bits, shift.value)};
+                        }
+                    } else {
+                        std::cerr << exp.pos()
+                                  << ": error : invalid first argument to "
+                                  << exp.op() << "\n";
+                        throw RuntimeError();
+                    }
                 } else if (std::holds_alternative<xt::xarray<BasicType>>(reg)) {
                     auto& x = std::get<xt::xarray<BasicType>>(reg);
                     std::vector<BasicType> result(x.begin(), x.end());
@@ -1600,22 +1701,16 @@ class Executor final : ast::Visitor {
                 exp.arg(0).accept(*this);
                 int n = 0;
                 if (std::holds_alternative<BasicType>(value_)) {
-                    n = std::visit(
-                        utils::overloaded{
-                            [](const types::QASM_angle& v) -> int {
-                                int ans = 0;
-                                for (bool bit : v.bits)
-                                    ans += bit;
-                                return ans;
-                            },
-                            [&exp](auto) -> int {
-                                std::cerr
-                                    << exp.pos()
-                                    << ": error : invalid first argument to "
-                                    << exp.op() << "\n";
-                                throw RuntimeError();
-                            }},
-                        std::get<BasicType>(value_));
+                    auto& val = std::get<BasicType>(value_);
+                    if (std::holds_alternative<types::QASM_angle>(val)) {
+                        for (bool bit : std::get<types::QASM_angle>(val).bits)
+                            n += bit;
+                    } else {
+                        std::cerr << exp.pos()
+                                  << ": error : invalid first argument to "
+                                  << exp.op() << "\n";
+                        throw RuntimeError();
+                    }
                 } else if (std::holds_alternative<xt::xarray<BasicType>>(
                                value_)) {
                     auto& x = std::get<xt::xarray<BasicType>>(value_);
@@ -1632,16 +1727,17 @@ class Executor final : ast::Visitor {
         exp.subexp().accept(*this);
         auto tmp = value_;
         exp.type().accept(*this);
-        value_ = std::visit(
-            utils::overloaded{[&tmp](BasicType& v) -> ExprType {
-                                  return types::cast_to_basic(tmp, v);
-                              },
-                              [&exp](auto) -> ExprType {
-                                  std::cerr
-                                      << exp.pos()
-                                      << ": error : can't cast to array type\n";
-                                  throw RuntimeError();
-                              }},
+        std::visit(
+            utils::overloaded{
+                [&tmp](BasicType& v) { v = types::cast_to_basic(tmp, v); },
+                [&tmp](xt::xarray<BasicType>& v) {
+                    ExprType v_ref = get_reference(v);
+                    types::overwrite(tmp, v_ref);
+                },
+                [&exp](auto) {
+                    std::cerr << exp.pos() << ": error : can't perform cast\n";
+                    throw RuntimeError();
+                }},
             value_);
     }
     void visit(ast::SizeofExpr& exp) override {
@@ -1651,22 +1747,14 @@ class Executor final : ast::Visitor {
             dim = types::smart_cast_to_basic(value_, types::QASM_int{-1}).value;
         }
         exp.arr().accept(*this);
-        std::visit(utils::overloaded{
-                       [this, dim](xt::xarray<BasicType>& x) {
-                           long long ans = x.shape(dim);
-                           value_ = types::QASM_int{-1, true, ans};
-                       },
-                       [this, dim](xt::xarray<BasicType*>& x) {
-                           long long ans = x.shape(dim);
-                           value_ = types::QASM_int{-1, true, ans};
-                       },
-                       [&exp](auto) {
-                           std::cerr
-                               << exp.pos()
-                               << ": error : sizeof() accepts arrays only\n";
-                           throw RuntimeError();
-                       }},
-                   value_);
+        if (std::holds_alternative<xt::xarray<BasicType>>(value_)) {
+            long long ans = std::get<xt::xarray<BasicType>>(value_).shape(dim);
+            value_ = types::QASM_int{-1, true, ans};
+        } else {
+            std::cerr << exp.pos()
+                      << ": error : invalid first argument to sizeof\n";
+            throw RuntimeError();
+        }
     }
     void visit(ast::FunctionCall& exp) override {
         auto func = std::get<SubroutineType>(lookup(exp.name()));
@@ -1680,19 +1768,14 @@ class Executor final : ast::Visitor {
                 exp.arg(i).accept(*this);
                 args.push_back(std::move(value_));
                 expect_array_reference_ = false;
-            } else {
+            } else if (std::holds_alternative<BasicType>(func.param_types[i])) {
                 exp.arg(i).accept(*this);
-                args.push_back(std::visit(
-                    utils::overloaded{
-                        [this](BasicType& v) -> ExprType {
-                            return types::cast_to_basic(value_, v);
-                        },
-                        [&exp](auto) -> ExprType {
-                            std::cerr << exp.pos()
-                                      << ": error : can't compute arg\n";
-                            throw RuntimeError();
-                        }},
-                    func.param_types[i]));
+                args.push_back(types::cast_to_basic(
+                    value_, std::get<BasicType>(func.param_types[i])));
+            } else {
+                std::cerr << exp.pos() << ": error : can't compute argument "
+                          << i << "\n";
+                throw RuntimeError();
             }
         }
 
@@ -1718,20 +1801,27 @@ class Executor final : ast::Visitor {
                       << ": error : function did not return a value\n";
             throw RuntimeError();
         }
-        value_ = std::visit(
-            utils::overloaded{[this](BasicType& v) -> ExprType {
-                                  return types::cast_to_basic(return_value_, v);
-                              },
-                              [](types::QASM_none&) -> ExprType {
-                                  return types::QASM_none{};
-                              },
-                              [&exp](auto) -> ExprType {
-                                  std::cerr
-                                      << exp.pos()
-                                      << ": error : can't return array type\n";
-                                  throw RuntimeError();
-                              }},
-            func.return_type);
+        value_ =
+            std::visit(utils::overloaded{
+                           [this](const BasicType& v) -> ExprType {
+                               return types::cast_to_basic(return_value_, v);
+                           },
+                           [this](const xt::xarray<BasicType>& v) -> ExprType {
+                               xt::xarray<BasicType> v_cpy = v;
+                               ExprType ref = get_reference(v_cpy);
+                               types::overwrite(return_value_, ref);
+                               return v_cpy;
+                           },
+                           [](const types::QASM_none&) -> ExprType {
+                               return types::QASM_none{};
+                           },
+                           [&exp](auto) -> ExprType {
+                               std::cerr
+                                   << exp.pos()
+                                   << ": error : can't return expression\n";
+                               throw RuntimeError();
+                           }},
+                       func.return_type);
 
         pop_scope();
         // put back local symbols
@@ -1772,12 +1862,7 @@ class Executor final : ast::Visitor {
         if (expect_array_reference_) {
             // get pointer(s), if applicable
             if (std::holds_alternative<xt::xarray<BasicType>>(entry)) {
-                auto& x = std::get<xt::xarray<BasicType>>(entry);
-                std::vector<BasicType*> x_ref;
-                x_ref.reserve(x.size());
-                for (BasicType& i : x)
-                    x_ref.push_back(std::addressof(i));
-                value_ = xt::xarray<BasicType*>(xt::adapt(x_ref, x.shape()));
+                value_ = get_reference(std::get<xt::xarray<BasicType>>(entry));
             } else if (std::holds_alternative<BasicType>(entry)) {
                 value_ = std::addressof(std::get<BasicType>(entry));
             } else {
@@ -2129,207 +2214,11 @@ class Executor final : ast::Visitor {
         exp->accept(*this);
         loop_set_ = std::move(std::get<xt::xarray<BasicType>>(value_));
     }
-    void visit(ast::ForStmt& stmt) override {
-        stmt.index_set().accept(*this);
-
-        std::visit(
-            utils::overloaded{
-                [this, &stmt](ast::ListSet* list_set) {
-                    for (auto& exp : list_set->indices()) {
-                        exp->accept(*this);
-                        push_scope();
-                        set(stmt.var(), types::smart_cast_to_basic(
-                                            value_, types::QASM_int{-1}));
-                        stmt.body().accept(*this);
-                        pop_scope();
-                        if (control_flow_) {
-                            if (*control_flow_ == ControlFlow::Break) {
-                                control_flow_ = std::nullopt;
-                                break;
-                            } else if (*control_flow_ ==
-                                       ControlFlow::Continue) {
-                                control_flow_ = std::nullopt;
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                },
-                [this, &stmt](LoopRange& range) {
-                    for (int i = range.start;
-                         (range.step > 0) ? (i < range.stop) : (i > range.stop);
-                         i += range.step) {
-                        push_scope();
-                        set(stmt.var(), types::QASM_int{-1, true, i});
-                        stmt.body().accept(*this);
-                        pop_scope();
-                        if (control_flow_) {
-                            if (*control_flow_ == ControlFlow::Break) {
-                                control_flow_ = std::nullopt;
-                                break;
-                            } else if (*control_flow_ ==
-                                       ControlFlow::Continue) {
-                                control_flow_ = std::nullopt;
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                },
-                [this, &stmt](xt::xarray<BasicType>& list) {
-                    for (auto& x : list) {
-                        push_scope();
-                        set(stmt.var(), std::get<types::QASM_int>(x));
-                        stmt.body().accept(*this);
-                        pop_scope();
-                        if (control_flow_) {
-                            if (*control_flow_ == ControlFlow::Break) {
-                                control_flow_ = std::nullopt;
-                                break;
-                            } else if (*control_flow_ ==
-                                       ControlFlow::Continue) {
-                                control_flow_ = std::nullopt;
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                }},
-            loop_set_);
-    }
-    void visit(ast::WhileStmt& stmt) override {
-        int iterations = 0;
-        while (true) {
-            stmt.cond().accept(*this);
-            auto cond = types::smart_cast_to_basic(value_, types::QASM_bool());
-            if (cond.value) {
-                if (iterations >= WHILE_ITERATION_LIMIT) {
-                    std::cerr << stmt.pos()
-                              << ": error : iteration limit reached\n";
-                    break;
-                }
-                push_scope();
-                stmt.body().accept(*this);
-                ++iterations;
-                pop_scope();
-                if (control_flow_) {
-                    if (*control_flow_ == ControlFlow::Break) {
-                        control_flow_ = std::nullopt;
-                        break;
-                    } else if (*control_flow_ == ControlFlow::Continue) {
-                        control_flow_ = std::nullopt;
-                        continue;
-                    } else {
-                        break;
-                    }
-                }
-            } else
-                break;
-        }
-    }
-    void visit(ast::QuantumForStmt& stmt) override {
-        stmt.index_set().accept(*this);
-
-        std::visit(
-            utils::overloaded{
-                [this, &stmt](ast::ListSet* list_set) {
-                    for (auto& exp : list_set->indices()) {
-                        exp->accept(*this);
-                        push_scope();
-                        set(stmt.var(), types::smart_cast_to_basic(
-                                            value_, types::QASM_int{-1}));
-                        stmt.body().accept(*this);
-                        pop_scope();
-                        if (control_flow_) {
-                            if (*control_flow_ == ControlFlow::Break) {
-                                control_flow_ = std::nullopt;
-                                break;
-                            } else if (*control_flow_ ==
-                                       ControlFlow::Continue) {
-                                control_flow_ = std::nullopt;
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                },
-                [this, &stmt](LoopRange& range) {
-                    for (int i = range.start;
-                         (range.step > 0) ? (i < range.stop) : (i > range.stop);
-                         i += range.step) {
-                        push_scope();
-                        set(stmt.var(), types::QASM_int{-1, true, i});
-                        stmt.body().accept(*this);
-                        pop_scope();
-                        if (control_flow_) {
-                            if (*control_flow_ == ControlFlow::Break) {
-                                control_flow_ = std::nullopt;
-                                break;
-                            } else if (*control_flow_ ==
-                                       ControlFlow::Continue) {
-                                control_flow_ = std::nullopt;
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                },
-                [this, &stmt](xt::xarray<BasicType>& list) {
-                    for (auto& x : list) {
-                        push_scope();
-                        set(stmt.var(), std::get<types::QASM_int>(x));
-                        stmt.body().accept(*this);
-                        pop_scope();
-                        if (control_flow_) {
-                            if (*control_flow_ == ControlFlow::Break) {
-                                control_flow_ = std::nullopt;
-                                break;
-                            } else if (*control_flow_ ==
-                                       ControlFlow::Continue) {
-                                control_flow_ = std::nullopt;
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                }},
-            loop_set_);
-    }
+    void visit(ast::ForStmt& stmt) override { execute_forloop(stmt); }
+    void visit(ast::WhileStmt& stmt) override { execute_whileloop(stmt); }
+    void visit(ast::QuantumForStmt& stmt) override { execute_forloop(stmt); }
     void visit(ast::QuantumWhileStmt& stmt) override {
-        int iterations = 0;
-        while (true) {
-            stmt.cond().accept(*this);
-            auto cond = types::smart_cast_to_basic(value_, types::QASM_bool());
-            if (cond.value) {
-                if (iterations >= WHILE_ITERATION_LIMIT) {
-                    std::cerr << stmt.pos()
-                              << ": error : iteration limit reached\n";
-                    break;
-                }
-                push_scope();
-                stmt.body().accept(*this);
-                ++iterations;
-                pop_scope();
-                if (control_flow_) {
-                    if (*control_flow_ == ControlFlow::Break) {
-                        control_flow_ = std::nullopt;
-                        break;
-                    } else if (*control_flow_ == ControlFlow::Continue) {
-                        control_flow_ = std::nullopt;
-                        continue;
-                    } else {
-                        break;
-                    }
-                }
-            } else
-                break;
-        }
+        execute_whileloop(stmt);
     }
     // Timing Statements
     void visit(ast::DelayStmt& stmt) override {
@@ -2571,6 +2460,17 @@ class Executor final : ast::Visitor {
                 throw RuntimeError();
             }
         }
+    }
+
+    /**
+     * \brief Get array of pointers to the elements of the given array
+     */
+    static xt::xarray<BasicType*> get_reference(xt::xarray<BasicType>& arr) {
+        std::vector<BasicType*> arr_ref;
+        arr_ref.reserve(arr.size());
+        for (BasicType& i : arr)
+            arr_ref.push_back(std::addressof(i));
+        return xt::adapt(arr_ref, arr.shape());
     }
 
     /**
