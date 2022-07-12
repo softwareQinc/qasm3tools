@@ -1093,6 +1093,8 @@ class Executor final : ast::Visitor {
     }
 
   public:
+    explicit Executor(std::ostream& os) : os_(os) {}
+
     void run(ast::Program& prog) { prog.accept(*this); }
 
     // Index identifiers
@@ -2351,6 +2353,7 @@ class Executor final : ast::Visitor {
     std::optional<Subsystem> subsystem_; ///< current subsytem to get matrix for
     std::list<std::unordered_map<ast::symbol, Type>>
         symbol_table_{}; ///< a stack of symbol tables
+    std::ostream& os_;
 
     /**
      * \brief Enters a new scope
@@ -2398,15 +2401,15 @@ class Executor final : ast::Visitor {
      * \brief Prints list of global variables and their values
      */
     void print_global_vars() const {
-        std::cout << "Final values:\n";
+        os_ << "Final values:\n";
         for (const auto& v : symbol_table_.back()) {
             if (std::holds_alternative<ExprType>(v.second)) {
                 auto& tmp = std::get<ExprType>(v.second);
                 if (std::holds_alternative<BasicType>(tmp)) {
-                    std::cout << v.first << ": " << std::get<BasicType>(tmp)
+                    os_ << v.first << ": " << std::get<BasicType>(tmp)
                               << "\n";
                 } else if (std::holds_alternative<xt::xarray<BasicType>>(tmp)) {
-                    std::cout << v.first << ":\n"
+                    os_ << v.first << ":\n"
                               << std::get<xt::xarray<BasicType>>(tmp) << "\n";
                 }
             }
@@ -2417,8 +2420,8 @@ class Executor final : ast::Visitor {
      * \brief Prints the state vector
      */
     void print_psi() {
-        std::cout << ">> Final state (transpose):\n";
-        std::cout << qpp::disp(qpp::transpose(psi_)) << '\n';
+        os_ << ">> Final state (transpose):\n";
+        os_ << qpp::disp(qpp::transpose(psi_)) << '\n';
     }
 
     /**
@@ -2560,7 +2563,7 @@ class Executor final : ast::Visitor {
 /**
  * \brief Executes a program
  */
-inline void execute(ast::Program& prog) { Executor().run(prog); }
+inline void execute(ast::Program& prog) { Executor(std::cout).run(prog); }
 
 } // namespace tools
 } // namespace qasm3tools
