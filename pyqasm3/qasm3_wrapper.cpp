@@ -30,6 +30,7 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl/filesystem.h>
+#include <sstream>
 
 #include "qasm3tools/tools/interpreter.hpp"
 #include "qasm3tools/parser/parser.hpp"
@@ -39,13 +40,17 @@ namespace py = pybind11;
 PYBIND11_MODULE(pyqasm3, m) {
     m.doc() = "Python wrapper for qasm3tools (https://github.com/softwareQinc/qasm3tools)";
 
-    m.def("execute_file", [](const std::string& fname){
+    m.def("execute_file", [](const std::string& fname) -> std::string {
         auto prog = qasm3tools::parser::parse_file(fname);
-        qasm3tools::tools::execute(*prog);
+        std::ostringstream oss;
+        qasm3tools::tools::Executor(oss).run(*prog);
+        return oss.str();
     }, "Execute OpenQASM 3.0 program file");
 
-    m.def("execute_str", [](const std::string& str){
+    m.def("execute_str", [](const std::string& str) -> std::string {
         auto prog = qasm3tools::parser::parse_string(str);
-        qasm3tools::tools::execute(*prog);
+        std::ostringstream oss;
+        qasm3tools::tools::Executor(oss).run(*prog);
+        return oss.str();
     }, "Execute OpenQASM 3.0 program string");
 }

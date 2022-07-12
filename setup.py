@@ -4,7 +4,7 @@ import os
 from setuptools import setup
 from libs.pybind11.setup_helpers import Pybind11Extension
 
-os.environ["MACOSX_DEPLOYMENT_TARGET"] = '10.15'
+os.environ["MACOSX_DEPLOYMENT_TARGET"] = '10.15' # needed for std::filesystem
 p = subprocess.Popen("cmake pyqasm3 && make -j8 antlr4_static",
                      shell=True,
                      stdout=subprocess.PIPE,
@@ -15,7 +15,7 @@ eigen_path = None
 qpp_prefix = "Found Quantum++ in "
 qpp_path = None
 print("Running cmake pyqasm3")
-for line in p.stdout.read().decode('ascii').split('\n'):
+for line in p.stdout.read().decode('ascii', 'ignore').split('\n'):
     print(line)
     pos = line.find(eigen_prefix)
     if pos != -1:
