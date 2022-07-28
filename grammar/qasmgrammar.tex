@@ -23,143 +23,119 @@
 \maketitle
 
 \begin{longtable}{rrl}
-	\texttt{<program>} & $::=$ & \texttt{<header> <globalstmt|stmt>*} \\ \\
-	\texttt{<globalstmt>} & $::=$ & \texttt{<subroutinedef>} \\
-	    & $\mid$ & \texttt{<externdef>} \\
-	    & $\mid$ & \texttt{<gatedef>} \\
-	    & $\mid$ & \texttt{<calibration>} \\
-	    & $\mid$ & \texttt{<qdecl>} \\
-	    & $\mid$ & \texttt{\#pragma \{ <stmt>* \}} \\
-	\texttt{<subroutinedef>} & $::=$ & \texttt{def <id>(<arg...>?) \{ <stmt>* <returnstmt>? \}} \\
-	    & $\mid$ & \texttt{def <id>(<arg...>?) -> <ctype> \{ <stmt>* <returnstmt>? \}} \\
-	\texttt{<externdef>} & $::=$ & \texttt{extern <id>(<ctype...>?);} \\
-	    & $\mid$ & \texttt{extern <id>(<ctype...>?) -> <ctype>;} \\
-	\texttt{<gatedef>} & $::=$ & \texttt{gate <id> <id...> <qblock>} \\
-	    & $\mid$ & \texttt{gate <id>(<id...>?) <id...> <qblock>} \\
-	\texttt{<calibration>} & $::=$ & \texttt{defcalgrammar "openpulse";} \\
+	\texttt{<program>} & $::=$ & \texttt{<version>? <stmt>*} \\
+	\texttt{<version>} & $::=$ & \texttt{OPENQASM <int>;} $\mid$ \texttt{OPENQASM <int>.<int>;} \\ \\
+	\texttt{<stmt>} & $::=$ & \texttt{<pragma>} \\
+	    & $\mid$ & \texttt{<annotation>* <unannotated-stmt>} \\
+	\texttt{<pragma>} & $::=$ & \texttt{pragma ...} $\mid$ \texttt{\#pragma ...} \\
+	\texttt{<annotation>} & $::=$ & \texttt{@<id> ...} \\ \\
+	\texttt{<unannotated-stmt>} & $::=$ & \texttt{let <id> = <exp> ++ <exp> ++ ... ++ <exp>;} \\
+	    & $\mid$ & \texttt{<indexid> <assignop> <exp|measureexp>;} \\
+	    & $\mid$ & \texttt{barrier <gateoperand...>?;} \\
+	    & $\mid$ & \texttt{box <scope>} $\mid$ \texttt{box[<exp>] <scope>} \\
+	    & $\mid$ & \texttt{break;} \\
+	    & $\mid$ & \texttt{cal \{ CALIBR\_BLOCK? \}} \\
 	    & $\mid$ & \texttt{defcalgrammar <string>;} \\
-	    & $\mid$ & \texttt{defcal <id> <id...> \{ .* \}} \\
-	    & $\mid$ & \texttt{defcal <id>(<carg...>?) <id...> \{ .* \}} \\
-	    & $\mid$ & \texttt{defcal <id>(<exp...>?) <id...> \{ .* \}} \\
-	    & $\mid$ & \texttt{defcal <id> <id...> -> <ctype> \{ .* \}} \\
-	    & $\mid$ & \texttt{defcal <id>(<carg...>?) <id...> -> <ctype> \{ .* \}} \\
-	    & $\mid$ & \texttt{defcal <id>(<exp...>?) <id...> -> <ctype> \{ .* \}} \\
-	\texttt{<qdecl>} & $::=$ & \texttt{qreg <id>;} $\mid$ \texttt{qreg <id>[<exp>];} \\
-	    & $\mid$ & \texttt{qubit <id>;} $\mid$ \texttt{qubit[<exp>] <id>;} \\ \\
-	\texttt{<stmt>} & $::=$ & \texttt{<exp>;} \\
-	    & $\mid$ & \texttt{<indexid> <assignop> <exp>;} \\
-	    & $\mid$ & \texttt{measure <indexid> -> <indexid>;} \\
-	    & $\mid$ & \texttt{<indexid> = measure <indexid>;} \\
-	    & $\mid$ & \texttt{<classicdecl>} \\
-	    & $\mid$ & \texttt{if (<exp>) <prgmblock>} \\
-	    & $\mid$ & \texttt{if (<exp>) <prgmblock> else <prgmblock>} \\
-	    & $\mid$ & \texttt{for <id> in <setdecl> <prgmblock>;} \\
-	    & $\mid$ & \texttt{while (<exp>) <prgmblock>;} \\
+	    & $\mid$ & \texttt{<scalartype|arraytype> <id>;} \\
+	    & $\mid$ & \texttt{<scalartype|arraytype> <id> = <declexp>;} \\
+	    & $\mid$ & \texttt{const <scalartype> <id> = <declexp>;} \\
+	    & $\mid$ & \texttt{continue;} \\
+	    & $\mid$ & \texttt{<defstmt>} \\
+	    & $\mid$ & \texttt{<defcalstmt>} \\
+	    & $\mid$ & \texttt{delay[<exp>] <gateoperand...>?;} \\
 	    & $\mid$ & \texttt{end;} \\
-	    & $\mid$ & \texttt{let <id> = <exp>;}\\
-	    & $\mid$ & \texttt{let <id> = <exp> ++ <exp> ++ ... ++ <exp>;} \\
-	    & $\mid$ & \texttt{<qstmt>} \\ \\
-	\texttt{<qstmt>} & $::=$ & \texttt{<gatemodifier>* <id> <indexid...>;} \\
-	    & $\mid$ & \texttt{<gatemodifier>* <id>(<exp...>) <indexid...>;} \\
-	    & $\mid$ & \texttt{<gatemodifier>* gphase(<exp>) <indexid...>?;} \\
-	    & $\mid$ & \texttt{measure <indexid>;} \\
-	    & $\mid$ & \texttt{reset <indexid>;} \\
-	    & $\mid$ & \texttt{barrier <indexid...>?;} \\
-	    & $\mid$ & \texttt{<timestmt>} \\
-	    & $\mid$ & \texttt{<qloop>} \\ \\
-	\texttt{<timestmt>} & $::=$ & \texttt{delay[<exp>] <indexid...>;} \\
-	    & $\mid$ & \texttt{delay(<exp...>?)[<exp>] <indexid...>;} \\
-	    & $\mid$ & \texttt{rotary[<exp>] <indexid...>;} \\
-	    & $\mid$ & \texttt{rotary(<exp...>?)[<exp>] <indexid...>;} \\
-	    & $\mid$ & \texttt{box <qblock>} \\
-	    & $\mid$ & \texttt{box[<exp>] <qblock>} \\ \\
-	\texttt{<prgmblock>} & $::=$ & \texttt{<stmt>} \\
-	    & $\mid$ & \texttt{<control>} \\
-	    & $\mid$ & \texttt{\{ <stmt|control>* \}} \\
-	\texttt{<control>} & $::=$ & \texttt{break;} $\mid$ \texttt{continue;} $\mid$ \texttt{<returnstmt>} \\
-	\texttt{<returnstmt>} & $::=$ & \texttt{return;} \\
-	    & $\mid$ & \texttt{return <exp>;} \\
-	    & $\mid$ & \texttt{return measure <indexid>;} \\ \\
-	\texttt{<qblock>} & $::=$ & \texttt{\{ <qstmt>* \}} \\
-	\texttt{<qloop>} & $::=$ & \texttt{for <id> in <setdecl> <qstmt>} \\
-	    & $\mid$ & \texttt{for <id> in <setdecl> <qblock>} \\
-	    & $\mid$ & \texttt{while (<exp>) <qstmt>} $\mid$ \texttt{while (<exp>) <qblock>} \\ \\
-	\texttt{<arg>} & $::=$ & \texttt{<carg> | <qarg>} \\
-	\texttt{<carg>} & $::=$ & \texttt{<singledesignatortype> <id>} \\
-	    & $\mid$ & \texttt{<nodesignatortype> <id>} \\
-	    & $\mid$ & \texttt{creg <id>} $\mid$ \texttt{creg <id>[<exp>]} $\mid$ \texttt{bit <id>} $\mid$ \texttt{bit[<exp>] <id>} \\
-	    & $\mid$ & \texttt{complex[<singledesignatortype>] <id>} \\
-	    & $\mid$ & \texttt{const <arrayreftype> <id>} $\mid$ \texttt{mutable <arrayreftype> <id>} \\
-    \texttt{<arrayreftype>} & $::=$ & \texttt{array[<nonarraytype>, <exp...>]} \\
-        & $\mid$ & \texttt{array[<nonarraytype>, \#dim = <exp>]} \\
-	\texttt{<qarg>} & $::=$ & \texttt{qreg <id>} $\mid$ \texttt{qreg <id>[<exp>]} \\
-	    & $\mid$ & \texttt{qubit <id>} $\mid$ \texttt{qubit[<exp>] <id>} \\ \\
-    \texttt{<ctype>} & $::=$ & \texttt{<nonarraytype>} $\mid$ \texttt{<arraytype>} \\
-	\texttt{<nonarraytype>} & $::=$ & \texttt{<singledesignatortype>} \\
-	    & $\mid$ & \texttt{<nodesignatortype>} \\
-	    & $\mid$ & \texttt{bit} $\mid$ \texttt{bit[<exp>]} $\mid$ \texttt{creg} $\mid$ \texttt{creg[<exp>]} \\
-	    & $\mid$ & \texttt{complex[<singledesignatortype>]} \\
-    \texttt{<arraytype>} & $::=$ & \texttt{array[<nonarraytype>, <exp...>]} \\ \\
-	\texttt{<singledesignatortype>} & $::=$ & \texttt{int} $\mid$ \texttt{int[<exp>]} $\mid$ \texttt{uint} $\mid$ \texttt{uint[<exp>]} $\mid$ \texttt{float} $\mid$ \texttt{float[<exp>]} \\
-	    & $\mid$ & \texttt{angle} $\mid$ \texttt{angle[<exp>]} \\
-	\texttt{<nodesignatortype>} & $::=$ & \texttt{bool} $\mid$ \texttt{duration} $\mid$ \texttt{stretch} \\ \\
-	\texttt{<indexentity>} & $::=$ & \texttt{<exp>} $\mid$ \texttt{<exp>?:<exp>?} $\mid$ \texttt{<exp>?:<exp>?:<exp>} \\
-	\texttt{<indexoperator>} & $::=$ & \texttt{[\{ <exp...> \}]} \\
-	    & $\mid$ & \texttt{[<indexentity...>]} \\
-	\texttt{<indexid>} & $::=$ & \texttt{<id> <indexoperator>}* \\
+	    & $\mid$ & \texttt{<exp>;} \\
+	    & $\mid$ & \texttt{<externstmt>} \\
+	    & $\mid$ & \texttt{for <scalartype> <id> in <setdecl> <stmt|scope>} \\
+	    & $\mid$ & \texttt{<gatecall>} \\
+	    & $\mid$ & \texttt{<gatedef>} \\
+	    & $\mid$ & \texttt{if (<exp>) <stmt|scope>} \\
+	    & $\mid$ & \texttt{if (<exp>) <stmt|scope> else <stmt|scope>} \\
+	    & $\mid$ & \texttt{include <string>;} \\
+	    & $\mid$ & \texttt{input <scalartype|arraytype> <id>;} \\
+	    & $\mid$ & \texttt{output <scalartype|arraytype> <id>;} \\
+	    & $\mid$ & \texttt{<measureexp>;} $\mid$ \texttt{<measureexp> -> <indexid>;} \\
+	    & $\mid$ & \texttt{creg <id>;} $\mid$ \texttt{creg <id>[<exp>];} \\
+	    & $\mid$ & \texttt{qreg <id>;} $\mid$ \texttt{qreg <id>[<exp>];} \\
+	    & $\mid$ & \texttt{<qubittype> <id>;} \\
+	    & $\mid$ & \texttt{reset <gateoperand>;} \\
+	    & $\mid$ & \texttt{return <exp|measureexp>?;} \\
+	    & $\mid$ & \texttt{while (<exp>) <stmt|scope>} \\ \\
+    \texttt{<scope>} & $::=$ & \texttt{\{ <stmt>* \}} \\ \\
+    \texttt{<gateoperand>} & $::=$ & \texttt{<indexid>} $\mid$ \texttt{<hardwarequbit>} \\
+    \texttt{<hardwarequbit>} & $::=$ & \texttt{\$[0-9]+} \\
+    \texttt{<qubittype>} & $::=$ & \texttt{qubit} $\mid$ \texttt{qubit[<exp>]} \\ \\
+    \texttt{<argdef>} & $::=$ & \texttt{<scalartype> <id>} $\mid$ \texttt{<qubittype> <id>} $\mid$ \texttt{<arrayreftype> <id>} \\
+        & $\mid$ & \texttt{creg <id>} $\mid$ \texttt{creg <id>[<exp>]} $\mid$ \texttt{qreg <id>} $\mid$ \texttt{qreg <id>[<exp>]} \\
+    \texttt{<defstmt>} & $::=$ & \texttt{def <id>(<argdef...>?) <scope>} \\
+	    & $\mid$ & \texttt{def <id>(<argdef...>?) -> <scalartype> <scope>} \\
+	\texttt{<externarg>} & $::=$ & \texttt{<scalartype>} $\mid$ \texttt{<arrayreftype>} $\mid$ \texttt{creg} $\mid$ \texttt{creg[<exp>]} \\
+	\texttt{<externstmt>} & $::=$ & \texttt{extern <id>(<externarg...>?);} \\
+	    & $\mid$ & \texttt{extern <id>(<externarg...>?) -> <scalartype>;} \\ \\
+	\texttt{<gatemodifier>} & $::=$ & \texttt{inv @} $\mid$ \texttt{pow(<exp>) @} \\
+	    & $\mid$ & \texttt{ctrl @} $\mid$ \texttt{ctrl(<exp>) @} \\
+	    & $\mid$ & \texttt{negctrl @}  $\mid$ \texttt{negctrl(<exp>) @} \\
+    \texttt{<gatecall>} & $::=$ & \texttt{<gatemodifier>* <id> <gateoperand...>;} \\
+	    & $\mid$ & \texttt{<gatemodifier>* <id>(<exp...>?) <gateoperand...>;} \\
+	    & $\mid$ & \texttt{<gatemodifier>* gphase(<exp>) <gateoperand...>?;} \\
+    \texttt{<gatedef>} & $::=$ & \texttt{gate <id> <id...> <scope>} \\
+	    & $\mid$ & \texttt{gate <id>(<id...>?) <id...> <scope>} \\ \\
+    \texttt{<tgt>} & $::=$ & \texttt{measure} $\mid$ \texttt{reset} $\mid$ \texttt{delay} $\mid$ \texttt{<id>} \\
+    \texttt{<opd>} & $::=$ & \texttt{<hardwarequbit>} $\mid$ \texttt{<id>} \\
+    \texttt{<defcalstmt>} & $::=$ & \texttt{defcal <tgt> <opd...> \{ CALIBR\_BLOCK? \}} \\
+	    & $\mid$ & \texttt{defcal <tgt> <opd...> -> <scalartype> \{ CALIBR\_BLOCK? \}} \\
+	    & $\mid$ & \texttt{defcal <tgt>(<exp|argdef...>?) <opd...> \{ CALIBR\_BLOCK? \}} \\
+	    & $\mid$ & \texttt{defcal <tgt>(<exp|argdef...>?) <opd...> -> <scalartype>} \\
+	    & & \texttt{\{ CALIBR\_BLOCK? \}} \\ \\
+	\texttt{<arrayliteral>} & $::=$ & \texttt{\{<exp|arrayliteral>\}} \\
+	    & $\mid$ & \texttt{\{<exp|arrayliteral>, <exp|arrayliteral>, ...\}} \\
+    \texttt{<measureexp>} & $::=$ & \texttt{measure <gateoperand>} \\
+    \texttt{<declexp>} & $::=$ & \texttt{<arrayliteral|exp|measureexp>} \\ \\
 	\texttt{<setdecl>} & $::=$ & \texttt{\{ <exp...> \}} \\
 	    & $\mid$ & \texttt{[<exp>?:<exp>?]} $\mid$ \texttt{[<exp>?:<exp>?:<exp>]} \\
 	    & $\mid$ & \texttt{<id>} \\ \\
-	\texttt{<equalsexp>} & $::=$ & \texttt{= <exp>} \\
-	\texttt{<arrayinit>} & $::=$ & \texttt{\{<exp|arrayinit>\}} \\
-	    & $\mid$ & \texttt{\{<exp|arrayinit>, <exp|arrayinit>, ...\}} \\
-	\texttt{<classicdecl>} & $::=$ & \texttt{<singledesignatortype> <id> <equalsexp>?;} \\
-	    & $\mid$ & \texttt{<nodesignatortype> <id> <equalsexp>?;} \\
-	    & $\mid$ & \texttt{creg <id> <equalsexp>?;} $\mid$ \texttt{creg <id>[<exp>] <equalsexp>?;} \\ 
-	    & $\mid$ & \texttt{bit <id> <equalsexp>?;} $\mid$ \texttt{bit[<exp>] <id> <equalsexp>?;} \\
-	    & $\mid$ & \texttt{complex[<singledesignatortype>] <id> <equalsexp>?;} \\
-	    & $\mid$ & \texttt{<arraytype> <id>;} $\mid$ \texttt{<arraytype> <id> = <arrayinit|exp>;} \\
-	    & $\mid$ & \texttt{const <ctype> <id> <equalsexp>;} \\ \\
-	\texttt{<exp>} & $::=$ & \texttt{<constant>} $\mid$ \texttt{<int>} $\mid$ \texttt{<nondecimalint>} $\mid$ \texttt{<real>} $\mid$ \texttt{<imag>} \\
-	    & $\mid$ & \texttt{<bool>} $\mid$ \texttt{<bitstring>} $\mid$ \texttt{<id>} $\mid$ \texttt{<time>} \\
-	    & $\mid$ & \texttt{<math>(<exp...>)} \\
-	    & $\mid$ & \texttt{<ctype>(<exp...>)} \\
-	    & $\mid$ & \texttt{sizeof(<exp...>)} \\
-	    & $\mid$ & \texttt{<id>(<exp...>?)} \\
-	    & $\mid$ & \texttt{durationof(<id>)} $\mid$ \texttt{durationof(<qblock>)}\\
-	    & $\mid$ & \texttt{(<exp>)} \\
+	\texttt{<scalartype>} & $::=$ & \texttt{bit} $\mid$ \texttt{bit[<exp>]} $\mid$ \texttt{int} $\mid$ \texttt{int[<exp>]} $\mid$ \texttt{uint} $\mid$ \texttt{uint[<exp>]} \\
+	    & $\mid$ & \texttt{float} $\mid$ \texttt{float[<exp>]} $\mid$ \texttt{angle} $\mid$ \texttt{angle[<exp>]} $\mid$ \texttt{bool} \\
+	    & $\mid$ & \texttt{duration} $\mid$ \texttt{stretch} $\mid$ \texttt{complex} $\mid$ \texttt{complex[<scalartype>]} \\
+	\texttt{<arraytype>} & $::=$ & \texttt{array[<scalartype>, <exp...>]} \\
+	\texttt{<arrayreftype>} & $::=$ & \texttt{const <arrayrefspec>} $\mid$ \texttt{mutable <arrayrefspec>} \\
+	\texttt{<arrayrefspec>} & $::=$ & \texttt{array[<scalartype>, <exp...>]} \\
+        & $\mid$ & \texttt{array[<scalartype>, \#dim = <exp>]} \\ \\
+	\texttt{<indexentity>} & $::=$ & \texttt{<exp>} $\mid$ \texttt{<exp>?:<exp>?} $\mid$ \texttt{<exp>?:<exp>?:<exp>} \\
+	\texttt{<indexoperator>} & $::=$ & \texttt{[\{ <exp...> \}]} \\
+	    & $\mid$ & \texttt{[<indexentity...>]} \\
+	\texttt{<indexid>} & $::=$ & \texttt{<id> <indexoperator>}* \\ \\
+	\texttt{<exp>} & $::=$ & \texttt{(<exp>)} \\
 	    & $\mid$ & \texttt{<exp> <indexoperator>} \\
 	    & $\mid$ & \texttt{<exp> <b-op> <exp>} \\
 	    & $\mid$ & \texttt{<u-op> <exp>} \\
-	    \\
-	\texttt{<math>} & $::=$ & \texttt{arcsin} $\mid$ \texttt{sin} $\mid$ \texttt{arccos} $\mid$ \texttt{cos} $\mid$ \texttt{arctan} $\mid$ \texttt{tan} \\
-	    & $\mid$ & \texttt{exp} $\mid$ \texttt{ln}  $\mid$ \texttt{sqrt} $\mid$ \texttt{rotl} $\mid$ \texttt{rotr} $\mid$ \texttt{popcount} \\
+	    & $\mid$ & \texttt{<scalartype>(<exp>)} $\mid$ \texttt{<arraytype>(<exp>)} \\
+	    & $\mid$ & \texttt{durationof(<scope>)} \\
+	    & $\mid$ & \texttt{<id>(<exp...>?)} \\
+	    & $\mid$ & \texttt{<id>} $\mid$ \texttt{<int>} $\mid$ \texttt{<nondecimalint>} $\mid$ \texttt{<real>} $\mid$ \texttt{<imag>} \\
+	    & $\mid$ & \texttt{<bool>} $\mid$ \texttt{<bitstring>} $\mid$ \texttt{<time>} $\mid$ \texttt{<hardwarequbit>} \\ \\
 	\texttt{<b-op>} & $::=$ & \texttt{||} $\mid$ \texttt{\&\&} $\mid$ \texttt{|} $\mid$ \texttt{\string^} $\mid$ \texttt{\&}  $\mid$ \texttt{==} $\mid$ \texttt{!=} $\mid$ \texttt{>} $\mid$ \texttt{<} $\mid$ \texttt{>=} $\mid$ \texttt{<=} \\
 	    & $\mid$ & \texttt{<{}<} $\mid$ \texttt{>{}>} $\mid$ \texttt{+} $\mid$ \texttt{-} $\mid$ \texttt{*} $\mid$ \texttt{/} $\mid$ \texttt{\%} $\mid$ \texttt{**} \\
 	\texttt{<u-op>} & $::=$ & \texttt{\string~} $\mid$ \texttt{!} $\mid$ \texttt{-} \\ \\
 	\texttt{<assignop>} & $::=$ & \texttt{=} $\mid$ \texttt{+=} $\mid$ \texttt{-=} $\mid$ \texttt{*=} $\mid$ \texttt{/=}  $\mid$ \texttt{\&=} $\mid$ \texttt{|=} $\mid$ \texttt{\string~=} $\mid$ \texttt{\string^=} $\mid$ \texttt{<{}<=} $\mid$ \texttt{>{}>=} $\mid$ \texttt{\%=} $\mid$ \texttt{**=} \\ \\
-	\texttt{<gatemodifier>} & $::=$ & \texttt{inv @} $\mid$ \texttt{pow(<exp>) @} \\
-	    & $\mid$ & \texttt{ctrl @} $\mid$ \texttt{ctrl(<exp>) @} \\
-	    & $\mid$ & \texttt{negctrl @}  $\mid$ \texttt{negctrl(<exp>) @} \\ \\
 	\texttt{<uni>} & $::=$ & \texttt{[{\textbackslash}p\{Lu\}{\textbackslash}p\{Ll\}{\textbackslash}p\{Lt\}{\textbackslash}p\{Lm\}{\textbackslash}p\{Lo\}{\textbackslash}p\{Nl\}]} \\
-	\texttt{<id>} & $::=$ & \texttt{(\_|\$|<uni>|[A-Za-z])(\_|\$|<uni>|[A-Za-z]|[0-9])*} \\
+	\texttt{<id>} & $::=$ & \texttt{(\_|<uni>|[A-Za-z])(\_|<uni>|[A-Za-z]|[0-9])*} \\
 	\texttt{<int>} & $::=$ & \texttt{([0-9][\_]?)*[0-9]} \\
 	\texttt{<real>} & $::=$ & \texttt{<int>[eE][+-]?<int>} $\mid$ \texttt{(<int>?.<int>?)([eE][+-]?<int>)?} \\
 	\texttt{<imag>} & $::=$ & \texttt{(<int>|<real>)im} \\
 	\texttt{<bool>} & $::=$ & \texttt{true|false} \\
 	\texttt{<bitstring>} & $::=$ & \texttt{"([01][\_]?)*[01]"} \\
 	\texttt{<time>} & $::=$ & \texttt{(<int>|<real>)(dt|ns|us|{\textmu}s|ms|s)} \\
-	\texttt{<string>} & $::=$ & \texttt{"[\string^"{\textbackslash}r{\textbackslash}t{\textbackslash}n]*"} $\mid$ \texttt{'[\string^'{\textbackslash}r{\textbackslash}t{\textbackslash}n]*'} \\
-	\texttt{<constant>} & $::=$ & \texttt{pi} $\mid$ \texttt{\textpi} $\mid$ \texttt{tau} $\mid$ \texttt{\texttau} $\mid$ \texttt{euler} $\mid$ \texttt{\textepsilon} \\ \\
+	\texttt{<string>} & $::=$ & \texttt{"[\string^"{\textbackslash}r{\textbackslash}t{\textbackslash}n]*"} $\mid$ \texttt{'[\string^'{\textbackslash}r{\textbackslash}t{\textbackslash}n]*'} \\ \\
 	\texttt{<nondecimalint>} & $::=$ & \texttt{(0b|0B)([01][\_]?)*[01]} \\
 	    & $\mid$ & \texttt{0o([0-7][\_]?)*[0-7]} \\
 	    & $\mid$ & \texttt{(0x|0X)([0-9a-fA-F][\_]?)*[0-9a-fA-F]} \\ \\
 	\texttt{<comment>} & $::=$ & \texttt{// ...} \\
 	    & $\mid$ & \texttt{/* ... */} \\ \\
-    \texttt{<header>} & $::=$ & \texttt{<version>? <include>* <io>*} \\
-    \texttt{<version>} & $::=$ & \texttt{OPENQASM <int|real>;} \\
-    \texttt{<include>} & $::=$ & \texttt{include <string>;} \\
-    \texttt{<io>} & $::=$ & \texttt{input <ctype> <id>;} $\mid$ \texttt{output <ctype> <id>;} \\
+	\texttt{<builtin-call>} & $::=$ & \texttt{arccos} $\mid$ \texttt{arcsin} $\mid$ \texttt{arctan} $\mid$ \texttt{ceiling} $\mid$ \texttt{cos} $\mid$ \texttt{exp} $\mid$ \texttt{floor} $\mid$ \texttt{log} \\
+	    & $\mid$ & \texttt{mod} $\mid$ \texttt{popcount} $\mid$ \texttt{pow} $\mid$ \texttt{rotl} $\mid$ \texttt{rotr} $\mid$ \texttt{sin} $\mid$ \texttt{sqrt} $\mid$ \texttt{tan} \\
+	    & $\mid$ & \texttt{sizeof} $\mid$ \texttt{real} $\mid$ \texttt{imag} \\
+	\texttt{<constant>} & $::=$ & \texttt{pi} $\mid$ \texttt{\textpi} $\mid$ \texttt{tau} $\mid$ \texttt{\texttau} $\mid$ \texttt{euler} $\mid$ \texttt{\textepsilon} \\
 \end{longtable}
 
 
