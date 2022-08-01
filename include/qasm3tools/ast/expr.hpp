@@ -173,47 +173,59 @@ inline std::ostream& operator<<(std::ostream& os, const UnaryOp& uop) {
  * \brief Enum of math operators
  */
 enum class MathOp {
-    Arcsin,
-    Sin,
     Arccos,
-    Cos,
+    Arcsin,
     Arctan,
-    Tan,
+    Ceiling,
+    Cos,
     Exp,
-    Ln,
-    Sqrt,
+    Floor,
+    Log,
+    Mod,
+    Popcount,
+    Pow,
     Rotl,
     Rotr,
-    Popcount
+    Sin,
+    Sqrt,
+    Tan,
+    Real,
+    Imag
 };
 inline std::ostream& operator<<(std::ostream& os, const MathOp& mop) {
     switch (mop) {
-        case MathOp::Arcsin:
-            os << "arcsin";
-            break;
-        case MathOp::Sin:
-            os << "sin";
-            break;
         case MathOp::Arccos:
             os << "arccos";
             break;
-        case MathOp::Cos:
-            os << "cos";
+        case MathOp::Arcsin:
+            os << "arcsin";
             break;
         case MathOp::Arctan:
             os << "arctan";
             break;
-        case MathOp::Tan:
-            os << "tan";
+        case MathOp::Ceiling:
+            os << "ceiling";
+            break;
+        case MathOp::Cos:
+            os << "cos";
             break;
         case MathOp::Exp:
             os << "exp";
             break;
-        case MathOp::Ln:
-            os << "ln";
+        case MathOp::Floor:
+            os << "floor";
             break;
-        case MathOp::Sqrt:
-            os << "sqrt";
+        case MathOp::Log:
+            os << "log";
+            break;
+        case MathOp::Mod:
+            os << "mod";
+            break;
+        case MathOp::Popcount:
+            os << "popcount";
+            break;
+        case MathOp::Pow:
+            os << "pow";
             break;
         case MathOp::Rotl:
             os << "rotl";
@@ -221,8 +233,20 @@ inline std::ostream& operator<<(std::ostream& os, const MathOp& mop) {
         case MathOp::Rotr:
             os << "rotr";
             break;
-        case MathOp::Popcount:
-            os << "popcount";
+        case MathOp::Sin:
+            os << "sin";
+            break;
+        case MathOp::Sqrt:
+            os << "sqrt";
+            break;
+        case MathOp::Tan:
+            os << "tan";
+            break;
+        case MathOp::Real:
+            os << "real";
+            break;
+        case MathOp::Imag:
+            os << "imag";
             break;
     }
     return os;
@@ -503,7 +527,7 @@ class MathExpr final : public Expr {
                 return tan(*expr);
             case MathOp::Exp:
                 return exp(*expr);
-            case MathOp::Ln:
+            case MathOp::Log:
                 return log(*expr);
             case MathOp::Sqrt:
                 return sqrt(*expr);
@@ -1246,6 +1270,54 @@ class ArrayInitExpr final : public Expr {
         for (auto& x : arr_)
             tmp.emplace_back(object::clone(*x));
         return new ArrayInitExpr(pos_, std::move(tmp));
+    }
+};
+
+/**
+ * \class qasm3tools::ast::MeasureExpr
+ * \brief Class for quantum measurements
+ */
+class MeasureExpr final : public Expr {
+    ptr<IndexId> q_arg_; ///< the quantum bit|register
+
+  public:
+    /**
+     * \brief Constructs a quantum measurement
+     *
+     * \param pos The source position
+     * \param q_arg Rvalue reference to the quantum argument
+     */
+    MeasureExpr(parser::Position pos, ptr<IndexId> q_arg)
+        : Expr(pos), q_arg_(std::move(q_arg)) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<MeasureExpr> create(parser::Position pos, ptr<IndexId> q_arg) {
+        return std::make_unique<MeasureExpr>(pos, std::move(q_arg));
+    }
+
+    /**
+     * \brief Get the quantum argument
+     *
+     * \return Reference to the quantum argument
+     */
+    IndexId& q_arg() { return *q_arg_; }
+
+    std::optional<double> constant_eval() const override {
+        return std::nullopt;
+    }
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
+        (void) ctx;
+
+        os << "measure " << *q_arg_;
+        return os;
+    }
+
+  protected:
+    MeasureExpr* clone() const override {
+        return new MeasureExpr(pos_, object::clone(*q_arg_));
     }
 };
 

@@ -19,8 +19,8 @@ TEST(Parsing, Standard_Compliance) {
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/cphase.qasm"));*/
     /*EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/dd.qasm"));*/
-    EXPECT_NO_THROW(
-        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/defcal.qasm"));
+    /*EXPECT_NO_THROW(
+        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/defcal.qasm"));*/
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/gateteleport.qasm"));
     EXPECT_NO_THROW(
@@ -31,8 +31,6 @@ TEST(Parsing, Standard_Compliance) {
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/ipe.qasm"));
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/msd.qasm"));
-    /*EXPECT_NO_THROW(
-        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/pong.qasm"));*/
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/qec.qasm"));
     EXPECT_NO_THROW(
@@ -45,8 +43,8 @@ TEST(Parsing, Standard_Compliance) {
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/rus.qasm"));
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/scqec.qasm"));
-    EXPECT_NO_THROW(
-        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/t1.qasm"));
+    /*EXPECT_NO_THROW(
+        parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/t1.qasm"));*/
     EXPECT_NO_THROW(
         parser::parse_file(PROJECT_ROOT_DIR "/qasm/generic/teleport.qasm"));
     EXPECT_NO_THROW(
@@ -61,9 +59,7 @@ TEST(Parsing, Idempotence) {
     std::string src = "OPENQASM 3.0;\n"
                       "include \"stdgates.inc\";\n"
                       "\n"
-                      "#pragma {\n"
-                      "\tconst float[64] pi_by_2 = π/2;\n"
-                      "}\n"
+                      "const float[64] pi_by_2 = π/2;\n"
                       "gate CCCX a,b,c,d {\n"
                       "\tctrl(2) @ CX a,b,c,d;\n"
                       "}\n"
@@ -102,7 +98,7 @@ TEST(Parsing, Idempotence) {
                       "\t}\n"
                       "}\n"
                       "else {\n"
-                      "\tfor i in [1:5] {\n"
+                      "\tfor int[32] i in [1:5] {\n"
                       "\t\tif (bool(c[i])) {\n"
                       "\t\t}\n"
                       "\t\tc[i-1] = c[i-1]&c[i+1];\n"
@@ -112,8 +108,8 @@ TEST(Parsing, Idempotence) {
                       "}\n"
                       "let q_alias = qq ++ q[{0, 1, 2, 4, 8}];\n"
                       "box [0.25s] {\n"
-                      "\tdelay(0.5,1.5)[1.234µs] q_alias[0],q[2];\n"
-                      "\tfor i in [5:2:9] {\n"
+                      "\tdelay[1.234µs] q_alias[0],q[2];\n"
+                      "\tfor int[32] i in [5:2:9] {\n"
                       "\t\tCCCX q[0],q[1],q[2],q[i];\n"
                       "\t}\n"
                       "}\n"
@@ -125,7 +121,7 @@ TEST(Parsing, Idempotence) {
                       "def hh(mutable array[bool, 4] h) {\n"
                       "}\n"
                       "array[int[32], 4] loop_arr = {1, 4, 9, 16};\n"
-                      "for i in loop_arr {\n"
+                      "for int[32] i in loop_arr {\n"
                       "}\n"
                       "end;\n";
 
@@ -345,7 +341,7 @@ TEST(Parsing, Miscellaneous_Type_Error) {
                        "measure q[x];\n";
 
     std::string src2 = "OPENQASM 3.0;\n"
-                       "for i in [0:1im] {}\n";
+                       "for int[32] i in [0:1im] {}\n";
 
     std::string src3 = "OPENQASM 3.0;\n"
                        "bit[10] x;\n"

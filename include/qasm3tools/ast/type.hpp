@@ -42,11 +42,27 @@ namespace qasm3tools {
 namespace ast {
 
 /**
+ * \class qasm3tools::ast::Type
+ * \brief Class for types
+ */
+class Type : public ASTNode {
+  public:
+    Type(parser::Position pos) : ASTNode(pos) {}
+    virtual ~Type() = default;
+
+  protected:
+    virtual Type* clone() const = 0;
+};
+
+/**
  * \brief Enum of single-designator types
  */
-enum class SDType { Int, Uint, Float, Angle };
+enum class SDType { Bit, Int, Uint, Float, Angle };
 inline std::ostream& operator<<(std::ostream& os, const SDType& t) {
     switch (t) {
+        case SDType::Bit:
+            os << "bit";
+            break;
         case SDType::Int:
             os << "int";
             break;
@@ -86,9 +102,9 @@ inline std::ostream& operator<<(std::ostream& os, const NDType& t) {
  * \class qasm3tools::ast::ClassicalType
  * \brief Class for classical types
  */
-class ClassicalType : public ASTNode {
+class ClassicalType : public Type {
   public:
-    ClassicalType(parser::Position pos) : ASTNode(pos) {}
+    ClassicalType(parser::Position pos) : Type(pos) {}
     virtual ~ClassicalType() = default;
 
   protected:
@@ -213,96 +229,53 @@ class NoDesignatorType : public NonArrayType {
 };
 
 /**
- * \class qasm3tools::ast::BitType
- * \brief Type sub-class for bit types
- */
-class BitType : public NonArrayType {
-    std::optional<ptr<Expr>> size_;
-
-  public:
-    /**
-     * \brief Constructs a bit type
-     *
-     * \param pos The source position
-     * \param size The size
-     */
-    BitType(parser::Position pos,
-            std::optional<ptr<Expr>>&& size = std::nullopt)
-        : NonArrayType(pos), size_(std::move(size)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<BitType> create(parser::Position pos,
-                               std::optional<ptr<Expr>>&& size = std::nullopt) {
-        return std::make_unique<BitType>(pos, std::move(size));
-    }
-
-    /**
-     * \brief Get the size
-     *
-     * \return Optional expr size
-     */
-    std::optional<ptr<Expr>>& size() { return size_; }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os) const override {
-        os << "bit";
-        if (size_)
-            os << "[" << **size_ << "]";
-        return os;
-    }
-
-  protected:
-    BitType* clone() const override {
-        std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (size_)
-            tmp = object::clone(**size_);
-        return new BitType(pos_, std::move(tmp));
-    }
-};
-
-/**
  * \class qasm3tools::ast::ComplexType
  * \brief Type sub-class for complex types
  */
 class ComplexType : public NonArrayType {
-    ptr<SingleDesignatorType> subtype_;
+    std::optional<ptr<NonArrayType>> subtype_;
 
   public:
     /**
      * \brief Constructs a bit type
      *
      * \param pos The source position
-     * \param subtype The single-designator subtype
+     * \param subtype The subtype
      */
-    ComplexType(parser::Position pos, ptr<SingleDesignatorType> subtype)
+    ComplexType(parser::Position pos,
+                std::optional<ptr<NonArrayType>> subtype = std::nullopt)
         : NonArrayType(pos), subtype_(std::move(subtype)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<ComplexType> create(parser::Position pos,
-                                   ptr<SingleDesignatorType> subtype) {
+    static ptr<ComplexType>
+    create(parser::Position pos,
+           std::optional<ptr<NonArrayType>> subtype = std::nullopt) {
         return std::make_unique<ComplexType>(pos, std::move(subtype));
     }
 
     /**
      * \brief Get the subtype
      *
-     * \return Reference to the single-designator subtype
+     * \return Reference to the subtype
      */
-    SingleDesignatorType& subtype() { return *subtype_; }
+    std::optional<ptr<NonArrayType>>& subtype() { return subtype_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << "complex[" << *subtype_ << "]";
+        os << "complex";
+        if (subtype_)
+            os << "[" << **subtype_ << "]";
         return os;
     }
 
   protected:
     ComplexType* clone() const override {
-        return new ComplexType(pos_, object::clone(*subtype_));
+        std::optional<ptr<NonArrayType>> tmp = std::nullopt;
+        if (subtype_)
+            tmp = object::clone(**subtype_);
+        return new ComplexType(pos_, std::move(tmp));
     }
 };
 
@@ -476,9 +449,9 @@ class ArrayRefType : public ClassicalType {
  * \class qasm3tools::ast::QuantumType
  * \brief Class for quantum types
  */
-class QuantumType : public ASTNode {
+class QuantumType : public Type {
   public:
-    QuantumType(parser::Position pos) : ASTNode(pos) {}
+    QuantumType(parser::Position pos) : Type(pos) {}
     virtual ~QuantumType() = default;
 
   protected:

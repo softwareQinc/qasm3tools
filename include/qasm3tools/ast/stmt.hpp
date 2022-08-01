@@ -40,183 +40,11 @@
 
 #include <functional>
 #include <list>
-#include <variant>
+#include <optional>
 #include <vector>
 
 namespace qasm3tools {
 namespace ast {
-
-/**
- * \class qasm3tools::ast::QuantumMeasurement
- * \brief Class for quantum measurements
- */
-class QuantumMeasurement final : public ASTNode {
-    ptr<IndexId> q_arg_; ///< the quantum bit|register
-
-  public:
-    /**
-     * \brief Constructs a quantum measurement
-     *
-     * \param pos The source position
-     * \param q_arg Rvalue reference to the quantum argument
-     */
-    QuantumMeasurement(parser::Position pos, ptr<IndexId> q_arg)
-        : ASTNode(pos), q_arg_(std::move(q_arg)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<QuantumMeasurement> create(parser::Position pos,
-                                          ptr<IndexId> q_arg) {
-        return std::make_unique<QuantumMeasurement>(pos, std::move(q_arg));
-    }
-
-    /**
-     * \brief Get the quantum argument
-     *
-     * \return Reference to the quantum argument
-     */
-    IndexId& q_arg() { return *q_arg_; }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os) const override {
-        os << "measure " << *q_arg_;
-        return os;
-    }
-
-  protected:
-    QuantumMeasurement* clone() const override {
-        return new QuantumMeasurement(pos_, object::clone(*q_arg_));
-    }
-};
-
-/**
- * \class qasm3tools::ast::MeasureStmt
- * \brief Class for quantum measurement statements
- * \see qasm3tools::ast::StmtBase
- */
-class MeasureStmt final : public QuantumStmt {
-    ptr<QuantumMeasurement> measurement_; ///< the quantum measurement
-
-  public:
-    /**
-     * \brief Constructs a measurement statement
-     *
-     * \param pos The source position
-     * \param q_arg Rvalue reference to the quantum argument
-     */
-    MeasureStmt(parser::Position pos, ptr<QuantumMeasurement> qm)
-        : QuantumStmt(pos), measurement_(std::move(qm)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<MeasureStmt> create(parser::Position pos,
-                                   ptr<QuantumMeasurement> qm) {
-        return std::make_unique<MeasureStmt>(pos, std::move(qm));
-    }
-
-    /**
-     * \brief Get the quantum measurement
-     *
-     * \return Reference to the quantum measurement
-     */
-    QuantumMeasurement& measurement() { return *measurement_; }
-
-    /**
-     * \brief Set the quantum argument
-     *
-     * \param arg Const reference to a new argument
-     */
-    void set_measurement(ptr<QuantumMeasurement> qm) {
-        measurement_ = std::move(qm);
-    }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        os << *measurement_ << ";\n";
-        return os;
-    }
-
-  protected:
-    MeasureStmt* clone() const override {
-        return new MeasureStmt(pos_, object::clone(*measurement_));
-    }
-};
-
-/**
- * \class qasm3tools::ast::MeasureAsgnStmt
- * \brief Class for measurement assignment statements
- * \see qasm3tools::ast::StmtBase
- */
-class MeasureAsgnStmt final : public Stmt {
-    ptr<QuantumMeasurement> measurement_; ///< the quantum measurement
-    ptr<IndexId> c_arg_;                  ///< the classical bit|register
-
-  public:
-    /**
-     * \brief Constructs a measurement statement
-     *
-     * \param pos The source position
-     * \param q_arg Rvalue reference to the quantum argument
-     * \param c_arg Rvalue reference to the classical argument
-     */
-    MeasureAsgnStmt(parser::Position pos, ptr<QuantumMeasurement> qm,
-                    ptr<IndexId> c_arg)
-        : Stmt(pos), measurement_(std::move(qm)), c_arg_(std::move(c_arg)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<MeasureAsgnStmt> create(parser::Position pos,
-                                       ptr<QuantumMeasurement> qm,
-                                       ptr<IndexId> c_arg) {
-        return std::make_unique<MeasureAsgnStmt>(pos, std::move(qm),
-                                                 std::move(c_arg));
-    }
-
-    /**
-     * \brief Get the quantum measurement
-     *
-     * \return Reference to the quantum measurement
-     */
-    QuantumMeasurement& measurement() { return *measurement_; }
-
-    /**
-     * \brief Get the classical argument
-     *
-     * \return Reference to the classical argument
-     */
-    IndexId& c_arg() { return *c_arg_; }
-
-    /**
-     * \brief Set the quantum measurement
-     *
-     * \param arg Const reference to a new measurement
-     */
-    void set_measurement(ptr<QuantumMeasurement> qm) {
-        measurement_ = std::move(qm);
-    }
-
-    /**
-     * \brief Set the classical argument
-     *
-     * \param arg Const reference to a new argument
-     */
-    void set_carg(ptr<IndexId> arg) { c_arg_ = std::move(arg); }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        os << *c_arg_ << " = " << *measurement_ << ";\n";
-        return os;
-    }
-
-  protected:
-    MeasureAsgnStmt* clone() const override {
-        return new MeasureAsgnStmt(pos_, object::clone(*measurement_),
-                                   object::clone(*c_arg_));
-    }
-};
 
 /**
  * \class qasm3tools::ast::ExprStmt
@@ -491,7 +319,7 @@ class IfStmt final : public Stmt {
  * \brief Class for "break" statements
  * \see qasm3tools::ast::StmtBase
  */
-class BreakStmt final : public ControlStmt {
+class BreakStmt final : public Stmt {
 
   public:
     /**
@@ -499,7 +327,7 @@ class BreakStmt final : public ControlStmt {
      *
      * \param pos The source position
      */
-    BreakStmt(parser::Position pos) : ControlStmt(pos) {}
+    BreakStmt(parser::Position pos) : Stmt(pos) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -523,7 +351,7 @@ class BreakStmt final : public ControlStmt {
  * \brief Class for "continue" statements
  * \see qasm3tools::ast::StmtBase
  */
-class ContinueStmt final : public ControlStmt {
+class ContinueStmt final : public Stmt {
 
   public:
     /**
@@ -531,7 +359,7 @@ class ContinueStmt final : public ControlStmt {
      *
      * \param pos The source position
      */
-    ContinueStmt(parser::Position pos) : ControlStmt(pos) {}
+    ContinueStmt(parser::Position pos) : Stmt(pos) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -555,24 +383,26 @@ class ContinueStmt final : public ControlStmt {
  * \brief Class for "return" statements
  * \see qasm3tools::ast::StmtBase
  */
-class ReturnStmt final : public ControlStmt {
-    using RetType =
-        std::variant<std::monostate, ptr<QuantumMeasurement>, ptr<Expr>>;
-    RetType value_;
+class ReturnStmt final : public Stmt {
+    std::optional<ptr<Expr>> value_;
 
   public:
     /**
      * \brief Construct a return statement
      *
      * \param pos The source position
+     * \param value Optional return expression
      */
-    ReturnStmt(parser::Position pos, RetType&& value)
-        : ControlStmt(pos), value_(std::move(value)) {}
+    ReturnStmt(parser::Position pos,
+               std::optional<ptr<Expr>>&& value = std::nullopt)
+        : Stmt(pos), value_(std::move(value)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<ReturnStmt> create(parser::Position pos, RetType&& value) {
+    static ptr<ReturnStmt>
+    create(parser::Position pos,
+           std::optional<ptr<Expr>>&& value = std::nullopt) {
         return std::make_unique<ReturnStmt>(pos, std::move(value));
     }
 
@@ -581,34 +411,23 @@ class ReturnStmt final : public ControlStmt {
      *
      * \return Reference to the returned expression
      */
-    RetType& value() { return value_; }
+    std::optional<ptr<Expr>>& value() { return value_; }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        std::visit(utils::overloaded{[&os](const ptr<QuantumMeasurement>& qm) {
-                                         os << "return " << *qm << ";\n";
-                                     },
-                                     [&os](const ptr<Expr>& exp) {
-                                         os << "return " << *exp << ";\n";
-                                     },
-                                     [&os](auto) { os << "return;\n"; }},
-                   value_);
+        os << "return";
+        if (value_)
+            os << " " << **value_;
+        os << ";\n";
         return os;
     }
 
   protected:
     ReturnStmt* clone() const override {
-        RetType value_copy = std::monostate();
-        std::visit(
-            utils::overloaded{[&value_copy](const ptr<QuantumMeasurement>& qm) {
-                                  value_copy = object::clone(*qm);
-                              },
-                              [&value_copy](const ptr<Expr>& exp) {
-                                  value_copy = object::clone(*exp);
-                              },
-                              [](auto) {}},
-            value_);
-        return new ReturnStmt(pos_, std::move(value_copy));
+        std::optional<ptr<Expr>> tmp = std::nullopt;
+        if (value_)
+            tmp = object::clone(**value_);
+        return new ReturnStmt(pos_, std::move(tmp));
     }
 };
 
@@ -861,53 +680,6 @@ class AssignmentStmt final : public Stmt {
     AssignmentStmt* clone() const override {
         return new AssignmentStmt(pos_, object::clone(*lval_), op_,
                                   object::clone(*exp_));
-    }
-};
-
-/**
- * \class qasm3tools::ast::PragmaStmt
- * \brief Class for pragma statements
- * \see qasm3tools::ast::StmtBase
- */
-class PragmaStmt final : public GlobalStmt {
-    ptr<ProgramBlock> body_; ///< pragma body
-
-  public:
-    /**
-     * \brief Constructs a pragma statement
-     *
-     * \param pos The source position
-     * \param body The pragma body
-     */
-    PragmaStmt(parser::Position pos, ptr<ProgramBlock> body)
-        : GlobalStmt(pos), body_(std::move(body)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<PragmaStmt> create(parser::Position pos,
-                                  ptr<ProgramBlock> body) {
-        return std::make_unique<PragmaStmt>(pos, std::move(body));
-    }
-
-    /**
-     * \brief Get the pragma body
-     *
-     * \return Reference to the body
-     */
-    ProgramBlock& body() { return *body_; }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool,
-                               size_t indents) const override {
-        os << "#pragma ";
-        body_->pretty_print(os, indents);
-        return os;
-    }
-
-  protected:
-    PragmaStmt* clone() const override {
-        return new PragmaStmt(pos_, object::clone(*body_));
     }
 };
 

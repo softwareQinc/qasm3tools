@@ -41,7 +41,6 @@ class ListSlice;
 class IndexId;
 class SingleDesignatorType;
 class NoDesignatorType;
-class BitType;
 class ComplexType;
 class ArrayType;
 class ArrayRefType;
@@ -62,13 +61,9 @@ class VarExpr;
 class BitString;
 class ArrayInitExpr;
 class TimeExpr;
-class DurationGateExpr;
-class DurationBlockExpr;
-class QuantumMeasurement;
+class DurationofExpr;
+class MeasureExpr;
 class ProgramBlock;
-class QuantumBlock;
-class MeasureStmt;
-class MeasureAsgnStmt;
 class ExprStmt;
 class ResetStmt;
 class BarrierStmt;
@@ -79,7 +74,6 @@ class ReturnStmt;
 class EndStmt;
 class AliasStmt;
 class AssignmentStmt;
-class PragmaStmt;
 class CtrlModifier;
 class InvModifier;
 class PowModifier;
@@ -91,20 +85,14 @@ class ListSet;
 class VarSet;
 class ForStmt;
 class WhileStmt;
-class QuantumForStmt;
-class QuantumWhileStmt;
 class DelayStmt;
-class RotaryStmt;
 class BoxStmt;
-class ClassicalParam;
-class QuantumParam;
+class Param;
 class SubroutineDecl;
 class ExternDecl;
 class GateDecl;
 class QuantumDecl;
 class ClassicalDecl;
-class CalGrammarDecl;
-class CalibrationDecl;
 class Program;
 
 /**
@@ -129,7 +117,6 @@ class Visitor {
     // Types
     virtual void visit(SingleDesignatorType&) = 0;
     virtual void visit(NoDesignatorType&) = 0;
-    virtual void visit(BitType&) = 0;
     virtual void visit(ComplexType&) = 0;
     virtual void visit(ArrayType&) = 0;
     virtual void visit(ArrayRefType&) = 0;
@@ -151,15 +138,10 @@ class Visitor {
     virtual void visit(BitString&) = 0;
     virtual void visit(ArrayInitExpr&) = 0;
     virtual void visit(TimeExpr&) = 0;
-    virtual void visit(DurationGateExpr&) = 0;
-    virtual void visit(DurationBlockExpr&) = 0;
-    // Statement components
-    virtual void visit(QuantumMeasurement&) = 0;
-    virtual void visit(ProgramBlock&) = 0;
-    virtual void visit(QuantumBlock&) = 0;
+    virtual void visit(DurationofExpr&) = 0;
+    virtual void visit(MeasureExpr&) = 0;
     // Statements
-    virtual void visit(MeasureStmt&) = 0;
-    virtual void visit(MeasureAsgnStmt&) = 0;
+    virtual void visit(ProgramBlock&) = 0;
     virtual void visit(ExprStmt&) = 0;
     virtual void visit(ResetStmt&) = 0;
     virtual void visit(BarrierStmt&) = 0;
@@ -170,7 +152,6 @@ class Visitor {
     virtual void visit(EndStmt&) = 0;
     virtual void visit(AliasStmt&) = 0;
     virtual void visit(AssignmentStmt&) = 0;
-    virtual void visit(PragmaStmt&) = 0;
     // Gates
     virtual void visit(CtrlModifier&) = 0;
     virtual void visit(InvModifier&) = 0;
@@ -184,22 +165,16 @@ class Visitor {
     virtual void visit(VarSet&) = 0;
     virtual void visit(ForStmt&) = 0;
     virtual void visit(WhileStmt&) = 0;
-    virtual void visit(QuantumForStmt&) = 0;
-    virtual void visit(QuantumWhileStmt&) = 0;
     // Timing Statements
     virtual void visit(DelayStmt&) = 0;
-    virtual void visit(RotaryStmt&) = 0;
     virtual void visit(BoxStmt&) = 0;
     // Declarations
-    virtual void visit(ClassicalParam&) = 0;
-    virtual void visit(QuantumParam&) = 0;
+    virtual void visit(Param&) = 0;
     virtual void visit(SubroutineDecl&) = 0;
     virtual void visit(ExternDecl&) = 0;
     virtual void visit(GateDecl&) = 0;
     virtual void visit(QuantumDecl&) = 0;
     virtual void visit(ClassicalDecl&) = 0;
-    virtual void visit(CalGrammarDecl&) = 0;
-    virtual void visit(CalibrationDecl&) = 0;
     // Program
     virtual void visit(Program&) = 0;
     // Destructor

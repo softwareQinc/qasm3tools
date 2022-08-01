@@ -175,27 +175,10 @@ class ConstExprChecker final : public Visitor {
         }
     }
     void visit(NoDesignatorType&) override {}
-    void visit(BitType& type) override {
-        visit_optional_expr(type.size());
-        if (type.size()) {
-            auto size = evaluate(**type.size());
-            if (size) {
-                if (*size <= 0) {
-                    std::cerr << type.pos()
-                              << ": error : classical register size must be "
-                                 "positive\n";
-                    error_ = true;
-                } else
-                    type.size() = ptr<Expr>(new IntExpr({}, *size));
-            } else {
-                std::cerr << type.pos()
-                          << ": error : classical register size is not a "
-                             "compile-time constant\n";
-                error_ = true;
-            }
-        }
+    void visit(ComplexType& type) override {
+        if (type.subtype())
+            (**type.subtype()).accept(*this);
     }
-    void visit(ComplexType& type) override { type.subtype().accept(*this); }
     void visit(ArrayType& type) override {
         type.subtype().accept(*this);
         for (int i = 0; i < type.dims(); i++) {
@@ -417,27 +400,15 @@ class ConstExprChecker final : public Visitor {
         }
     }
     void visit(TimeExpr&) override {}
-    void visit(DurationGateExpr&) override {}
-    void visit(DurationBlockExpr& exp) override {
+    void visit(DurationofExpr& exp) override {
         push_scope();
         exp.block().accept(*this);
         pop_scope();
     }
-    // Statement components
-    void visit(QuantumMeasurement& msmt) override {
-        msmt.q_arg().accept(*this);
-    }
+    void visit(MeasureExpr& msmt) override { msmt.q_arg().accept(*this); }
+    // Statements
     void visit(ProgramBlock& block) override {
         block.foreach_stmt([this](Stmt& stmt) { stmt.accept(*this); });
-    }
-    void visit(QuantumBlock& block) override {
-        block.foreach_stmt([this](QuantumStmt& stmt) { stmt.accept(*this); });
-    }
-    // Statements
-    void visit(MeasureStmt& stmt) override { stmt.measurement().accept(*this); }
-    void visit(MeasureAsgnStmt& stmt) override {
-        stmt.measurement().accept(*this);
-        stmt.c_arg().accept(*this);
     }
     void visit(ExprStmt& stmt) override {
         stmt.exp().accept(*this);
@@ -468,19 +439,13 @@ class ConstExprChecker final : public Visitor {
     void visit(BreakStmt&) override {}
     void visit(ContinueStmt&) override {}
     void visit(ReturnStmt& stmt) override {
-        std::visit(utils::overloaded{[this](ptr<QuantumMeasurement>& qm) {
-                                         qm->accept(*this);
-                                     },
-                                     [this](ptr<Expr>& exp) {
-                                         exp->accept(*this);
-                                         if (replacement_expr_) {
-                                             exp =
-                                                 std::move(*replacement_expr_);
-                                             replacement_expr_ = std::nullopt;
-                                         }
-                                     },
-                                     [](auto) {}},
-                   stmt.value());
+        if (stmt.value()) {
+            (**stmt.value()).accept(*this);
+            if (replacement_expr_) {
+                stmt.value() = std::move(*replacement_expr_);
+                replacement_expr_ = std::nullopt;
+            }
+        }
     }
     void visit(EndStmt&) override {}
     void visit(AliasStmt& stmt) override {
@@ -494,11 +459,6 @@ class ConstExprChecker final : public Visitor {
             stmt.set_exp(std::move(*replacement_expr_));
             replacement_expr_ = std::nullopt;
         }
-    }
-    void visit(PragmaStmt& stmt) override {
-        push_scope();
-        stmt.body().accept(*this);
-        pop_scope();
     }
     // Gates
     void visit(CtrlModifier& mod) override {
@@ -612,6 +572,7 @@ class ConstExprChecker final : public Visitor {
         }
     }
     void visit(ForStmt& stmt) override {
+        stmt.var_type().accept(*this);
         stmt.index_set().accept(*this);
 
         push_scope();
@@ -630,34 +591,8 @@ class ConstExprChecker final : public Visitor {
         stmt.body().accept(*this);
         pop_scope();
     }
-    void visit(QuantumForStmt& stmt) override {
-        stmt.index_set().accept(*this);
-
-        push_scope();
-        set(stmt.var(), LoopVar{}, stmt.pos());
-        stmt.body().accept(*this);
-        pop_scope();
-    }
-    void visit(QuantumWhileStmt& stmt) override {
-        stmt.cond().accept(*this);
-        if (replacement_expr_) {
-            stmt.set_cond(std::move(*replacement_expr_));
-            replacement_expr_ = std::nullopt;
-        }
-
-        push_scope();
-        stmt.body().accept(*this);
-        pop_scope();
-    }
     // Timing Statements
     void visit(DelayStmt& delay) override {
-        for (int i = 0; i < delay.num_cargs(); i++) {
-            delay.carg(i).accept(*this);
-            if (replacement_expr_) {
-                delay.set_carg(i, std::move(*replacement_expr_));
-                replacement_expr_ = std::nullopt;
-            }
-        }
         delay.duration().accept(*this);
         if (replacement_expr_) {
             delay.set_duration(std::move(*replacement_expr_));
@@ -667,23 +602,6 @@ class ConstExprChecker final : public Visitor {
             delay.qarg(i).accept(*this);
         }
     }
-    void visit(RotaryStmt& rotary) override {
-        for (int i = 0; i < rotary.num_cargs(); i++) {
-            rotary.carg(i).accept(*this);
-            if (replacement_expr_) {
-                rotary.set_carg(i, std::move(*replacement_expr_));
-                replacement_expr_ = std::nullopt;
-            }
-        }
-        rotary.duration().accept(*this);
-        if (replacement_expr_) {
-            rotary.set_duration(std::move(*replacement_expr_));
-            replacement_expr_ = std::nullopt;
-        }
-        for (int i = 0; i < rotary.num_qargs(); i++) {
-            rotary.qarg(i).accept(*this);
-        }
-    }
     void visit(BoxStmt& box) override {
         visit_optional_expr(box.duration());
         push_scope();
@@ -691,12 +609,7 @@ class ConstExprChecker final : public Visitor {
         pop_scope();
     }
     // Declarations
-    void visit(ClassicalParam& param) override {
-        param.type().accept(*this);
-
-        set(param.id(), OtherVar{}, param.pos());
-    }
-    void visit(QuantumParam& param) override {
+    void visit(Param& param) override {
         param.type().accept(*this);
 
         set(param.id(), OtherVar{}, param.pos());
@@ -776,14 +689,12 @@ class ConstExprChecker final : public Visitor {
             set(decl.id(), OtherVar{}, decl.pos());
         }
     }
-    void visit(CalGrammarDecl&) override {}
-    void visit(CalibrationDecl&) override {}
     // Program
     void visit(Program& prog) override {
         qubit_count_ = 0;
 
         push_scope();
-        prog.foreach_stmt([this](GlobalStmt& stmt) { stmt.accept(*this); });
+        prog.foreach_stmt([this](Stmt& stmt) { stmt.accept(*this); });
         pop_scope();
 
         prog.set_qubits(qubit_count_);
@@ -904,7 +815,6 @@ class ConstExprChecker final : public Visitor {
                 type.type() == SDType::Int || type.type() == SDType::Uint;
         }
         void visit(NoDesignatorType&) override { cast_is_int_ = false; }
-        void visit(BitType&) override { cast_is_int_ = false; }
         void visit(ComplexType&) override { cast_is_int_ = false; }
         void visit(ArrayType&) override { cast_is_int_ = false; }
         void visit(ArrayRefType&) override { cast_is_int_ = false; }
@@ -967,15 +877,10 @@ class ConstExprChecker final : public Visitor {
         void visit(BitString&) override { value_ = std::nullopt; }
         void visit(ArrayInitExpr&) override { value_ = std::nullopt; }
         void visit(TimeExpr&) override { value_ = std::nullopt; }
-        void visit(DurationGateExpr&) override { value_ = std::nullopt; }
-        void visit(DurationBlockExpr&) override { value_ = std::nullopt; }
-        // Statement components
-        void visit(QuantumMeasurement&) override {}
-        void visit(ProgramBlock&) override {}
-        void visit(QuantumBlock&) override {}
+        void visit(DurationofExpr&) override { value_ = std::nullopt; }
+        void visit(MeasureExpr&) override { value_ = std::nullopt; }
         // Statements
-        void visit(MeasureStmt&) override {}
-        void visit(MeasureAsgnStmt&) override {}
+        void visit(ProgramBlock&) override {}
         void visit(ExprStmt&) override {}
         void visit(ResetStmt&) override {}
         void visit(BarrierStmt&) override {}
@@ -986,7 +891,6 @@ class ConstExprChecker final : public Visitor {
         void visit(EndStmt&) override {}
         void visit(AliasStmt&) override {}
         void visit(AssignmentStmt&) override {}
-        void visit(PragmaStmt&) override {}
         // Gates
         void visit(CtrlModifier&) override {}
         void visit(InvModifier&) override {}
@@ -1000,22 +904,16 @@ class ConstExprChecker final : public Visitor {
         void visit(VarSet&) override {}
         void visit(ForStmt&) override {}
         void visit(WhileStmt&) override {}
-        void visit(QuantumForStmt&) override {}
-        void visit(QuantumWhileStmt&) override {}
         // Timing Statements
         void visit(DelayStmt&) override {}
-        void visit(RotaryStmt&) override {}
         void visit(BoxStmt&) override {}
         // Declarations
-        void visit(ClassicalParam&) override {}
-        void visit(QuantumParam&) override {}
+        void visit(Param&) override {}
         void visit(SubroutineDecl&) override {}
         void visit(ExternDecl&) override {}
         void visit(GateDecl&) override {}
         void visit(QuantumDecl&) override {}
         void visit(ClassicalDecl&) override {}
-        void visit(CalGrammarDecl&) override {}
-        void visit(CalibrationDecl&) override {}
         // Program
         void visit(Program&) override {}
     };
@@ -1385,6 +1283,23 @@ class TypeChecker final : public Visitor {
         return false;
     }
 
+    /**
+     * \brief Checks whether the 'actual' stmt type is a subtype of 'expected'
+     *
+     * \return True if 'actual' is a subtype of 'expected'
+     */
+    static bool is_stmt_subtype(Stmt::Type actual, Stmt::Type expected) {
+        switch (expected) {
+            case Stmt::Type::Regular:
+                return actual == Stmt::Type::Regular ||
+                       actual == Stmt::Type::Quantum;
+            case Stmt::Type::Global:
+                return true;
+            case Stmt::Type::Quantum:
+                return actual == Stmt::Type::Quantum;
+        }
+    }
+
   public:
     bool run(Program& prog) {
         prog.accept(*this);
@@ -1460,6 +1375,14 @@ class TypeChecker final : public Visitor {
     // Types
     void visit(SingleDesignatorType& type) override {
         switch (type.type()) {
+            case SDType::Bit: {
+                if (type.size()) {
+                    type_ = CREG;
+                } else {
+                    type_ = StdType::ClassicalBit;
+                }
+                break;
+            }
             case SDType::Int:
                 type_ = StdType::Int;
                 break;
@@ -1487,14 +1410,17 @@ class TypeChecker final : public Visitor {
                 break;
         }
     }
-    void visit(BitType& type) override {
-        if (type.size()) {
-            type_ = CREG;
-        } else {
-            type_ = StdType::ClassicalBit;
+    void visit(ComplexType& type) override {
+        if (type.subtype()) {
+            (**type.subtype()).accept(*this);
+            if (!is_same(type_, StdType::Float)) {
+                std::cerr << type.pos()
+                          << ": error : complex only accepts 'float' subtype\n";
+                error_ = true;
+            }
         }
+        type_ = StdType::Complex;
     }
-    void visit(ComplexType& type) override { type_ = StdType::Complex; }
     void visit(ArrayType& type) override {
         type.subtype().accept(*this);
         if (std::holds_alternative<StdType>(type_)) {
@@ -1666,15 +1592,15 @@ class TypeChecker final : public Visitor {
     }
     void visit(MathExpr& exp) override {
         switch (exp.op()) {
-            case MathOp::Arcsin:
-            case MathOp::Sin:
             case MathOp::Arccos:
-            case MathOp::Cos:
+            case MathOp::Arcsin:
             case MathOp::Arctan:
+            case MathOp::Ceiling:
+            case MathOp::Cos:
+            case MathOp::Floor:
+            case MathOp::Log:
+            case MathOp::Sin:
             case MathOp::Tan:
-            case MathOp::Exp:
-            case MathOp::Ln:
-            case MathOp::Sqrt:
                 if (exp.num_args() != 1) {
                     std::cerr << exp.pos() << ": error : " << exp.op()
                               << " expects one argument, but got "
@@ -1685,6 +1611,18 @@ class TypeChecker final : public Visitor {
                 }
                 visit_numeric_expr(exp.arg(0));
                 type_ = StdType::Float; // assume we accept & return float
+                break;
+            case MathOp::Exp:
+            case MathOp::Sqrt:
+                if (exp.num_args() != 1) {
+                    std::cerr << exp.pos() << ": error : " << exp.op()
+                              << " expects one argument, but got "
+                              << exp.num_args() << "\n";
+                    error_ = true;
+                    type_ = NONE;
+                    return;
+                }
+                visit_numeric_expr(exp.arg(0)); // return same type as input
                 break;
             case MathOp::Rotl:
             case MathOp::Rotr:
@@ -1711,6 +1649,35 @@ class TypeChecker final : public Visitor {
                 }
                 visit_classical_expr(exp.arg(0), CREG);
                 type_ = StdType::Int;
+                break;
+            case MathOp::Mod:
+            case MathOp::Pow: {
+                if (exp.num_args() != 2) {
+                    std::cerr << exp.pos() << ": error : " << exp.op()
+                              << " expects two arguments, but got "
+                              << exp.num_args() << "\n";
+                    error_ = true;
+                    type_ = NONE;
+                    return;
+                }
+                visit_classical_expr(exp.arg(0), StdType::Complex);
+                auto tmp = type_;
+                visit_classical_expr(exp.arg(1), tmp);
+                type_ = tmp; // return same type as first parameter
+                break;
+            }
+            case MathOp::Real:
+            case MathOp::Imag:
+                if (exp.num_args() != 1) {
+                    std::cerr << exp.pos() << ": error : " << exp.op()
+                              << " expects one argument, but got "
+                              << exp.num_args() << "\n";
+                    error_ = true;
+                    type_ = NONE;
+                    return;
+                }
+                visit_classical_expr(exp.arg(0), StdType::Complex);
+                type_ = StdType::Float; // return float component
                 break;
         }
     }
@@ -1820,47 +1787,30 @@ class TypeChecker final : public Visitor {
         }
     }
     void visit(TimeExpr&) override { type_ = StdType::Duration; }
-    void visit(DurationGateExpr& exp) override {
-        auto entry = lookup(exp.gate());
-        if (!entry) {
-            std::cerr << exp.pos() << ": error : undefined gate \""
-                      << exp.gate() << "\"\n";
-            error_ = true;
-        } else if (!std::holds_alternative<GateType>(*entry)) {
-            std::cerr << exp.pos() << ": error : identifier \"" << exp.gate()
-                      << "\" is not a gate\n";
-            error_ = true;
-        }
-        type_ = StdType::Duration;
-    }
-    void visit(DurationBlockExpr& exp) override {
+    void visit(DurationofExpr& exp) override {
+        auto tmp = expected_stmt_type_;
+        expected_stmt_type_ = Stmt::Type::Quantum;
         push_scope();
         exp.block().accept(*this);
         pop_scope();
+        expected_stmt_type_ = tmp;
         type_ = StdType::Duration;
     }
-    // Statement components
-    void visit(QuantumMeasurement& msmt) override {
+    void visit(MeasureExpr& msmt) override {
         visit_quantum_indexid(msmt.q_arg());
-    }
-    void visit(ProgramBlock& block) override {
-        block.foreach_stmt([this](Stmt& stmt) { stmt.accept(*this); });
-    }
-    void visit(QuantumBlock& block) override {
-        block.foreach_stmt([this](QuantumStmt& stmt) { stmt.accept(*this); });
+        type_ = CREG;
     }
     // Statements
-    void visit(MeasureStmt& stmt) override { stmt.measurement().accept(*this); }
-    void visit(MeasureAsgnStmt& stmt) override {
-        stmt.measurement().accept(*this);
-        stmt.c_arg().accept(*this);
-        if (!is_classical_bit(type_)) {
-            std::cerr << stmt.c_arg().pos()
-                      << ": error : expected classical register : \""
-                      << stmt.c_arg() << "\"\n";
-            error_ = true;
-        }
-        check_mutable(stmt.c_arg());
+    void visit(ProgramBlock& block) override {
+        block.foreach_stmt([this](Stmt& stmt) {
+            if (!is_stmt_subtype(stmt.stmt_type(), expected_stmt_type_)) {
+                std::cerr << stmt.pos() << ": error : expected '"
+                          << expected_stmt_type_ << "' but got '"
+                          << stmt.stmt_type() << "'\n";
+                error_ = true;
+            }
+            stmt.accept(*this);
+        });
     }
     void visit(ExprStmt& stmt) override { stmt.exp().accept(*this); }
     void visit(ResetStmt& stmt) override {
@@ -1872,6 +1822,8 @@ class TypeChecker final : public Visitor {
     void visit(IfStmt& stmt) override {
         visit_classical_expr(stmt.cond(), StdType::Bool);
 
+        auto tmp = expected_stmt_type_;
+        expected_stmt_type_ = Stmt::Type::Regular;
         push_scope();
         stmt.then().accept(*this);
         pop_scope();
@@ -1879,6 +1831,7 @@ class TypeChecker final : public Visitor {
         push_scope();
         stmt.els().accept(*this);
         pop_scope();
+        expected_stmt_type_ = tmp;
     }
     void visit(BreakStmt& stmt) override {
         if (!in_loop_) {
@@ -1900,30 +1853,16 @@ class TypeChecker final : public Visitor {
             error_ = true;
             return;
         }
-        std::visit(
-            utils::overloaded{
-                [this](ptr<QuantumMeasurement>& qm) {
-                    qm->accept(*this);
-                    if (!general_castable(CREG, *return_type_)) {
-                        std::cerr
-                            << qm->pos()
-                            << ": error : incompatible return type : expected '"
-                            << *return_type_ << "', got '" << CREG << "'\n";
-                        error_ = true;
-                    }
-                },
-                [this](ptr<Expr>& exp) {
-                    visit_classical_expr(*exp, *return_type_);
-                },
-                [this, &stmt](auto) {
-                    if (!std::holds_alternative<NoneType>(*return_type_)) {
-                        std::cerr << stmt.pos()
-                                  << ": error : non-void subroutine "
-                                     "should return a value\n";
-                        error_ = true;
-                    }
-                }},
-            stmt.value());
+        if (stmt.value()) {
+            visit_classical_expr(**stmt.value(), *return_type_);
+        } else {
+            if (!std::holds_alternative<NoneType>(*return_type_)) {
+                std::cerr << stmt.pos()
+                          << ": error : non-void subroutine "
+                             "should return a value\n";
+                error_ = true;
+            }
+        }
     }
     void visit(EndStmt& stmt) override {
         if (return_type_) {
@@ -2007,11 +1946,6 @@ class TypeChecker final : public Visitor {
             stmt.set_op(AssignOp::Equals);
         }
         visit_classical_expr(stmt.exp(), tmp);
-    }
-    void visit(PragmaStmt& stmt) override {
-        push_scope();
-        stmt.body().accept(*this);
-        pop_scope();
     }
     // Gates
     void visit(CtrlModifier& mod) override {
@@ -2120,24 +2054,34 @@ class TypeChecker final : public Visitor {
     }
     // Loops
     void visit(RangeSet& set) override {
+        // assume type_ has been set to the loop variable type
+        if (!is_same(type_, StdType::Int)) {
+            std::cerr << set.pos()
+                      << ": error : range set is incompatible with non-int "
+                         "loop variable\n";
+            error_ = true;
+        }
         visit_optional_classical_expr(set.start(), StdType::Int);
         visit_optional_classical_expr(set.step(), StdType::Int);
         visit_optional_classical_expr(set.stop(), StdType::Int);
     }
     void visit(ListSet& set) override {
+        // assume type_ has been set to the loop variable type
+        auto tmp = type_;
         for (auto& index : set.indices()) {
-            visit_classical_expr(*index, StdType::Int);
+            visit_classical_expr(*index, tmp);
         }
     }
     void visit(VarSet& vs) override {
+        // assume type_ has been set to the loop variable type
+        auto tmp = std::get<StdType>(type_);
         auto entry = lookup(vs.var());
         if (!entry) {
             std::cerr << vs.pos() << ": error : undefined identifier \""
                       << vs.var() << "\"\n";
             error_ = true;
         } else if (std::holds_alternative<ExprType>(*entry)) {
-            if (!is_same(std::get<ExprType>(*entry),
-                         ArrType{StdType::Int, 1})) {
+            if (!is_same(std::get<ExprType>(*entry), ArrType{tmp, 1})) {
                 std::cerr << vs.pos() << ": error : identifier \"" << vs.var()
                           << "\" is not of type array[int, #dim = 1]\n";
                 error_ = true;
@@ -2149,15 +2093,22 @@ class TypeChecker final : public Visitor {
         }
     }
     void visit(ForStmt& stmt) override {
+        stmt.var_type().accept(*this);
+        auto tmp = type_;
         stmt.index_set().accept(*this);
 
         bool was_in_loop = in_loop_;
         in_loop_ = true;
 
+        auto tmp_stmt = expected_stmt_type_;
+        expected_stmt_type_ = Stmt::Type::Regular;
+        if (tmp_stmt == Stmt::Type::Quantum) // maintain quantum stmt scope
+            expected_stmt_type_ = Stmt::Type::Quantum;
         push_scope();
-        set(stmt.var(), StdType::Int, stmt.pos());
+        set(stmt.var(), tmp, stmt.pos());
         stmt.body().accept(*this);
         pop_scope();
+        expected_stmt_type_ = tmp_stmt;
 
         in_loop_ = was_in_loop;
     }
@@ -2167,65 +2118,35 @@ class TypeChecker final : public Visitor {
         bool was_in_loop = in_loop_;
         in_loop_ = true;
 
+        auto tmp = expected_stmt_type_;
+        expected_stmt_type_ = Stmt::Type::Regular;
+        if (tmp == Stmt::Type::Quantum) // maintain quantum stmt scope
+            expected_stmt_type_ = Stmt::Type::Quantum;
         push_scope();
         stmt.body().accept(*this);
         pop_scope();
-
-        in_loop_ = was_in_loop;
-    }
-    void visit(QuantumForStmt& stmt) override {
-        stmt.index_set().accept(*this);
-
-        bool was_in_loop = in_loop_;
-        in_loop_ = true;
-
-        push_scope();
-        set(stmt.var(), StdType::Int, stmt.pos());
-        stmt.body().accept(*this);
-        pop_scope();
-
-        in_loop_ = was_in_loop;
-    }
-    void visit(QuantumWhileStmt& stmt) override {
-        visit_classical_expr(stmt.cond(), StdType::Bool);
-
-        bool was_in_loop = in_loop_;
-        in_loop_ = true;
-
-        push_scope();
-        stmt.body().accept(*this);
-        pop_scope();
+        expected_stmt_type_ = tmp;
 
         in_loop_ = was_in_loop;
     }
     // Timing Statements
     void visit(DelayStmt& delay) override {
-        for (int i = 0; i < delay.num_cargs(); i++) {
-            visit_classical_expr(delay.carg(i), StdType::Float);
-        }
         visit_classical_expr(delay.duration(), StdType::Duration);
         for (int i = 0; i < delay.num_qargs(); i++) {
             visit_quantum_indexid(delay.qarg(i));
         }
     }
-    void visit(RotaryStmt& rotary) override {
-        for (int i = 0; i < rotary.num_cargs(); i++) {
-            visit_classical_expr(rotary.carg(i), StdType::Float);
-        }
-        visit_classical_expr(rotary.duration(), StdType::Duration);
-        for (int i = 0; i < rotary.num_qargs(); i++) {
-            visit_quantum_indexid(rotary.qarg(i));
-        }
-    }
     void visit(BoxStmt& box) override {
         visit_optional_classical_expr(box.duration(), StdType::Duration);
+        auto tmp = expected_stmt_type_;
+        expected_stmt_type_ = Stmt::Type::Quantum;
         push_scope();
         box.circuit().accept(*this);
         pop_scope();
+        expected_stmt_type_ = tmp;
     }
     // Declarations
-    void visit(ClassicalParam& param) override { param.type().accept(*this); }
-    void visit(QuantumParam& param) override { param.type().accept(*this); }
+    void visit(Param& param) override { param.type().accept(*this); }
     void visit(SubroutineDecl& decl) override {
         // function signature
         std::vector<ExprType> param_types;
@@ -2247,6 +2168,8 @@ class TypeChecker final : public Visitor {
 
         // add parameter declarations and visit body
         return_type_ = type_;
+        auto tmp = expected_stmt_type_;
+        expected_stmt_type_ = Stmt::Type::Regular;
         push_scope();
 
         for (int i = 0; i < param_types.size(); i++) {
@@ -2255,6 +2178,7 @@ class TypeChecker final : public Visitor {
         decl.body().accept(*this);
 
         pop_scope();
+        expected_stmt_type_ = tmp;
         return_type_ = std::nullopt;
     }
     void visit(ExternDecl& decl) override {
@@ -2273,6 +2197,8 @@ class TypeChecker final : public Visitor {
         set(decl.id(), SubroutineType{param_types, type_}, decl.pos());
     }
     void visit(GateDecl& decl) override {
+        auto tmp = expected_stmt_type_;
+        expected_stmt_type_ = Stmt::Type::Quantum;
         push_scope();
 
         for (const ast::symbol& param : decl.c_params()) {
@@ -2284,6 +2210,7 @@ class TypeChecker final : public Visitor {
         decl.body().accept(*this);
 
         pop_scope();
+        expected_stmt_type_ = tmp;
 
         set(decl.id(),
             GateType{(int) decl.c_params().size(),
@@ -2305,12 +2232,11 @@ class TypeChecker final : public Visitor {
             visit_optional_classical_expr(decl.equalsexp(), tmp);
         }
     }
-    void visit(CalGrammarDecl&) override {}
-    void visit(CalibrationDecl&) override {}
     // Program
     void visit(Program& prog) override {
+        expected_stmt_type_ = Stmt::Type::Global;
         push_scope();
-        prog.foreach_stmt([this](GlobalStmt& stmt) { stmt.accept(*this); });
+        prog.foreach_stmt([this](Stmt& stmt) { stmt.accept(*this); });
         pop_scope();
     }
 
@@ -2326,6 +2252,7 @@ class TypeChecker final : public Visitor {
     ExprType type_ = NONE; ///< type of current expression
     std::optional<ExprType> return_type_ =
         std::nullopt; ///< return type of subroutine
+    Stmt::Type expected_stmt_type_ = Stmt::Type::Global; ///< allowed stmt types
 
     /**
      * \brief Enters a new scope

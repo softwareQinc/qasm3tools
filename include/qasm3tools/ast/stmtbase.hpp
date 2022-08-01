@@ -37,13 +37,13 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::GlobalStmt
+ * \class qasm3tools::ast::Stmt
  * \brief Base class for OpenQASM statements
  */
-class GlobalStmt : public ASTNode {
+class Stmt : public ASTNode {
   public:
-    GlobalStmt(parser::Position pos) : ASTNode(pos) {}
-    virtual ~GlobalStmt() = default;
+    Stmt(parser::Position pos) : ASTNode(pos) {}
+    virtual ~Stmt() = default;
 
     /**
      * \brief Internal pretty-printer which can suppress the output of the
@@ -63,20 +63,47 @@ class GlobalStmt : public ASTNode {
         return pretty_print(os, false);
     }
 
-  protected:
-    virtual GlobalStmt* clone() const override = 0;
-};
-/**
- * \class qasm3tools::ast::Stmt
- * \brief Statement sub-class for non-global statements
- */
-class Stmt : public GlobalStmt {
-  public:
-    Stmt(parser::Position pos) : GlobalStmt(pos) {}
-    virtual ~Stmt() = default;
+    enum class Type { Regular, Global, Quantum };
+    /**
+     * \brief Extraction operator overload for Stmt::Type enum class
+     *
+     * \param os Output stream passed by reference
+     * \param type Stmt::Type enum class
+     * \return Reference to the output stream
+     */
+    friend std::ostream& operator<<(std::ostream& os, const Type& type) {
+        switch (type) {
+            case Type::Regular:
+                os << "Statement";
+                break;
+            case Type::Global:
+                os << "GlobalStatement";
+                break;
+            case Type::Quantum:
+                os << "QuantumStatement";
+                break;
+        }
+        return os;
+    }
+
+    virtual Type stmt_type() { return Type::Regular; }
 
   protected:
-    virtual Stmt* clone() const = 0;
+    virtual Stmt* clone() const override = 0;
+};
+/**
+ * \class qasm3tools::ast::GlobalStmt
+ * \brief Statement sub-class for global statements
+ */
+class GlobalStmt : public Stmt {
+  public:
+    GlobalStmt(parser::Position pos) : Stmt(pos) {}
+    virtual ~GlobalStmt() = default;
+
+    virtual Type stmt_type() override { return Type::Global; }
+
+  protected:
+    virtual GlobalStmt* clone() const = 0;
 };
 /**
  * \class qasm3tools::ast::QuantumStmt
@@ -87,20 +114,10 @@ class QuantumStmt : public Stmt {
     QuantumStmt(parser::Position pos) : Stmt(pos) {}
     virtual ~QuantumStmt() = default;
 
-  protected:
-    virtual QuantumStmt* clone() const = 0;
-};
-/**
- * \class qasm3tools::ast::ControlStmt
- * \brief Statement sub-class for control statements
- */
-class ControlStmt : public Stmt {
-  public:
-    ControlStmt(parser::Position pos) : Stmt(pos) {}
-    virtual ~ControlStmt() = default;
+    virtual Type stmt_type() override { return Type::Quantum; }
 
   protected:
-    virtual ControlStmt* clone() const = 0;
+    virtual QuantumStmt* clone() const = 0;
 };
 
 } // namespace ast

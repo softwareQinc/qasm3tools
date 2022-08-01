@@ -40,7 +40,7 @@ namespace ast {
  * \class qasm3tools::ast::Program
  * \brief Program class
  */
-class Program : public BlockBase<GlobalStmt, Program> {
+class Program final : public BlockBase<Program> {
     bool std_include_;
     std::optional<int> qubits_;
 
@@ -52,7 +52,7 @@ class Program : public BlockBase<GlobalStmt, Program> {
      * \param std_include Whether the standard library has been included
      * \param body The program body
      */
-    Program(parser::Position pos, std::list<ptr<GlobalStmt>>&& body,
+    Program(parser::Position pos, std::list<ptr<Stmt>>&& body,
             bool std_include = false, std::optional<int> qubits = std::nullopt)
         : BlockBase(pos, std::move(body)), std_include_(std_include),
           qubits_(qubits) {}
@@ -61,7 +61,7 @@ class Program : public BlockBase<GlobalStmt, Program> {
      * \brief Protected heap-allocated construction
      */
     static ptr<Program> create(parser::Position pos,
-                               std::list<ptr<GlobalStmt>>&& body,
+                               std::list<ptr<Stmt>>&& body,
                                bool std_include = false,
                                std::optional<int> qubits = std::nullopt) {
         return std::make_unique<Program>(pos, std::move(body), std_include,
@@ -115,7 +115,7 @@ class Program : public BlockBase<GlobalStmt, Program> {
 
   protected:
     Program* clone() const override {
-        std::list<ptr<GlobalStmt>> tmp;
+        std::list<ptr<Stmt>> tmp;
         for (auto& x : body_) {
             tmp.emplace_back(object::clone(*x));
         }

@@ -44,10 +44,9 @@ namespace ast {
 /**
  * \class qasm3tools::ast::BlockBase
  * \brief Base class for statement blocks
- * T is virtual statement class
  * D is derived class
  */
-template <typename T, typename D>
+template <typename D>
 class BlockBase : public ASTNode {
   public:
     /**
@@ -56,13 +55,13 @@ class BlockBase : public ASTNode {
      * \param pos The source position
      * \param body The block body
      */
-    BlockBase(parser::Position pos, std::list<ptr<T>>&& body)
+    BlockBase(parser::Position pos, std::list<ptr<Stmt>>&& body)
         : ASTNode(pos), body_(std::move(body)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<D> create(parser::Position pos, std::list<ptr<T>>&& body) {
+    static ptr<D> create(parser::Position pos, std::list<ptr<Stmt>>&& body) {
         return std::make_unique<D>(pos, std::move(body));
     }
 
@@ -71,14 +70,14 @@ class BlockBase : public ASTNode {
      *
      * \return Reference to the body as a list of statements
      */
-    typename std::list<ptr<T>>& body() { return body_; }
+    typename std::list<ptr<Stmt>>& body() { return body_; }
 
     /**
      * \brief Apply a function to each stetement
      *
      * \param f Void function accepting a reference to the statement
      */
-    void foreach_stmt(std::function<void(T&)> f) {
+    void foreach_stmt(std::function<void(Stmt&)> f) {
         for (auto& x : body_)
             f(*x);
     }
@@ -88,14 +87,14 @@ class BlockBase : public ASTNode {
      *
      * \return std::list iterator
      */
-    typename std::list<ptr<T>>::iterator begin() { return body_.begin(); }
+    typename std::list<ptr<Stmt>>::iterator begin() { return body_.begin(); }
 
     /**
      * \brief Get an iterator to the end of the body
      *
      * \return std::list iterator
      */
-    typename std::list<ptr<T>>::iterator end() { return body_.end(); }
+    typename std::list<ptr<Stmt>>::iterator end() { return body_.end(); }
 
     /**
      * \brief Internal pretty-printer which adds indentation to each line
@@ -121,9 +120,9 @@ class BlockBase : public ASTNode {
     }
 
   protected:
-    std::list<ptr<T>> body_; ///< the body of the block
+    std::list<ptr<Stmt>> body_; ///< the body of the block
     BlockBase* clone() const override {
-        std::list<ptr<T>> tmp;
+        std::list<ptr<Stmt>> tmp;
         for (auto& x : body_) {
             tmp.emplace_back(object::clone(*x));
         }
@@ -135,19 +134,8 @@ class BlockBase : public ASTNode {
  * \class qasm3tools::ast::ProgramBlock
  * \brief Class for program blocks
  */
-class ProgramBlock final : public BlockBase<Stmt, ProgramBlock> {
-    using BlockBase<Stmt, ProgramBlock>::BlockBase;
-
-  public:
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-};
-
-/**
- * \class qasm3tools::ast::QuantumBlock
- * \brief Class for quantum program blocks
- */
-class QuantumBlock final : public BlockBase<QuantumStmt, QuantumBlock> {
-    using BlockBase<QuantumStmt, QuantumBlock>::BlockBase;
+class ProgramBlock final : public BlockBase<ProgramBlock> {
+    using BlockBase<ProgramBlock>::BlockBase;
 
   public:
     void accept(Visitor& visitor) override { visitor.visit(*this); }

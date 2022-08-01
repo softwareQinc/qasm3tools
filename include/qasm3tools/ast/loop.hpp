@@ -35,6 +35,7 @@
 #include "exprbase.hpp"
 #include "stmtbase.hpp"
 #include "stmtblock.hpp"
+#include "type.hpp"
 
 #include <optional>
 #include <vector>
@@ -245,34 +246,43 @@ class VarSet : public IndexSet {
  * \brief Class for for-loops
  * \see qasm3tools::ast::StmtBase
  */
-class ForStmt final : public Stmt {
-    symbol var_;              ///< the loop variable
-    ptr<IndexSet> index_set_; ///< index set
-    ptr<ProgramBlock> body_;  ///< loop body
+class ForStmt final : public QuantumStmt {
+    ptr<NonArrayType> var_type_; ///< type of the loop variable
+    symbol var_;                 ///< the loop variable
+    ptr<IndexSet> index_set_;    ///< index set
+    ptr<ProgramBlock> body_;     ///< loop body
 
   public:
     /**
      * \brief Constructs a for loop
      *
      * \param pos The source position
+     * \param var_type The type of the loop variable
      * \param var The loop variable
      * \param index_set The index set
      * \param body The loop body
      */
-    ForStmt(parser::Position pos, symbol var, ptr<IndexSet> index_set,
-            ptr<ProgramBlock> body)
-        : Stmt(pos), var_(var), index_set_(std::move(index_set)),
-          body_(std::move(body)) {}
+    ForStmt(parser::Position pos, ptr<NonArrayType> var_type, symbol var,
+            ptr<IndexSet> index_set, ptr<ProgramBlock> body)
+        : QuantumStmt(pos), var_type_(std::move(var_type)), var_(var),
+          index_set_(std::move(index_set)), body_(std::move(body)) {}
 
     /**
      * \brief Protected heap-allocated construction
      */
-    static ptr<ForStmt> create(parser::Position pos, symbol var,
-                               ptr<IndexSet> index_set,
+    static ptr<ForStmt> create(parser::Position pos, ptr<NonArrayType> var_type,
+                               symbol var, ptr<IndexSet> index_set,
                                ptr<ProgramBlock> body) {
-        return std::make_unique<ForStmt>(pos, var, std::move(index_set),
-                                         std::move(body));
+        return std::make_unique<ForStmt>(pos, std::move(var_type), var,
+                                         std::move(index_set), std::move(body));
     }
+
+    /**
+     * \brief Get the type of the loop variable
+     *
+     * \return A reference to the type
+     */
+    NonArrayType& var_type() { return *var_type_; }
 
     /**
      * \brief Return the loop variable
@@ -298,15 +308,16 @@ class ForStmt final : public Stmt {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool,
                                size_t indents) const override {
-        os << "for " << var_ << " in " << *index_set_ << " ";
+        os << "for " << *var_type_ << " " << var_ << " in " << *index_set_
+           << " ";
         body_->pretty_print(os, indents);
         return os;
     }
 
   protected:
     ForStmt* clone() const override {
-        return new ForStmt(pos_, var_, object::clone(*index_set_),
-                           object::clone(*body_));
+        return new ForStmt(pos_, object::clone(*var_type_), var_,
+                           object::clone(*index_set_), object::clone(*body_));
     }
 };
 
@@ -315,7 +326,7 @@ class ForStmt final : public Stmt {
  * \brief Class for while loops
  * \see qasm3tools::ast::StmtBase
  */
-class WhileStmt final : public Stmt {
+class WhileStmt final : public QuantumStmt {
     ptr<Expr> cond_;         ///< boolean expression to check
     ptr<ProgramBlock> body_; ///< loop body
 
@@ -328,7 +339,7 @@ class WhileStmt final : public Stmt {
      * \param body The loop body
      */
     WhileStmt(parser::Position pos, ptr<Expr> cond, ptr<ProgramBlock> body)
-        : Stmt(pos), cond_(std::move(cond)), body_(std::move(body)) {}
+        : QuantumStmt(pos), cond_(std::move(cond)), body_(std::move(body)) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -372,142 +383,6 @@ class WhileStmt final : public Stmt {
     WhileStmt* clone() const override {
         return new WhileStmt(pos_, object::clone(*cond_),
                              object::clone(*body_));
-    }
-};
-
-/**
- * \class qasm3tools::ast::QuantumForStmt
- * \brief Class for quantum for-loops
- * \see qasm3tools::ast::StmtBase
- */
-class QuantumForStmt final : public QuantumStmt {
-    symbol var_;              ///< the loop variable
-    ptr<IndexSet> index_set_; ///< index set
-    ptr<QuantumBlock> body_;  ///< loop body
-
-  public:
-    /**
-     * \brief Constructs a quantum for loop
-     *
-     * \param pos The source position
-     * \param var The loop variable
-     * \param index_set The index set
-     * \param body The loop body
-     */
-    QuantumForStmt(parser::Position pos, symbol var, ptr<IndexSet> index_set,
-                   ptr<QuantumBlock> body)
-        : QuantumStmt(pos), var_(var), index_set_(std::move(index_set)),
-          body_(std::move(body)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<QuantumForStmt> create(parser::Position pos, symbol var,
-                                      ptr<IndexSet> index_set,
-                                      ptr<QuantumBlock> body) {
-        return std::make_unique<QuantumForStmt>(pos, var, std::move(index_set),
-                                                std::move(body));
-    }
-
-    /**
-     * \brief Return the loop variable
-     *
-     * \return Constant reference to the loop variable
-     */
-    const symbol& var() const { return var_; }
-
-    /**
-     * \brief Get the index set
-     *
-     * \return A reference to the index set
-     */
-    IndexSet& index_set() { return *index_set_; }
-
-    /**
-     * \brief Get the loop body
-     *
-     * \return Reference to the body
-     */
-    QuantumBlock& body() { return *body_; }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool,
-                               size_t indents) const override {
-        os << "for " << var_ << " in " << *index_set_ << " ";
-        body_->pretty_print(os, indents);
-        return os;
-    }
-
-  protected:
-    QuantumForStmt* clone() const override {
-        return new QuantumForStmt(pos_, var_, object::clone(*index_set_),
-                                  object::clone(*body_));
-    }
-};
-
-/**
- * \class qasm3tools::ast::QuantumWhileStmt
- * \brief Class for quantum while loops
- * \see qasm3tools::ast::StmtBase
- */
-class QuantumWhileStmt final : public QuantumStmt {
-    ptr<Expr> cond_;         ///< boolean expression to check
-    ptr<QuantumBlock> body_; ///< loop body
-
-  public:
-    /**
-     * \brief Constructs a quantum while loop
-     *
-     * \param pos The source position
-     * \param cond The boolean to check
-     * \param body The loop body
-     */
-    QuantumWhileStmt(parser::Position pos, ptr<Expr> cond,
-                     ptr<QuantumBlock> body)
-        : QuantumStmt(pos), cond_(std::move(cond)), body_(std::move(body)) {}
-
-    /**
-     * \brief Protected heap-allocated construction
-     */
-    static ptr<QuantumWhileStmt> create(parser::Position pos, ptr<Expr> cond,
-                                        ptr<QuantumBlock> body) {
-        return std::make_unique<QuantumWhileStmt>(pos, std::move(cond),
-                                                  std::move(body));
-    }
-
-    /**
-     * \brief Get the boolean expression
-     *
-     * \return A reference to the boolean expression
-     */
-    Expr& cond() { return *cond_; }
-
-    /**
-     * \brief Set the boolean expression
-     *
-     * \param cond The new expression
-     */
-    void set_cond(ptr<Expr> cond) { cond_ = std::move(cond); }
-
-    /**
-     * \brief Get the loop body
-     *
-     * \return Reference to the body
-     */
-    QuantumBlock& body() { return *body_; }
-
-    void accept(Visitor& visitor) override { visitor.visit(*this); }
-    std::ostream& pretty_print(std::ostream& os, bool,
-                               size_t indents) const override {
-        os << "while (" << *cond_ << ") ";
-        body_->pretty_print(os, indents);
-        return os;
-    }
-
-  protected:
-    QuantumWhileStmt* clone() const override {
-        return new QuantumWhileStmt(pos_, object::clone(*cond_),
-                                    object::clone(*body_));
     }
 };
 
