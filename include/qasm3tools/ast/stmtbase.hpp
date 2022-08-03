@@ -103,7 +103,7 @@ class GlobalStmt : public Stmt {
     virtual Type stmt_type() override { return Type::Global; }
 
   protected:
-    virtual GlobalStmt* clone() const = 0;
+    virtual GlobalStmt* clone() const override = 0;
 };
 /**
  * \class qasm3tools::ast::QuantumStmt
@@ -117,7 +117,7 @@ class QuantumStmt : public Stmt {
     virtual Type stmt_type() override { return Type::Quantum; }
 
   protected:
-    virtual QuantumStmt* clone() const = 0;
+    virtual QuantumStmt* clone() const override = 0;
 };
 
 } // namespace ast

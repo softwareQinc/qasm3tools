@@ -1622,7 +1622,8 @@ class TypeChecker final : public Visitor {
                     type_ = NONE;
                     return;
                 }
-                visit_numeric_expr(exp.arg(0)); // return same type as input
+                visit_classical_expr(
+                    exp.arg(0), StdType::Complex); // return same type as input
                 break;
             case MathOp::Rotl:
             case MathOp::Rotr:
@@ -2073,7 +2074,7 @@ class TypeChecker final : public Visitor {
         }
     }
     void visit(VarSet& vs) override {
-        // assume type_ has been set to the loop variable type
+        // assume type_ has been set to the loop variable type, and is StdType
         auto tmp = std::get<StdType>(type_);
         auto entry = lookup(vs.var());
         if (!entry) {
@@ -2095,6 +2096,12 @@ class TypeChecker final : public Visitor {
     void visit(ForStmt& stmt) override {
         stmt.var_type().accept(*this);
         auto tmp = type_;
+        if (!std::holds_alternative<StdType>(tmp)) {
+            std::cerr << stmt.pos()
+                      << ": error : loop variable must be non-array type\n";
+            error_ = true;
+            return;
+        }
         stmt.index_set().accept(*this);
 
         bool was_in_loop = in_loop_;
