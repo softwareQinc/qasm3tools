@@ -98,7 +98,7 @@ TEST(Parsing, Idempotence) {
                       "\t}\n"
                       "}\n"
                       "else {\n"
-                      "\tfor int[32] i in [1:5] {\n"
+                      "\tfor uint[32] i in [1:5] {\n"
                       "\t\tif (bool(c[i])) {\n"
                       "\t\t}\n"
                       "\t\tc[i-1] = c[i-1]&c[i+1];\n"
@@ -109,7 +109,7 @@ TEST(Parsing, Idempotence) {
                       "let q_alias = qq ++ q[{0, 1, 2, 4, 8}];\n"
                       "box [0.25s] {\n"
                       "\tdelay[1.234µs] q_alias[0],q[2];\n"
-                      "\tfor int[32] i in [5:2:9] {\n"
+                      "\tfor int[32] i in {5, 7, 9} {\n"
                       "\t\tCCCX q[0],q[1],q[2],q[i];\n"
                       "\t}\n"
                       "}\n"
@@ -119,6 +119,7 @@ TEST(Parsing, Idempotence) {
                       "def gg(const array[complex[float[32]], #dim = 2] g) {\n"
                       "}\n"
                       "def hh(mutable array[bool, 4] h) {\n"
+                      "\tbit[4] b = \"1110\";\n"
                       "}\n"
                       "array[int[32], 4] loop_arr = {1, 4, 9, 16};\n"
                       "for int[32] i in loop_arr {\n"
@@ -209,6 +210,95 @@ TEST(Parsing, Const_Assignment_Error) {
 /******************************************************************************/
 
 /******************************************************************************/
+TEST(Parsing, Loop_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "for uint[32] i in [0:5] {\n"
+                       "\ti = 0;\n"
+                       "}\n";
+
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "for uint[32] i in [3:] {}\n";
+
+    std::string src3 = "OPENQASM 3.0;\n"
+                       "for int[32] i in [:4] {}\n";
+
+    std::string src4 = "OPENQASM 3.0;\n"
+                       "for bool b in [0:5] {}\n";
+
+    std::string src5 = "OPENQASM 3.0;\n"
+                       "for float[32] s in {1+2im, 3} {}\n";
+
+    std::string src6 = "OPENQASM 3.0;\n"
+                       "array[complex, 3] arr;\n"
+                       "for int[32] s in arr {}\n";
+
+    std::string src7 = "OPENQASM 3.0;\n"
+                       "array[float[32], 3, 2] arr;\n"
+                       "for float[32] s in arr {}\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "loop_error_1.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src2, "loop_error_2.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src3, "loop_error_3.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src4, "loop_error_4.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src5, "loop_error_5.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src6, "loop_error_6.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src7, "loop_error_7.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
+
+/******************************************************************************/
+TEST(Parsing, Dimension_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "array[float[32], 3, 2] arr;\n"
+                       "arr[0, 0, 0];\n";
+
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "array[uint[32], 3, 1] arr = {3, 2, 1};\n";
+
+    std::string src3 = "OPENQASM 3.0;\n"
+                       "array[float[32], 3, 2] arr;\n"
+                       "array[float[32], 3, 2, 1] arr2;\n"
+                       "arr = arr2;\n";
+
+    std::string src4 = "OPENQASM 3.0;\n"
+                       "array[int[32], 3, 2] arr;\n"
+                       "arr = arr[:, 0];\n";
+
+    std::string src5 = "OPENQASM 3.0;\n"
+                       "array[bool, 3, 2] arr;\n"
+                       "def f(mutable array[bool, #dim = 3] a) {\n"
+                       "}\n"
+                       "f(arr);\n";
+
+    std::string src6 = "OPENQASM 3.0;\n"
+                       "array[int[32], 3, 2] arr;\n"
+                       "def f(const array[int[32], 3, 2] a) {\n"
+                       "}\n"
+                       "f(arr[0, :]);\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "dimension_error_1.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src2, "dimension_error_2.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src3, "dimension_error_3.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src4, "dimension_error_4.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src5, "dimension_error_5.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src6, "dimension_error_6.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
+
+/******************************************************************************/
 TEST(Parsing, Operand_Type_Error) {
     std::string src1 = "OPENQASM 3.0;\n"
                        "float[32] n = 9;\n"
@@ -253,26 +343,93 @@ TEST(Parsing, Cast_Type_Error) {
 /******************************************************************************/
 
 /******************************************************************************/
-TEST(Parsing, Param_Type_Error) {
+TEST(Parsing, Call_Error) {
     std::string src1 = "OPENQASM 3.0;\n"
                        "extern f(angle[32]);\n"
                        "f(true);\n";
 
     std::string src2 = "OPENQASM 3.0;\n"
-                       "extern f(bit);\n"
+                       "extern f(bool, bit);\n"
                        "qubit q;\n"
-                       "f(q);\n";
+                       "f(false, q);\n";
 
     std::string src3 = "OPENQASM 3.0;\n"
                        "def f(qubit q) {}\n"
                        "bit b;\n"
                        "f(b);\n";
 
-    EXPECT_THROW(parser::parse_string(src1, "param_type_error_1.qasm"),
+    std::string src4 = "OPENQASM 3.0;\n"
+                       "extern f(int[32]);\n"
+                       "f();\n";
+
+    std::string src5 = "OPENQASM 3.0;\n"
+                       "def f(bool b, int[32] n) {}\n"
+                       "f(true, 1, 1);\n";
+
+    std::string src6 = "OPENQASM 3.0;\n"
+                       "bit b;\n"
+                       "sizeof(b);\n";
+
+    std::string src7 = "OPENQASM 3.0;\n"
+                       "def f(qubit q) {}\n"
+                       "qubit q;\n"
+                       "f q;\n";
+
+    std::string src8 = "OPENQASM 3.0;\n"
+                       "gate xx a { U(π, 0, π) a; }\n"
+                       "qubit q;\n"
+                       "xx(q);\n";
+
+    std::string src9 = "OPENQASM 3.0;\n"
+                       "qubit q;\n"
+                       "qubit r;\n"
+                       "U(π, 0, π) q, r;\n";
+
+    std::string src10 = "OPENQASM 3.0;\n"
+                        "qubit q;\n"
+                        "ctrl @ U(π, 0, π) q;\n";
+
+    std::string src11 = "OPENQASM 3.0;\n"
+                        "qubit q;\n"
+                        "gphase(π/4) q;\n";
+
+    std::string src12 = "OPENQASM 3.0;\n"
+                        "include \"stdgates.inc\";\n"
+                        "qubit q;\n"
+                        "qubit r;\n"
+                        "t q, r;\n";
+
+    std::string src13 = "OPENQASM 3.0;\n"
+                        "include \"stdgates.inc\";\n"
+                        "qubit q;\n"
+                        "qubit r;\n"
+                        "ctrl @ ctrl @ t q, r;\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "call_error_1.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src2, "param_type_error_2.qasm"),
+    EXPECT_THROW(parser::parse_string(src2, "call_error_2.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src3, "param_type_error_3.qasm"),
+    EXPECT_THROW(parser::parse_string(src3, "call_error_3.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src4, "call_error_4.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src5, "call_error_5.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src6, "call_error_6.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src7, "call_error_7.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src8, "call_error_8.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src9, "call_error_9.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src10, "call_error_10.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src11, "call_error_11.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src12, "call_error_12.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src13, "call_error_13.qasm"),
                  ast::SemanticError);
 }
 /******************************************************************************/
@@ -334,7 +491,7 @@ TEST(Parsing, Register_Type_Error) {
 /******************************************************************************/
 
 /******************************************************************************/
-TEST(Parsing, Miscellaneous_Type_Error) {
+TEST(Parsing, Miscellaneous_Error) {
     std::string src1 = "OPENQASM 3.0;\n"
                        "angle[32] x = π;\n"
                        "qubit[10] q;\n"
@@ -372,23 +529,45 @@ TEST(Parsing, Miscellaneous_Type_Error) {
                        "extern f();\n"
                        "float[32] x = f();\n";
 
-    EXPECT_THROW(parser::parse_string(src1, "miscellaneous_type_error_1.qasm"),
+    std::string src10 = "OPENQASM 3.0;\n"
+                        "true[0];\n";
+
+    std::string src11 = "OPENQASM 3.0;\n"
+                        "complex[bool] x;\n";
+
+    std::string src12 = "OPENQASM 3.0;\n"
+                        "include \"stdgates.inc\";\n"
+                        "CX;\n";
+
+    std::string src13 = "OPENQASM 3.0;\n"
+                        "include \"stdgates.inc\";\n"
+                        "CX = 0;\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "miscellaneous_error_1.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src2, "miscellaneous_type_error_2.qasm"),
+    EXPECT_THROW(parser::parse_string(src2, "miscellaneous_error_2.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src3, "miscellaneous_type_error_3.qasm"),
+    EXPECT_THROW(parser::parse_string(src3, "miscellaneous_error_3.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src4, "miscellaneous_type_error_4.qasm"),
+    EXPECT_THROW(parser::parse_string(src4, "miscellaneous_error_4.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src5, "miscellaneous_type_error_5.qasm"),
+    EXPECT_THROW(parser::parse_string(src5, "miscellaneous_error_5.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src6, "miscellaneous_type_error_6.qasm"),
+    EXPECT_THROW(parser::parse_string(src6, "miscellaneous_error_6.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src7, "miscellaneous_type_error_7.qasm"),
+    EXPECT_THROW(parser::parse_string(src7, "miscellaneous_error_7.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src8, "miscellaneous_type_error_8.qasm"),
+    EXPECT_THROW(parser::parse_string(src8, "miscellaneous_error_8.qasm"),
                  ast::SemanticError);
-    EXPECT_THROW(parser::parse_string(src9, "miscellaneous_type_error_9.qasm"),
+    EXPECT_THROW(parser::parse_string(src9, "miscellaneous_error_9.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src10, "miscellaneous_error_10.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src11, "miscellaneous_error_11.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src12, "miscellaneous_error_12.qasm"),
+                 ast::SemanticError);
+    EXPECT_THROW(parser::parse_string(src13, "miscellaneous_error_13.qasm"),
                  ast::SemanticError);
 }
 /******************************************************************************/
@@ -421,6 +600,42 @@ TEST(Parsing, Unexpected_Control_Error) {
                  ast::SemanticError);
 
     EXPECT_THROW(parser::parse_string(src4, "unexpected_control_error_4.qasm"),
+                 ast::SemanticError);
+}
+/******************************************************************************/
+
+/******************************************************************************/
+TEST(Parsing, Statement_Type_Error) {
+    std::string src1 = "OPENQASM 3.0;\n"
+                       "if (true) {\n"
+                       "\tgate xx a { U(π, 0, π) a; }\n"
+                       "}\n";
+
+    std::string src2 = "OPENQASM 3.0;\n"
+                       "def foo() {\n"
+                       "\tqubit q;\n"
+                       "}\n";
+
+    std::string src3 = "OPENQASM 3.0;\n"
+                       "gate xx a { bool b; }\n";
+
+    std::string src4 = "OPENQASM 3.0;\n"
+                       "gate xx a {\n"
+                       "\tfor uint[32] i in {0, 1} {\n"
+                       "\t\tint[32] n;\n"
+                       "\t}\n"
+                       "}\n";
+
+    EXPECT_THROW(parser::parse_string(src1, "statement_type_error_1.qasm"),
+                 ast::SemanticError);
+
+    EXPECT_THROW(parser::parse_string(src2, "statement_type_error_2.qasm"),
+                 ast::SemanticError);
+
+    EXPECT_THROW(parser::parse_string(src3, "statement_type_error_3.qasm"),
+                 ast::SemanticError);
+
+    EXPECT_THROW(parser::parse_string(src4, "statement_type_error_4.qasm"),
                  ast::SemanticError);
 }
 /******************************************************************************/

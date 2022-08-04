@@ -1252,7 +1252,9 @@ class TypeChecker final : public Visitor {
         } else if (std::holds_alternative<ArrType>(source) &&
                    std::holds_alternative<ArrType>(target)) {
             return std::get<ArrType>(source).subtype ==
-                   std::get<ArrType>(target).subtype;
+                       std::get<ArrType>(target).subtype &&
+                   std::get<ArrType>(source).dims ==
+                       std::get<ArrType>(target).dims;
         }
         return false;
     }
@@ -1700,7 +1702,7 @@ class TypeChecker final : public Visitor {
         exp.arr().accept(*this);
         if (!std::holds_alternative<ArrType>(type_)) {
             std::cerr << exp.pos()
-                      << ": error : sizeof() expexts array type, but got '"
+                      << ": error : sizeof() expects array type, but got '"
                       << type_ << "' \n";
             error_ = true;
         }

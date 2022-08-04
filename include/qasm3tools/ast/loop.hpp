@@ -187,7 +187,7 @@ class ListSet : public IndexSet {
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "{";
         for (auto it = indices_.begin(); it != indices_.end(); it++)
-            os << (it == indices_.begin() ? "" : ",") << **it;
+            os << (it == indices_.begin() ? "" : ", ") << **it;
         os << "}";
         return os;
     }
