@@ -378,7 +378,8 @@ struct QASM_complex {
     cplx value = 0;
 
     friend std::ostream& operator<<(std::ostream& os, const QASM_complex& c) {
-        return os << c.value.real() << "+" << c.value.imag() << "im";
+        return os << c.value.real() << (c.value.imag() < 0 ? "" : "+")
+                  << c.value.imag() << "im";
     }
 };
 
@@ -1602,6 +1603,9 @@ class Executor final : ast::Visitor {
                         },
                         [](const types::QASM_float& v) -> BasicType {
                             return types::QASM_float{-v.value};
+                        },
+                        [](const types::QASM_complex& v) -> BasicType {
+                            return types::QASM_complex{-v.value};
                         },
                         [&exp](auto) -> BasicType {
                             std::cerr << exp.pos()
