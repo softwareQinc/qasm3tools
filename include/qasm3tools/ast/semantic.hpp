@@ -1770,24 +1770,20 @@ class TypeChecker final : public Visitor {
     }
     void visit(BitString&) override { type_ = CREG; }
     void visit(ArrayInitExpr& exp) override {
-        int size = exp.size();
-        if (size == 0) {
-            std::cerr << exp.pos() << ": error : empty array initializer\n";
-            error_ = true;
-            type_ = NONE;
-        } else {
-            exp.at(0).accept(*this);
-            auto subtype = type_;
-            for (int i = 1; i < size; i++) {
-                visit_classical_expr(exp.at(i), subtype);
+        auto tmp = std::get<ArrType>(expected_array_type_);
+        if (tmp.dims > 1) {
+            auto next_tmp = ArrType{tmp.subtype, tmp.dims - 1};
+            expected_array_type_ = next_tmp;
+            for (int i = 0; i < exp.size(); i++) {
+                visit_classical_expr(exp.at(i), next_tmp);
             }
-            if (std::holds_alternative<StdType>(subtype)) {
-                type_ = ArrType{std::get<StdType>(subtype), 1};
-            } else if (std::holds_alternative<ArrType>(subtype)) {
-                auto t = std::get<ArrType>(subtype);
-                type_ = ArrType{t.subtype, t.dims + 1};
+        } else {
+            for (int i = 0; i < exp.size(); i++) {
+                visit_classical_expr(exp.at(i), tmp.subtype);
             }
         }
+        expected_array_type_ = tmp;
+        type_ = tmp;
     }
     void visit(TimeExpr&) override { type_ = StdType::Duration; }
     void visit(DurationofExpr& exp) override {
@@ -2238,7 +2234,11 @@ class TypeChecker final : public Visitor {
             decl.type().accept(*this);
             auto tmp = type_;
             set(decl.id(), tmp, decl.pos());
+            if (std::holds_alternative<ArrType>(tmp)) {
+                expected_array_type_ = std::get<ArrType>(tmp);
+            }
             visit_optional_classical_expr(decl.equalsexp(), tmp);
+            expected_array_type_ = NONE;
         }
     }
     // Program
@@ -2262,6 +2262,7 @@ class TypeChecker final : public Visitor {
     std::optional<ExprType> return_type_ =
         std::nullopt; ///< return type of subroutine
     Stmt::Type expected_stmt_type_ = Stmt::Type::Global; ///< allowed stmt types
+    ExprType expected_array_type_ = NONE; ///< allowed array types
 
     /**
      * \brief Enters a new scope
