@@ -1030,7 +1030,8 @@ class Executor final : ast::Visitor {
     void run(ast::Program& prog, std::list<std::string> inputs) {
         if (prog.inputs() != inputs.size()) {
             std::cerr << prog.pos() << ": error : expected " << prog.inputs()
-                      << " input values, but got " << inputs.size() << "\n";
+                      << " input expressions, but got " << inputs.size()
+                      << "\n";
             throw RuntimeError();
         }
         inputs_ = std::move(inputs);
@@ -2500,14 +2501,22 @@ class Executor final : ast::Visitor {
             // get value
             std::string expr = inputs_.front();
             inputs_.pop_front();
-            auto prog = parser::parse_string(expr + ";"); // parse as ExprStmt
-            prog->body().front()->accept(*this);
+            try {
+                auto prog =
+                    parser::parse_string(expr + ";"); // parse as ExprStmt
+                prog->body().front()->accept(*this);
+            } catch (...) {
+                std::cerr << decl.pos()
+                          << ": error : invalid input expression \"" << expr
+                          << "\"\n";
+                throw RuntimeError();
+            }
             // set value
             try {
                 types::overwrite(value_, tmp);
             } catch (...) {
-                std::cerr << decl.pos() << ": error : input variable "
-                          << decl.id() << " has type " << decl.type()
+                std::cerr << decl.pos() << ": error : input variable '"
+                          << decl.id() << "' has type " << decl.type()
                           << ", which is incomatible with expression \"" << expr
                           << "\"\n";
                 throw;
