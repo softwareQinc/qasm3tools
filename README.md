@@ -20,7 +20,19 @@ To build the interpreter, you must have [qpp](https://github.com/softwareQinc/qp
 cmake .. -DWITH_INTERPRETER=ON
 make -j8
 ```
-This creates the `interpreter` executable.
+This creates the `interpreter` executable. Usage:
+```bash
+./interpreter /path/to/circuit.qasm
+```
+If the OpenQASM 3.0 file contains `n` input variables, then the interpreter requires exactly `n` additional commandline arguments to specify their values. For example, if the file contains
+```
+input float[32] fl;
+input bool bl;
+```
+Then it could be executed with
+```bash
+./interpreter example.qasm "pi/2" "true"
+```
 
 ## Unit testing
 ```bash
@@ -30,7 +42,7 @@ ctest
 
 ## Notes
 
-1. The interpreter is implemented to *exclude* the endpoints of ranges. As of June 3, 2022, in the OpenQASM 3.0 live specification, range endpoints are included.
+1. The interpreter is implemented to *exclude* the endpoints of ranges. As of August 10, 2022, in the OpenQASM 3.0 live specification, range endpoints are included.
 
 2. The OpenQASM 3.0 standard library defines the `u3` and `u2` gates differently than the Qiskit specifications.
 
