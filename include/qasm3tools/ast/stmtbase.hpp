@@ -33,8 +33,69 @@
 
 #include "base.hpp"
 
+#include <optional>
+#include <vector>
+
 namespace qasm3tools {
 namespace ast {
+
+/**
+ * \class qasm3tools::ast::Annotation
+ * \brief Class for statement annotations
+ */
+class Annotation final : public ASTNode {
+    std::string keyword_; ///< annotation keyword (including '@' symbol)
+    std::optional<std::string> rest_; ///< remaining content
+
+  public:
+    /**
+     * \brief Constructs a statement annotation
+     *
+     * \param pos The source position
+     * \param keyword The annotation keyword
+     * \param rest Optional remaining content
+     */
+    Annotation(parser::Position pos, std::string keyword,
+               std::optional<std::string> rest = std::nullopt)
+        : ASTNode(pos), keyword_(keyword), rest_(rest) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<Annotation>
+    create(parser::Position pos, std::string keyword,
+           std::optional<std::string> rest = std::nullopt) {
+        return std::make_unique<Annotation>(pos, keyword, rest);
+    }
+
+    /**
+     * \brief Get the annotation keyword
+     *
+     * \return The keyword
+     */
+    std::string keyword() { return keyword_; }
+
+    /**
+     * \brief Get the remaining content
+     *
+     * \return Optional remaining content
+     */
+    std::optional<std::string> rest() { return rest_; }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os) const override {
+        os << keyword_;
+        if (rest_)
+            os << " " << *rest_;
+        os << "\n";
+        return os;
+    }
+
+  protected:
+    Annotation* clone() const override {
+        return new Annotation(pos_, keyword_, rest_);
+    }
+};
 
 /**
  * \class qasm3tools::ast::Stmt
@@ -88,7 +149,11 @@ class Stmt : public ASTNode {
 
     virtual Type stmt_type() { return Type::Regular; }
 
+    std::vector<ptr<Annotation>>& annotations() { return annotations_; }
+
   protected:
+    std::vector<ptr<Annotation>> annotations_{};
+
     virtual Stmt* clone() const override = 0;
 };
 /**

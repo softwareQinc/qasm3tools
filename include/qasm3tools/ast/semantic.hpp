@@ -407,6 +407,7 @@ class ConstExprChecker final : public Visitor {
     }
     void visit(MeasureExpr& msmt) override { msmt.q_arg().accept(*this); }
     // Statements
+    void visit(Annotation&) override {}
     void visit(ProgramBlock& block) override {
         block.foreach_stmt([this](Stmt& stmt) { stmt.accept(*this); });
     }
@@ -460,6 +461,7 @@ class ConstExprChecker final : public Visitor {
             replacement_expr_ = std::nullopt;
         }
     }
+    void visit(PragmaStmt&) override {}
     // Gates
     void visit(CtrlModifier& mod) override {
         visit_optional_expr(mod.n());
@@ -689,15 +691,24 @@ class ConstExprChecker final : public Visitor {
             set(decl.id(), OtherVar{}, decl.pos());
         }
     }
+    void visit(IODecl& decl) override {
+        if (decl.is_input()) {
+            input_count_ += 1;
+        }
+        decl.type().accept(*this);
+        set(decl.id(), OtherVar{}, decl.pos());
+    }
     // Program
     void visit(Program& prog) override {
         qubit_count_ = 0;
+        input_count_ = 0;
 
         push_scope();
         prog.foreach_stmt([this](Stmt& stmt) { stmt.accept(*this); });
         pop_scope();
 
         prog.set_qubits(qubit_count_);
+        prog.set_inputs(input_count_);
     }
 
   private:
@@ -706,6 +717,7 @@ class ConstExprChecker final : public Visitor {
         false; ///< true when traversing a compile-time constant
     bool is_quantum_decl_ = false; ///< true when traversing quantum declaration
     int qubit_count_ = 0;          ///< total number of qubits in the program
+    int input_count_ = 0;          ///< total number of inputs in the program
     std::list<std::unordered_map<ast::symbol, Type>> symbol_table_{
         {}};                                    ///< a stack of symbol tables
     std::optional<ptr<Expr>> replacement_expr_; ///< replace current expression
@@ -880,6 +892,7 @@ class ConstExprChecker final : public Visitor {
         void visit(DurationofExpr&) override { value_ = std::nullopt; }
         void visit(MeasureExpr&) override { value_ = std::nullopt; }
         // Statements
+        void visit(Annotation&) override {}
         void visit(ProgramBlock&) override {}
         void visit(ExprStmt&) override {}
         void visit(ResetStmt&) override {}
@@ -891,6 +904,7 @@ class ConstExprChecker final : public Visitor {
         void visit(EndStmt&) override {}
         void visit(AliasStmt&) override {}
         void visit(AssignmentStmt&) override {}
+        void visit(PragmaStmt&) override {}
         // Gates
         void visit(CtrlModifier&) override {}
         void visit(InvModifier&) override {}
@@ -914,6 +928,7 @@ class ConstExprChecker final : public Visitor {
         void visit(GateDecl&) override {}
         void visit(QuantumDecl&) override {}
         void visit(ClassicalDecl&) override {}
+        void visit(IODecl&) override {}
         // Program
         void visit(Program&) override {}
     };
@@ -1800,6 +1815,7 @@ class TypeChecker final : public Visitor {
         type_ = CREG;
     }
     // Statements
+    void visit(Annotation&) override {}
     void visit(ProgramBlock& block) override {
         block.foreach_stmt([this](Stmt& stmt) {
             if (!is_stmt_subtype(stmt.stmt_type(), expected_stmt_type_)) {
@@ -1807,6 +1823,11 @@ class TypeChecker final : public Visitor {
                           << expected_stmt_type_ << "' but got '"
                           << stmt.stmt_type() << "'\n";
                 error_ = true;
+            }
+            if (!stmt.annotations().empty()) {
+                std::cerr << stmt.pos()
+                          << ": warning : annotation(s) ignored by semantic "
+                             "checker\n";
             }
             stmt.accept(*this);
         });
@@ -1945,6 +1966,10 @@ class TypeChecker final : public Visitor {
             stmt.set_op(AssignOp::Equals);
         }
         visit_classical_expr(stmt.exp(), tmp);
+    }
+    void visit(PragmaStmt& stmt) override {
+        std::cerr << stmt.pos()
+                  << ": warning : pragma ignored by semantic checker\n";
     }
     // Gates
     void visit(CtrlModifier& mod) override {
@@ -2241,11 +2266,22 @@ class TypeChecker final : public Visitor {
             expected_array_type_ = NONE;
         }
     }
+    void visit(IODecl& decl) override {
+        decl.type().accept(*this);
+        set(decl.id(), type_, decl.pos());
+    }
     // Program
     void visit(Program& prog) override {
         expected_stmt_type_ = Stmt::Type::Global;
         push_scope();
-        prog.foreach_stmt([this](Stmt& stmt) { stmt.accept(*this); });
+        prog.foreach_stmt([this](Stmt& stmt) {
+            if (!stmt.annotations().empty()) {
+                std::cerr << stmt.pos()
+                          << ": warning : annotation(s) ignored by semantic "
+                             "checker\n";
+            }
+            stmt.accept(*this);
+        });
         pop_scope();
     }
 

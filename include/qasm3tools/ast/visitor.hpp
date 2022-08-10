@@ -63,6 +63,7 @@ class ArrayInitExpr;
 class TimeExpr;
 class DurationofExpr;
 class MeasureExpr;
+class Annotation;
 class ProgramBlock;
 class ExprStmt;
 class ResetStmt;
@@ -74,6 +75,7 @@ class ReturnStmt;
 class EndStmt;
 class AliasStmt;
 class AssignmentStmt;
+class PragmaStmt;
 class CtrlModifier;
 class InvModifier;
 class PowModifier;
@@ -93,6 +95,7 @@ class ExternDecl;
 class GateDecl;
 class QuantumDecl;
 class ClassicalDecl;
+class IODecl;
 class Program;
 
 /**
@@ -141,6 +144,7 @@ class Visitor {
     virtual void visit(DurationofExpr&) = 0;
     virtual void visit(MeasureExpr&) = 0;
     // Statements
+    virtual void visit(Annotation&) = 0;
     virtual void visit(ProgramBlock&) = 0;
     virtual void visit(ExprStmt&) = 0;
     virtual void visit(ResetStmt&) = 0;
@@ -152,6 +156,7 @@ class Visitor {
     virtual void visit(EndStmt&) = 0;
     virtual void visit(AliasStmt&) = 0;
     virtual void visit(AssignmentStmt&) = 0;
+    virtual void visit(PragmaStmt&) = 0;
     // Gates
     virtual void visit(CtrlModifier&) = 0;
     virtual void visit(InvModifier&) = 0;
@@ -175,6 +180,7 @@ class Visitor {
     virtual void visit(GateDecl&) = 0;
     virtual void visit(QuantumDecl&) = 0;
     virtual void visit(ClassicalDecl&) = 0;
+    virtual void visit(IODecl&) = 0;
     // Program
     virtual void visit(Program&) = 0;
     // Destructor

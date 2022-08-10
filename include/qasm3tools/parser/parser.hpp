@@ -114,7 +114,7 @@ class ASTConstructor : public qasm3ParserVisitor {
     visitProgram(qasm3Parser::ProgramContext* ctx) override {
         auto prog = ast::Program::create(
             get_pos(ctx), {}, get_source_name(ctx) == "stdgates.inc");
-        for (auto& stmt : ctx->statement()) {
+        for (auto stmt : ctx->statement()) {
             auto a = stmt->accept(this);
             if (a.is<ast::ptr<ast::Stmt>>()) {
                 prog->body().emplace_back(
@@ -144,22 +144,39 @@ class ASTConstructor : public qasm3ParserVisitor {
     visitStatement(qasm3Parser::StatementContext* ctx) override {
         if (ctx->pragma()) {
             return ctx->pragma()->accept(this);
-        } else if (!(ctx->annotation().empty())) {
-            std::cerr << get_pos(ctx) << ": warning: annotation(s) ignored\n";
+        } else if (ctx->includeStatement()) {
+            if (!ctx->annotation().empty()) {
+                std::cerr << get_pos(ctx->annotation(0))
+                          << ": error: unexpected annotation(s)\n";
+                throw std::logic_error("Parsing error!");
+            }
+            return ctx->includeStatement()->accept(this);
         }
-        return ctx->children.back()->accept(this);
+        auto stmt = std::move(
+            ctx->children.back()->accept(this).as<ast::ptr<ast::Stmt>>());
+        for (auto x : ctx->annotation()) {
+            stmt->annotations().emplace_back(
+                std::move(x->accept(this).as<ast::ptr<ast::Annotation>>()));
+        }
+        return stmt;
     }
 
     // annotation: AnnotationKeyword RemainingLineContent?;
     virtual antlrcpp::Any
     visitAnnotation(qasm3Parser::AnnotationContext* ctx) override {
-        return defaultResult(); // ignored
+        if (ctx->RemainingLineContent()) {
+            return ast::Annotation::create(
+                get_pos(ctx), ctx->AnnotationKeyword()->getText(),
+                ctx->RemainingLineContent()->getText());
+        }
+        return ast::Annotation::create(get_pos(ctx),
+                                       ctx->AnnotationKeyword()->getText());
     }
 
     // scope: LBRACE statement* RBRACE;
     virtual antlrcpp::Any visitScope(qasm3Parser::ScopeContext* ctx) override {
         std::list<ast::ptr<ast::Stmt>> body;
-        for (auto& stmt : ctx->statement()) {
+        for (auto stmt : ctx->statement()) {
             if (stmt->includeStatement()) {
                 std::cerr << get_pos(ctx)
                           << ": error: unexpected include statement\n";
@@ -174,9 +191,8 @@ class ASTConstructor : public qasm3ParserVisitor {
     // pragma: PRAGMA RemainingLineContent;
     virtual antlrcpp::Any
     visitPragma(qasm3Parser::PragmaContext* ctx) override {
-        std::cerr << get_pos(ctx)
-                  << ": error: 'pragma' statements are not supported\n";
-        throw std::logic_error("Parsing error!");
+        return ast::ptr<ast::Stmt>(new ast::PragmaStmt(
+            get_pos(ctx), ctx->RemainingLineContent()->getText()));
     }
 
     // statementOrScope: statement | scope;
@@ -502,9 +518,18 @@ class ASTConstructor : public qasm3ParserVisitor {
     // Identifier SEMICOLON;
     virtual antlrcpp::Any visitIoDeclarationStatement(
         qasm3Parser::IoDeclarationStatementContext* ctx) override {
-        std::cerr << get_pos(ctx)
-                  << ": error: i/o declaration statements are not supported\n";
-        throw std::logic_error("Parsing error!");
+        ast::ptr<ast::ClassicalType> type;
+        if (ctx->scalarType()) {
+            type = std::move(ctx->scalarType()
+                                 ->accept(this)
+                                 .as<ast::ptr<ast::NonArrayType>>());
+        } else {
+            type = std::move(
+                ctx->arrayType()->accept(this).as<ast::ptr<ast::ArrayType>>());
+        }
+        return ast::ptr<ast::Stmt>(
+            new ast::IODecl(get_pos(ctx), ctx->Identifier()->getText(),
+                            std::move(type), ctx->INPUT()));
     }
 
     // oldStyleDeclarationStatement: (CREG | QREG) Identifier designator?
@@ -1065,7 +1090,7 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any
     visitSetExpression(qasm3Parser::SetExpressionContext* ctx) override {
         std::vector<ast::ptr<ast::Expr>> exprs;
-        for (auto& x : ctx->expression())
+        for (auto x : ctx->expression())
             exprs.emplace_back(
                 std::move(x->accept(this).as<ast::ptr<ast::Expr>>()));
         return exprs;
@@ -1076,7 +1101,7 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any
     visitArrayLiteral(qasm3Parser::ArrayLiteralContext* ctx) override {
         std::vector<ast::ptr<ast::Expr>> arr;
-        for (auto& child : ctx->children) {
+        for (auto child : ctx->children) {
             auto a = child->accept(this);
             if (a.isNotNull())
                 arr.emplace_back(std::move(a.as<ast::ptr<ast::Expr>>()));
@@ -1104,7 +1129,7 @@ class ASTConstructor : public qasm3ParserVisitor {
                 new ast::ListSlice(get_pos(ctx), std::move(indices)));
         } else {
             std::vector<ast::ptr<ast::IndexEntity>> indices;
-            for (auto& child : ctx->children) {
+            for (auto child : ctx->children) {
                 auto a = child->accept(this);
                 if (a.is<ast::ptr<ast::Expr>>()) {
                     indices.emplace_back(ast::SingleIndex::create(
@@ -1426,7 +1451,7 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any
     visitGateOperandList(qasm3Parser::GateOperandListContext* ctx) override {
         std::vector<ast::ptr<ast::IndexId>> args;
-        for (auto& opd : ctx->gateOperand()) {
+        for (auto opd : ctx->gateOperand()) {
             args.emplace_back(
                 std::move(opd->accept(this).as<ast::ptr<ast::IndexId>>()));
         }
@@ -1437,7 +1462,7 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any visitExternArgumentList(
         qasm3Parser::ExternArgumentListContext* ctx) override {
         std::vector<ast::ptr<ast::ClassicalType>> args;
-        for (auto& x : ctx->externArgument()) {
+        for (auto x : ctx->externArgument()) {
             args.emplace_back(
                 std::move(x->accept(this).as<ast::ptr<ast::ClassicalType>>()));
         }

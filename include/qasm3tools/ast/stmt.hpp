@@ -683,5 +683,49 @@ class AssignmentStmt final : public Stmt {
     }
 };
 
+/**
+ * \class qasm3tools::ast::PragmaStmt
+ * \brief Class for pragma statements
+ * \see qasm3tools::ast::StmtBase
+ */
+class PragmaStmt final : public GlobalStmt {
+    std::string content_; ///< pragma content
+
+  public:
+    /**
+     * \brief Constructs a pragma statement
+     *
+     * \param pos The source position
+     * \param content The pragma content
+     */
+    PragmaStmt(parser::Position pos, std::string content)
+        : GlobalStmt(pos), content_(content) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<PragmaStmt> create(parser::Position pos, std::string content) {
+        return std::make_unique<PragmaStmt>(pos, content);
+    }
+
+    /**
+     * \brief Get the pragma content
+     *
+     * \return The content
+     */
+    std::string content() { return content_; }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
+        os << "pragma " << content_ << "\n";
+        return os;
+    }
+
+  protected:
+    PragmaStmt* clone() const override {
+        return new PragmaStmt(pos_, content_);
+    }
+};
+
 } // namespace ast
 } // namespace qasm3tools

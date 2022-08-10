@@ -43,19 +43,23 @@ namespace ast {
 class Program final : public BlockBase<Program> {
     bool std_include_;
     std::optional<int> qubits_;
+    std::optional<int> inputs_;
 
   public:
     /**
      * \brief Constructs a QASM program
      *
      * \param pos The source position
-     * \param std_include Whether the standard library has been included
      * \param body The program body
+     * \param std_include Whether the standard library has been included
+     * \param qubits The number of qubits
+     * \param inputs The number of inputs
      */
     Program(parser::Position pos, std::list<ptr<Stmt>>&& body,
-            bool std_include = false, std::optional<int> qubits = std::nullopt)
+            bool std_include = false, std::optional<int> qubits = std::nullopt,
+            std::optional<int> inputs = std::nullopt)
         : BlockBase(pos, std::move(body)), std_include_(std_include),
-          qubits_(qubits) {}
+          qubits_(qubits), inputs_(inputs) {}
 
     /**
      * \brief Protected heap-allocated construction
@@ -63,9 +67,10 @@ class Program final : public BlockBase<Program> {
     static ptr<Program> create(parser::Position pos,
                                std::list<ptr<Stmt>>&& body,
                                bool std_include = false,
-                               std::optional<int> qubits = std::nullopt) {
+                               std::optional<int> qubits = std::nullopt,
+                               std::optional<int> inputs = std::nullopt) {
         return std::make_unique<Program>(pos, std::move(body), std_include,
-                                         qubits);
+                                         qubits, inputs);
     }
 
     /**
@@ -81,6 +86,20 @@ class Program final : public BlockBase<Program> {
      * \param qubits The number of qubits
      */
     void set_qubits(int qubits) { qubits_ = qubits; }
+
+    /**
+     * \brief Get the number of inputs
+     *
+     * \return The number of inputs
+     */
+    int inputs() { return *inputs_; }
+
+    /**
+     * \brief Set the number of inputs
+     *
+     * \param qubits The number of inputs
+     */
+    void set_inputs(int inputs) { inputs_ = inputs; }
 
     /**
      * \brief Add another program's contents to the end of this program
@@ -107,6 +126,9 @@ class Program final : public BlockBase<Program> {
             os << "include \"stdgates.inc\";\n";
         os << "\n";
         for (auto& x : body_) {
+            for (auto& ann : x->annotations()) {
+                os << *ann;
+            }
             x->pretty_print(os, std_include_);
         }
 
@@ -119,7 +141,8 @@ class Program final : public BlockBase<Program> {
         for (auto& x : body_) {
             tmp.emplace_back(object::clone(*x));
         }
-        return new Program(pos_, std::move(tmp), std_include_, qubits_);
+        return new Program(pos_, std::move(tmp), std_include_, qubits_,
+                           inputs_);
     }
 };
 

@@ -528,5 +528,63 @@ class ClassicalDecl final : public Stmt, public Decl {
     }
 };
 
+/**
+ * \class qasm3tools::ast::IODecl
+ * \brief Class for i/o declarations
+ * \see qasm3tools::ast::Decl
+ */
+class IODecl final : public GlobalStmt, public Decl {
+    ptr<ClassicalType> type_; ///< the type
+    bool is_input_;           ///< true if input, false if output
+
+  public:
+    /**
+     * \brief Constructs an i/o declarations
+     *
+     * \param pos The source position
+     * \param id The identifier
+     * \param type The type
+     * \param is_input True if input, false if output
+     */
+    IODecl(parser::Position pos, symbol id, ptr<ClassicalType> type,
+           bool is_input)
+        : GlobalStmt(pos), Decl(id), type_(std::move(type)),
+          is_input_(is_input) {}
+
+    /**
+     * \brief Protected heap-allocated construction
+     */
+    static ptr<IODecl> create(parser::Position pos, symbol id,
+                              ptr<ClassicalType> type, bool is_input) {
+        return std::make_unique<IODecl>(pos, id, std::move(type), is_input);
+    }
+
+    /**
+     * \brief Get the type
+     *
+     * \return Reference to the type
+     */
+    ClassicalType& type() { return *type_; }
+
+    /**
+     * \brief Get whether the i/o declaration is input
+     *
+     * \return Whether the i/o declaration is input
+     */
+    bool is_input() { return is_input_; }
+
+    void accept(Visitor& visitor) override { visitor.visit(*this); }
+    std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
+        os << (is_input_ ? "input" : "output") << " " << *type_ << " " << id_
+           << ";\n";
+        return os;
+    }
+
+  protected:
+    IODecl* clone() const override {
+        return new IODecl(pos_, id_, object::clone(*type_), is_input_);
+    }
+};
+
 } // namespace ast
 } // namespace qasm3tools

@@ -38,12 +38,16 @@
 
 #include "qpp/qpp.h"
 
+#include "../parser/parser.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <climits>
+#include <list>
 #include <numeric>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -1023,7 +1027,16 @@ class Executor final : ast::Visitor {
   public:
     explicit Executor(std::ostream& os) : os_(os) {}
 
-    void run(ast::Program& prog) { prog.accept(*this); }
+    void run(ast::Program& prog, std::list<std::string> inputs) {
+        if (prog.inputs() != inputs.size()) {
+            std::cerr << prog.pos() << ": error : expected " << prog.inputs()
+                      << " input values, but got " << inputs.size() << "\n";
+            throw RuntimeError();
+        }
+        inputs_ = std::move(inputs);
+        outputs_.clear();
+        prog.accept(*this);
+    }
 
     // Index identifiers
     void visit(ast::SingleIndex& index) override {
@@ -2050,10 +2063,17 @@ class Executor final : ast::Visitor {
         value_ = xt::xarray<BasicType>(xt::adapt(result));
     }
     // Statements
+    void visit(ast::Annotation&) override {}
     void visit(ast::ProgramBlock& block) override {
         block.foreach_stmt([this](ast::Stmt& stmt) {
-            if (!control_flow_)
+            if (!control_flow_) {
+                if (!stmt.annotations().empty()) {
+                    std::cerr
+                        << stmt.pos()
+                        << ": warning : annotation(s) ignored by interpreter\n";
+                }
                 stmt.accept(*this);
+            }
         });
     }
     void visit(ast::ExprStmt& stmt) override { stmt.exp().accept(*this); }
@@ -2119,6 +2139,10 @@ class Executor final : ast::Visitor {
         auto result = value_;
         stmt.lval().accept(*this);
         types::overwrite(result, value_);
+    }
+    void visit(ast::PragmaStmt& stmt) override {
+        std::cerr << stmt.pos()
+                  << ": warning : pragma ignored by interpreter\n";
     }
     // Gates
     void visit(ast::CtrlModifier& mod) override {
@@ -2464,19 +2488,55 @@ class Executor final : ast::Visitor {
             }
         }
     }
+    void visit(ast::IODecl& decl) override {
+        if (decl.is_input()) {
+            // initialize
+            decl.type().accept(*this);
+            set(decl.id(), value_);
+            // get reference
+            auto lval = ast::IndexId::create({}, decl.id(), {});
+            lval->accept(*this);
+            auto tmp = value_;
+            // get value
+            std::string expr = inputs_.front();
+            inputs_.pop_front();
+            auto prog = parser::parse_string(expr + ";"); // parse as ExprStmt
+            prog->body().front()->accept(*this);
+            // set value
+            try {
+                types::overwrite(value_, tmp);
+            } catch (...) {
+                std::cerr << decl.pos() << ": error : input variable "
+                          << decl.id() << " has type " << decl.type()
+                          << ", which is incomatible with expression \"" << expr
+                          << "\"\n";
+                throw;
+            }
+        } else {
+            outputs_.insert(decl.id());
+            decl.type().accept(*this);
+            set(decl.id(), value_);
+        }
+    }
     // Program
     void visit(ast::Program& prog) override {
         if (prog.qubits() > 0) {
             psi_ = qpp::st.zero(prog.qubits());
         } else {
-            std::cerr << "Warning: program has no qubits\n";
+            std::cerr << prog.pos() << ": warning : program has no qubits\n";
         }
 
         push_scope();
 
         prog.foreach_stmt([this](ast::Stmt& stmt) {
-            if (!control_flow_)
+            if (!control_flow_) {
+                if (!stmt.annotations().empty()) {
+                    std::cerr
+                        << stmt.pos()
+                        << ": warning : annotation(s) ignored by interpreter\n";
+                }
                 stmt.accept(*this);
+            }
         });
 
         print_global_vars();
@@ -2504,7 +2564,9 @@ class Executor final : ast::Visitor {
     cmat matrix_{};            ///< stores intermediate gate matrices
     std::optional<Subsystem> subsystem_; ///< current subsytem to get matrix for
     std::list<std::unordered_map<ast::symbol, Type>>
-        symbol_table_{}; ///< a stack of symbol tables
+        symbol_table_{};                        ///< a stack of symbol tables
+    std::unordered_set<ast::symbol> outputs_{}; ///< output variables
+    std::list<std::string> inputs_{}; ///< input expressions (to be parsed)
     std::ostream& os_;
 
     /**
@@ -2554,14 +2616,29 @@ class Executor final : ast::Visitor {
      */
     void print_global_vars() const {
         os_ << "Final values:\n";
-        for (const auto& v : symbol_table_.back()) {
-            if (std::holds_alternative<ExprType>(v.second)) {
-                auto& tmp = std::get<ExprType>(v.second);
-                if (std::holds_alternative<BasicType>(tmp)) {
-                    os_ << v.first << ": " << std::get<BasicType>(tmp) << "\n";
-                } else if (std::holds_alternative<xt::xarray<BasicType>>(tmp)) {
-                    os_ << v.first << ":\n"
-                        << std::get<xt::xarray<BasicType>>(tmp) << "\n";
+        if (outputs_.empty()) {
+            for (const auto& v : symbol_table_.back()) {
+                if (std::holds_alternative<ExprType>(v.second)) {
+                    auto& tmp = std::get<ExprType>(v.second);
+                    if (std::holds_alternative<BasicType>(tmp)) {
+                        os_ << v.first << ": " << std::get<BasicType>(tmp)
+                            << "\n";
+                    } else if (std::holds_alternative<xt::xarray<BasicType>>(
+                                   tmp)) {
+                        os_ << v.first << ":\n"
+                            << std::get<xt::xarray<BasicType>>(tmp) << "\n";
+                    }
+                }
+            }
+        } else {
+            for (const auto& id : outputs_) {
+                auto& v =
+                    std::get<ExprType>(symbol_table_.back().find(id)->second);
+                if (std::holds_alternative<BasicType>(v)) {
+                    os_ << id << ": " << std::get<BasicType>(v) << "\n";
+                } else if (std::holds_alternative<xt::xarray<BasicType>>(v)) {
+                    os_ << id << ":\n"
+                        << std::get<xt::xarray<BasicType>>(v) << "\n";
                 }
             }
         }
@@ -2714,7 +2791,9 @@ class Executor final : ast::Visitor {
 /**
  * \brief Executes a program
  */
-inline void execute(ast::Program& prog) { Executor(std::cout).run(prog); }
+inline void execute(ast::Program& prog, std::list<std::string> inputs) {
+    Executor(std::cout).run(prog, std::move(inputs));
+}
 
 } // namespace tools
 } // namespace qasm3tools

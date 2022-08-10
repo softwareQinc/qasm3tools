@@ -104,6 +104,11 @@ class BlockBase : public ASTNode {
     virtual std::ostream& pretty_print(std::ostream& os, size_t indents) const {
         os << "{\n";
         for (auto& x : body_) {
+            for (auto& ann : x->annotations()) {
+                for (size_t i = 0; i <= indents; i++)
+                    os << "\t";
+                os << *ann;
+            }
             for (size_t i = 0; i <= indents; i++)
                 os << "\t";
             x->pretty_print(os, false, indents + 1);
