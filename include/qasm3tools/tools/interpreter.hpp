@@ -2314,6 +2314,7 @@ class Executor final : ast::Visitor {
         }
         auto var_type = std::get<BasicType>(value_);
         stmt.index_set().accept(*this);
+        auto loop_set = std::move(loop_set_);
 
         std::visit(
             utils::overloaded{
@@ -2384,7 +2385,7 @@ class Executor final : ast::Visitor {
                         }
                     }
                 }},
-            loop_set_);
+            loop_set);
     }
     void visit(ast::WhileStmt& stmt) override {
         int iterations = 0;
