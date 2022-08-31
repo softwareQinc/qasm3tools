@@ -414,7 +414,7 @@ class ArrayRefType : public ClassicalType {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        os << (is_mutable_ ? "mutable" : "const") << " array[" << *subtype_;
+        os << (is_mutable_ ? "mutable" : "readonly") << " array[" << *subtype_;
         std::visit(utils::overloaded{[&os](const std::vector<ptr<Expr>>& dims) {
                                          for (auto& dim : dims)
                                              os << ", " << *dim;

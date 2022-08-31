@@ -120,9 +120,9 @@ TEST(Parsing, Idempotence) {
                       "array[int[32], 2, 3] arr = {{0, 1, 2}, {3, 4, 5}};\n"
                       "sizeof(arr, 1)*sizeof(arr);\n"
                       "arr[:, 2][-1] = arr[0, :][1];\n"
-                      "def gg(const array[complex[float[32]], #dim = 2] g) {\n"
+                      "def gg(readonly array[bool, #dim = 2] g) {\n"
                       "}\n"
-                      "def hh(mutable array[bool, 4] h) {\n"
+                      "def hh(mutable array[complex[float[32]], 4] h) {\n"
                       "\tbit[4] b = \"1110\";\n"
                       "}\n"
                       "array[int[32], 4] loop_arr = {1, 4, 9, 16};\n"
@@ -168,7 +168,7 @@ TEST(Parsing, Not_Const_Error) {
 
     std::string src7 = "OPENQASM 3.0;\n"
                        "int[32] n = 2;\n"
-                       "def f(const array[int[32], 2, n] a) {\n"
+                       "def f(readonly array[int[32], 2, n] a) {\n"
                        "}\n";
 
     EXPECT_THROW(parser::parse_string(src1, "not_const_error_1.qasm"),
@@ -200,7 +200,7 @@ TEST(Parsing, Const_Assignment_Error) {
                        "n = measure q;\n";
 
     std::string src3 = "OPENQASM 3.0;\n"
-                       "def f(const array[int[32], #dim = 2] a) {\n"
+                       "def f(readonly array[int[32], #dim = 2] a) {\n"
                        "\ta[0, 0] = 0;\n"
                        "}\n";
 
@@ -283,7 +283,7 @@ TEST(Parsing, Dimension_Error) {
 
     std::string src6 = "OPENQASM 3.0;\n"
                        "array[int[32], 3, 2] arr;\n"
-                       "def f(const array[int[32], 3, 2] a) {\n"
+                       "def f(readonly array[int[32], 3, 2] a) {\n"
                        "}\n"
                        "f(arr[0, :]);\n";
 

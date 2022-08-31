@@ -16,25 +16,25 @@ public:
     GATE = 7, EXTERN = 8, BOX = 9, LET = 10, BREAK = 11, CONTINUE = 12, 
     IF = 13, ELSE = 14, END = 15, RETURN = 16, FOR = 17, WHILE = 18, IN = 19, 
     PRAGMA = 20, AnnotationKeyword = 21, INPUT = 22, OUTPUT = 23, CONST = 24, 
-    MUTABLE = 25, QREG = 26, QUBIT = 27, CREG = 28, BOOL = 29, BIT = 30, 
-    INT = 31, UINT = 32, FLOAT = 33, ANGLE = 34, COMPLEX = 35, ARRAY = 36, 
-    DURATION = 37, STRETCH = 38, GPHASE = 39, INV = 40, POW = 41, CTRL = 42, 
-    NEGCTRL = 43, DIM = 44, DURATIONOF = 45, DELAY = 46, RESET = 47, MEASURE = 48, 
-    BARRIER = 49, BooleanLiteral = 50, LBRACKET = 51, RBRACKET = 52, LBRACE = 53, 
-    RBRACE = 54, LPAREN = 55, RPAREN = 56, COLON = 57, SEMICOLON = 58, DOT = 59, 
-    COMMA = 60, EQUALS = 61, ARROW = 62, PLUS = 63, DOUBLE_PLUS = 64, MINUS = 65, 
-    ASTERISK = 66, DOUBLE_ASTERISK = 67, SLASH = 68, PERCENT = 69, PIPE = 70, 
-    DOUBLE_PIPE = 71, AMPERSAND = 72, DOUBLE_AMPERSAND = 73, CARET = 74, 
-    AT = 75, TILDE = 76, EXCLAMATION_POINT = 77, EqualityOperator = 78, 
-    CompoundAssignmentOperator = 79, ComparisonOperator = 80, BitshiftOperator = 81, 
-    IMAG = 82, ImaginaryLiteral = 83, BinaryIntegerLiteral = 84, OctalIntegerLiteral = 85, 
-    DecimalIntegerLiteral = 86, HexIntegerLiteral = 87, Identifier = 88, 
-    HardwareQubit = 89, FloatLiteral = 90, TimingLiteral = 91, BitstringLiteral = 92, 
-    StringLiteral = 93, Whitespace = 94, Newline = 95, LineComment = 96, 
-    BlockComment = 97, VERSION_IDENTIFER_WHITESPACE = 98, VersionSpecifier = 99, 
-    EAT_INITIAL_SPACE = 100, EAT_LINE_END = 101, RemainingLineContent = 102, 
-    CAL_PRELUDE_WHITESPACE = 103, CAL_PRELUDE_COMMENT = 104, DEFCAL_PRELUDE_WHITESPACE = 105, 
-    DEFCAL_PRELUDE_COMMENT = 106, CalibrationBlock = 107
+    READONLY = 25, MUTABLE = 26, QREG = 27, QUBIT = 28, CREG = 29, BOOL = 30, 
+    BIT = 31, INT = 32, UINT = 33, FLOAT = 34, ANGLE = 35, COMPLEX = 36, 
+    ARRAY = 37, DURATION = 38, STRETCH = 39, GPHASE = 40, INV = 41, POW = 42, 
+    CTRL = 43, NEGCTRL = 44, DIM = 45, DURATIONOF = 46, DELAY = 47, RESET = 48, 
+    MEASURE = 49, BARRIER = 50, BooleanLiteral = 51, LBRACKET = 52, RBRACKET = 53, 
+    LBRACE = 54, RBRACE = 55, LPAREN = 56, RPAREN = 57, COLON = 58, SEMICOLON = 59, 
+    DOT = 60, COMMA = 61, EQUALS = 62, ARROW = 63, PLUS = 64, DOUBLE_PLUS = 65, 
+    MINUS = 66, ASTERISK = 67, DOUBLE_ASTERISK = 68, SLASH = 69, PERCENT = 70, 
+    PIPE = 71, DOUBLE_PIPE = 72, AMPERSAND = 73, DOUBLE_AMPERSAND = 74, 
+    CARET = 75, AT = 76, TILDE = 77, EXCLAMATION_POINT = 78, EqualityOperator = 79, 
+    CompoundAssignmentOperator = 80, ComparisonOperator = 81, BitshiftOperator = 82, 
+    IMAG = 83, ImaginaryLiteral = 84, BinaryIntegerLiteral = 85, OctalIntegerLiteral = 86, 
+    DecimalIntegerLiteral = 87, HexIntegerLiteral = 88, Identifier = 89, 
+    HardwareQubit = 90, FloatLiteral = 91, TimingLiteral = 92, BitstringLiteral = 93, 
+    StringLiteral = 94, Whitespace = 95, Newline = 96, LineComment = 97, 
+    BlockComment = 98, VERSION_IDENTIFER_WHITESPACE = 99, VersionSpecifier = 100, 
+    EAT_INITIAL_SPACE = 101, EAT_LINE_END = 102, RemainingLineContent = 103, 
+    CAL_PRELUDE_WHITESPACE = 104, CAL_PRELUDE_COMMENT = 105, DEFCAL_PRELUDE_WHITESPACE = 106, 
+    DEFCAL_PRELUDE_COMMENT = 107, CalibrationBlock = 108
   };
 
   enum {
@@ -1225,7 +1225,7 @@ public:
     ScalarTypeContext *scalarType();
     antlr4::tree::TerminalNode *COMMA();
     antlr4::tree::TerminalNode *RBRACKET();
-    antlr4::tree::TerminalNode *CONST();
+    antlr4::tree::TerminalNode *READONLY();
     antlr4::tree::TerminalNode *MUTABLE();
     ExpressionListContext *expressionList();
     antlr4::tree::TerminalNode *DIM();

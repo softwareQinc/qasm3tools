@@ -1270,7 +1270,7 @@ class ASTConstructor : public qasm3ParserVisitor {
                                       std::move(dimensions));
     }
 
-    // arrayReferenceType: (CONST | MUTABLE) ARRAY LBRACKET scalarType COMMA
+    // arrayReferenceType: (READONLY | MUTABLE) ARRAY LBRACKET scalarType COMMA
     // (expressionList | DIM EQUALS expression) RBRACKET;
     virtual antlrcpp::Any visitArrayReferenceType(
         qasm3Parser::ArrayReferenceTypeContext* ctx) override {
