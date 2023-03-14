@@ -83,71 +83,50 @@ struct hash<std::pair<qasmtools::ast::symbol, std::vector<double>>> {
 } /* namespace std */
 
 namespace qpp {
-// TODO: replace by qpp::GATE
 /**
- * \brief Copied from qpp::Gates::CTRL
+ * \brief Copied from qpp::Gates::GATE()
  */
 template <typename Derived>
-dyn_mat<typename Derived::Scalar> CTRL(const Eigen::MatrixBase<Derived>& A,
-                                       const std::vector<idx>& ctrl,
-                                       const std::vector<idx>& target, idx n,
-                                       idx d = 2, std::vector<idx> shift = {}) {
+dyn_mat<typename Derived::Scalar> GATE(const Eigen::MatrixBase<Derived>& A,
+                                       const std::vector<idx>& target,
+                                       const std::vector<idx>& dims) {
     const dyn_mat<typename Derived::Scalar>& rA = A.derived();
 
     // EXCEPTION CHECKS
 
     // check matrix zero-size
     if (!internal::check_nonzero_size(rA))
-        throw exception::ZeroSize("qpp::Gates::CTRL()", "A");
+        throw exception::ZeroSize("qpp::Gates::GATE()", "A");
 
     // check square matrix
     if (!internal::check_square_mat(rA))
-        throw exception::MatrixNotSquare("qpp::Gates::CTRL()", "A");
+        throw exception::MatrixNotSquare("qpp::Gates::GATE()", "A");
 
-    // check lists zero-size
-    // if (ctrl.empty())
-    //    throw exception::ZeroSize("qpp::Gates::CTRL()", "ctrl");
+    // check zero-size
     if (target.empty())
-        throw exception::ZeroSize("qpp::Gates::CTRL()", "target");
+        throw exception::ZeroSize("qpp::Gates::GATE()", "target");
 
-    // check out of range
-    if (n == 0)
-        throw exception::OutOfRange("qpp::Gates::CTRL()", "n");
+    // check that dims is a valid dimension vector
+    if (!internal::check_dims(dims))
+        throw exception::DimsInvalid("qpp::Gates::GATE()", "dims");
 
-    // check valid local dimension
-    if (d == 0)
-        throw exception::DimsInvalid("qpp::Gates::CTRL()", "d");
-
-    // ctrl + gate subsystem vector
-    std::vector<idx> ctrlgate = ctrl;
-    ctrlgate.insert(std::end(ctrlgate), std::begin(target), std::end(target));
-    std::sort(std::begin(ctrlgate), std::end(ctrlgate));
-
-    std::vector<idx> dims(n, d); // local dimensions vector
-
-    // check that ctrl + gate subsystem is valid
-    // with respect to local dimensions
-    if (!internal::check_subsys_match_dims(ctrlgate, dims))
-        throw exception::SubsysMismatchDims("qpp::Gates::CTRL()", "ctrl/dims");
+    // check that target is valid w.r.t. dims
+    if (!internal::check_subsys_match_dims(target, dims))
+        throw exception::SubsysMismatchDims("qpp::Gates::GATE()",
+                                            "dims/target");
 
     // check that target list match the dimension of the matrix
     using Index = typename dyn_mat<typename Derived::Scalar>::Index;
-    if (rA.rows() !=
-        static_cast<Index>(std::llround(std::pow(d, target.size()))))
-        throw exception::MatrixMismatchSubsys("qpp::Gates::CTRL()",
-                                              "A/d/target");
 
-    // check shift
-    if (!shift.empty() && (shift.size() != ctrl.size()))
-        throw exception::SizeMismatch("qpp::Gates::CTRL()", "ctrl/shift");
-    if (!shift.empty())
-        for (auto&& elem : shift)
-            if (elem >= d)
-                throw exception::OutOfRange("qpp::Gates::CTRL()", "shift");
+    idx DA = 1;
+    for (idx elem : target)
+        DA *= dims[elem];
+
+    if (rA.rows() != static_cast<Index>(DA))
+        throw exception::MatrixMismatchSubsys("qpp::Gates::GATE()",
+                                              "A/dims/target");
+
     // END EXCEPTION CHECKS
-
-    if (shift.empty())
-        shift = std::vector<idx>(ctrl.size(), 0);
 
     // Use static allocation for speed!
     idx Cdims[internal::maxn];
@@ -158,86 +137,98 @@ dyn_mat<typename Derived::Scalar> CTRL(const Eigen::MatrixBase<Derived>& A,
     idx midxA_row[internal::maxn];
     idx midxA_col[internal::maxn];
 
-    idx Cdims_bar[internal::maxn];
+    idx CdimsA_bar[internal::maxn];
     idx Csubsys_bar[internal::maxn];
     idx midx_bar[internal::maxn];
 
+    idx n = dims.size();
     idx n_gate = target.size();
-    idx n_ctrl = ctrl.size();
-    idx n_subsys_bar = n - ctrlgate.size();
-    idx D = static_cast<idx>(std::llround(std::pow(d, n)));
-    idx DA = static_cast<idx>(rA.rows());
-    idx Dsubsys_bar = static_cast<idx>(std::llround(std::pow(d, n_subsys_bar)));
+    idx n_subsys_bar = n - target.size();
 
     // compute the complementary subsystem of ctrlgate w.r.t. dims
-    std::vector<idx> subsys_bar = complement(ctrlgate, n);
+    std::vector<idx> subsys_bar = complement(target, n);
+
+    idx D = prod(dims);
+    idx Dsubsys_bar = 1;
+    for (idx elem : subsys_bar)
+        Dsubsys_bar *= dims[elem];
+
     std::copy(std::begin(subsys_bar), std::end(subsys_bar),
               std::begin(Csubsys_bar));
 
     for (idx k = 0; k < n; ++k) {
         midx_row[k] = midx_col[k] = 0;
-        Cdims[k] = d;
+        Cdims[k] = dims[k];
     }
 
     for (idx k = 0; k < n_subsys_bar; ++k) {
-        Cdims_bar[k] = d;
+        CdimsA_bar[k] = dims[subsys_bar[k]];
         midx_bar[k] = 0;
     }
 
     for (idx k = 0; k < n_gate; ++k) {
         midxA_row[k] = midxA_col[k] = 0;
-        CdimsA[k] = d;
+        CdimsA[k] = dims[target[k]];
     }
 
     dyn_mat<typename Derived::Scalar> result =
         dyn_mat<typename Derived::Scalar>::Identity(D, D);
-    dyn_mat<typename Derived::Scalar> Ak;
 
     // run over the complement indexes
     for (idx i = 0; i < Dsubsys_bar; ++i) {
         // get the complement row multi-index
-        internal::n2multiidx(i, n_subsys_bar, Cdims_bar, midx_bar);
-        for (idx k = 0; k < d; ++k) {
-            Ak = powm(rA, k); // compute rA^k
-            // run over the target row multi-index
-            for (idx a = 0; a < DA; ++a) {
-                // get the target row multi-index
-                internal::n2multiidx(a, n_gate, CdimsA, midxA_row);
+        internal::n2multiidx(i, n_subsys_bar, CdimsA_bar, midx_bar);
 
-                // construct the result row multi-index
+        // run over the target row multi-index
+        for (idx a = 0; a < DA; ++a) {
+            // get the target row multi-index
+            internal::n2multiidx(a, n_gate, CdimsA, midxA_row);
 
-                // first the ctrl part (equal for both row and column)
-                for (idx c = 0; c < n_ctrl; ++c)
-                    midx_row[ctrl[c]] = midx_col[ctrl[c]] =
-                        (k + d - shift[c]) % d;
+            // construct the result row multi-index
 
-                // then the complement part (equal for column)
-                for (idx c = 0; c < n_subsys_bar; ++c)
-                    midx_row[Csubsys_bar[c]] = midx_col[Csubsys_bar[c]] =
-                        midx_bar[c];
+            // first the target part
+            for (idx k = 0; k < n_gate; ++k)
+                midx_row[target[k]] = midxA_row[k];
 
-                // then the target part
-                for (idx c = 0; c < n_gate; ++c)
-                    midx_row[target[c]] = midxA_row[c];
+            // then the complement part (equal for column)
+            for (idx k = 0; k < n_subsys_bar; ++k)
+                midx_row[Csubsys_bar[k]] = midx_col[Csubsys_bar[k]] =
+                    midx_bar[k];
 
-                // run over the target column multi-index
-                for (idx b = 0; b < DA; ++b) {
-                    // get the target column multi-index
-                    internal::n2multiidx(b, n_gate, CdimsA, midxA_col);
+            // run over the target column multi-index
+            for (idx b = 0; b < DA; ++b) {
+                // get the target column multi-index
+                internal::n2multiidx(b, n_gate, CdimsA, midxA_col);
 
-                    // construct the result column multi-index
-                    for (idx c = 0; c < n_gate; ++c)
-                        midx_col[target[c]] = midxA_col[c];
+                // construct the result column multi-index
+                for (idx k = 0; k < n_gate; ++k)
+                    midx_col[target[k]] = midxA_col[k];
 
-                    // finally write the values
-                    result(internal::multiidx2n(midx_row, n, Cdims),
-                           internal::multiidx2n(midx_col, n, Cdims)) = Ak(a, b);
-                }
+                // finally write the values
+                result(internal::multiidx2n(midx_row, n, Cdims),
+                       internal::multiidx2n(midx_col, n, Cdims)) = rA(a, b);
             }
         }
     }
 
     return result;
+}
+
+/**
+ * \brief Copied from qpp::Gates::GATE()
+ */
+template <typename Derived>
+dyn_mat<typename Derived::Scalar> GATE(const Eigen::MatrixBase<Derived>& A,
+                                       const std::vector<idx>& target, idx n,
+                                       idx d = 2) {
+    // EXCEPTION CHECKS
+
+    // check valid local dimension
+    if (d == 0)
+        throw exception::DimsInvalid("qpp::Gates::GATE()", "d");
+    // END EXCEPTION CHECKS
+
+    return GATE(A, target, std::vector<idx>(n, d));
 }
 } /* namespace qpp */
 
@@ -541,7 +532,7 @@ inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
             [](const QASM_complex& s, const QASM_complex&) -> BasicType {
                 return s;
             },
-            /* the rest can't be casted */
+            /* the rest can't be cast */
             [](const QASM_qubit& s, const QASM_qubit&) -> BasicType {
                 return s;
             },
@@ -943,7 +934,7 @@ class Executor final : ast::Visitor {
      * Then dims = 3 and ids = {{"a", 0}, {"b", 1}, {"c", 2}}
      */
     struct Subsystem {
-        idx dims;                                 ///< number of dimesions
+        idx dims;                                 ///< number of dimensions
         std::unordered_map<ast::symbol, idx> ids; ///< 0-based qubit indices
     };
 
@@ -963,7 +954,7 @@ class Executor final : ast::Visitor {
             (**it).accept(*this);
         }
         if (subsystem_) { // we are in the middle of computing a gate matrix
-            // get quantum argument indices within the subsytem
+            // get quantum argument indices within the subsystem
             std::vector<idx> ids;
             for (int i = 0; i < gate.num_qargs(); i++) {
                 auto it = subsystem_->ids.find(gate.qarg(i).var());
@@ -977,8 +968,7 @@ class Executor final : ast::Visitor {
                 }
             }
             // multiply original matrix by the proper gate matrix
-            matrix_ =
-                qpp::CTRL(matrix_, {}, ids, subsystem_->dims) * prev_matrix;
+            matrix_ = qpp::GATE(matrix_, ids, subsystem_->dims) * prev_matrix;
         } else { // apply the gate
             // get quantum arguments
             std::vector<std::vector<idx>> q_args(gate.num_qargs());
@@ -1160,17 +1150,17 @@ class Executor final : ast::Visitor {
         std::visit(
             utils::overloaded{
                 [this, &indices](const xt::xarray<BasicType>& x) {
-                    check_indicies_in_bounds(x, indices);
+                    check_indices_in_bounds(x, indices);
                     value_ = xt::xarray<BasicType>(
                         xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
                 },
                 [this, &indices](const xt::xarray<BasicType*>& x) {
-                    check_indicies_in_bounds(x, indices);
+                    check_indices_in_bounds(x, indices);
                     value_ = xt::xarray<BasicType*>(
                         xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
                 },
                 [this, &indices](const xt::xarray<types::BitReference>& x) {
-                    check_indicies_in_bounds(x, indices);
+                    check_indices_in_bounds(x, indices);
                     value_ = xt::xarray<types::BitReference>(
                         xt::view(x, xt::xkeep_slice<std::ptrdiff_t>(indices)));
                 },
@@ -2520,8 +2510,8 @@ class Executor final : ast::Visitor {
             } catch (...) {
                 std::cerr << decl.pos() << ": error : input variable '"
                           << decl.id() << "' has type " << decl.type()
-                          << ", which is incomatible with expression \"" << expr
-                          << "\"\n";
+                          << ", which is incompatible with expression \""
+                          << expr << "\"\n";
                 throw;
             }
         } else {
@@ -2565,7 +2555,7 @@ class Executor final : ast::Visitor {
     bool expect_array_reference_ =
         false; ///< true when the argument of a function is an array type
     std::optional<ControlFlow> control_flow_ =
-        std::nullopt; ///< signifies when a control statment is executed
+        std::nullopt; ///< signifies when a control statement is executed
     ExprType value_ = types::QASM_none();        ///< stores intermediate values
     ExprType return_value_ = types::QASM_none(); ///< stores return values
     std::variant<ast::ListSet*, LoopRange, xt::xarray<BasicType>>
@@ -2574,7 +2564,8 @@ class Executor final : ast::Visitor {
     idx allocated_qubits_ = 0; ///< total number qubits from visited decls
     qpp::ket psi_{};           ///< state vector
     cmat matrix_{};            ///< stores intermediate gate matrices
-    std::optional<Subsystem> subsystem_; ///< current subsytem to get matrix for
+    std::optional<Subsystem>
+        subsystem_; ///< current subsystem to get matrix for
     std::list<std::unordered_map<ast::symbol, Type>>
         symbol_table_{};                        ///< a stack of symbol tables
     std::unordered_set<ast::symbol> outputs_{}; ///< output variables
@@ -2692,8 +2683,8 @@ class Executor final : ast::Visitor {
      * \brief Check indices for a list slice are in bounds for array x
      */
     template <typename T>
-    static void check_indicies_in_bounds(const xt::xarray<T>& x,
-                                         const std::vector<int>& indices) {
+    static void check_indices_in_bounds(const xt::xarray<T>& x,
+                                        const std::vector<int>& indices) {
         int size = x.shape(0);
         for (int ind : indices) {
             if (ind >= size || ind < -size) {
