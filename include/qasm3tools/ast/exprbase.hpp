@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -29,7 +29,8 @@
  * \brief Base class for OpenQASM expressions
  */
 
-#pragma once
+#ifndef QASM3TOOLS_AST_EXPRBASE_HPP_
+#define QASM3TOOLS_AST_EXPRBASE_HPP_
 
 #include "base.hpp"
 
@@ -71,5 +72,7 @@ class Expr : public ASTNode {
     virtual Expr* clone() const override = 0;
 };
 
-} // namespace ast
-} // namespace qasm3tools
+} /* namespace ast */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_AST_EXPRBASE_HPP_ */

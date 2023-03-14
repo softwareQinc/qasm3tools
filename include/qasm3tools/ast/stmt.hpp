@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -29,7 +29,8 @@
  * \brief OpenQASM statements
  */
 
-#pragma once
+#ifndef QASM3TOOLS_AST_STMT_HPP_
+#define QASM3TOOLS_AST_STMT_HPP_
 
 #include "../utils/templates.hpp"
 #include "base.hpp"
@@ -727,5 +728,7 @@ class PragmaStmt final : public GlobalStmt {
     }
 };
 
-} // namespace ast
-} // namespace qasm3tools
+} /* namespace ast */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_AST_STMT_HPP_ */

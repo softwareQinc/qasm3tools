@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -28,7 +28,8 @@
  * \file qasm3tools/parser/parser.hpp
  */
 
-#pragma once
+#ifndef QASM3TOOLS_PARSER_PARSER_HPP_
+#define QASM3TOOLS_PARSER_PARSER_HPP_
 
 #include "../ast/ast.hpp"
 #include "../ast/semantic.hpp"
@@ -1559,5 +1560,7 @@ inline ast::ptr<ast::Program> parse_string(const std::string& str,
     return result;
 }
 
-} // namespace parser
-} // namespace qasm3tools
+} /* namespace parser */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_PARSER_PARSER_HPP_ */

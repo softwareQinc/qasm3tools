@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -28,7 +28,8 @@
  * \file qasm3tools/parser/position.hpp
  */
 
-#pragma once
+#ifndef QASM3TOOLS_PARSER_POSITION_HPP_
+#define QASM3TOOLS_PARSER_POSITION_HPP_
 
 #include <iostream>
 #include <string>
@@ -114,5 +115,7 @@ class Position {
     void advance_column(int num = 1) { column_ += num; }
 };
 
-} // namespace parser
-} // namespace qasm3tools
+} /* namespace parser */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_PARSER_POSITION_HPP_ */

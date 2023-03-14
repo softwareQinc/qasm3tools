@@ -25,7 +25,13 @@
  * SOFTWARE.
  */
 
-#pragma once
+/**
+ * \file qasm3tools/ast/cloneable.hpp
+ * \brief Covariance and smart pointers
+ */
+
+#ifndef QASM3TOOLS_AST_CLONEABLE_HPP_
+#define QASM3TOOLS_AST_CLONEABLE_HPP_
 
 #include <memory>
 
@@ -57,7 +63,9 @@ struct cloneable {
     template <typename X>
     friend ptr<X> object::clone(const X&);
 };
-} // namespace object
+} /* namespace object */
 
-} // namespace ast
-} // namespace qasm3tools
+} /* namespace ast */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_AST_CLONEABLE_HPP_ */

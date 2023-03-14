@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -29,7 +29,8 @@
  * \brief Base classes for OpenQASM statements
  */
 
-#pragma once
+#ifndef QASM3TOOLS_AST_STMTBASE_HPP_
+#define QASM3TOOLS_AST_STMTBASE_HPP_
 
 #include "base.hpp"
 
@@ -185,5 +186,7 @@ class QuantumStmt : public Stmt {
     virtual QuantumStmt* clone() const override = 0;
 };
 
-} // namespace ast
-} // namespace qasm3tools
+} /* namespace ast */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_AST_STMTBASE_HPP_ */

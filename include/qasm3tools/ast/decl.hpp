@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -29,7 +29,8 @@
  * \brief OpenQASM declarations
  */
 
-#pragma once
+#ifndef QASM3TOOLS_AST_DECL_HPP_
+#define QASM3TOOLS_AST_DECL_HPP_
 
 #include "exprbase.hpp"
 #include "stmtblock.hpp"
@@ -586,5 +587,7 @@ class IODecl final : public GlobalStmt, public Decl {
     }
 };
 
-} // namespace ast
-} // namespace qasm3tools
+} /* namespace ast */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_AST_DECL_HPP_ */

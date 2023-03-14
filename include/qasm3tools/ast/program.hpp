@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -29,7 +29,8 @@
  * \brief OpenQASM programs
  */
 
-#pragma once
+#ifndef QASM3TOOLS_AST_PROGRAM_HPP_
+#define QASM3TOOLS_AST_PROGRAM_HPP_
 
 #include "stmtblock.hpp"
 
@@ -146,5 +147,7 @@ class Program final : public BlockBase<Program> {
     }
 };
 
-} // namespace ast
-} // namespace qasm3tools
+} /* namespace ast */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_AST_PROGRAM_HPP_ */

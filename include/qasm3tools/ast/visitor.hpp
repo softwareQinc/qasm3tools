@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -29,7 +29,8 @@
  * \brief Visitor interface for syntax trees
  */
 
-#pragma once
+#ifndef QASM3TOOLS_AST_VISITOR_HPP_
+#define QASM3TOOLS_AST_VISITOR_HPP_
 
 namespace qasm3tools {
 namespace ast {
@@ -187,5 +188,7 @@ class Visitor {
     virtual ~Visitor() = default;
 };
 
-} // namespace ast
-} // namespace qasm3tools
+} /* namespace ast */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_AST_VISITOR_HPP_ */

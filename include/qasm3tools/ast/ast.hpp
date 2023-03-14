@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -28,7 +28,8 @@
  * \file qasm3tools/ast/ast.hpp
  */
 
-#pragma once
+#ifndef QASM3TOOLS_AST_AST_HPP_
+#define QASM3TOOLS_AST_AST_HPP_
 
 #include "base.hpp"
 #include "decl.hpp"
@@ -39,3 +40,5 @@
 #include "stmt.hpp"
 #include "timing.hpp"
 #include "visitor.hpp"
+
+#endif /* QASM3TOOLS_AST_AST_HPP_ */

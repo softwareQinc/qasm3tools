@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -29,7 +29,8 @@
  * \brief OpenQASM gates
  */
 
-#pragma once
+#ifndef QASM3TOOLS_AST_GATE_HPP_
+#define QASM3TOOLS_AST_GATE_HPP_
 
 #include "base.hpp"
 #include "exprbase.hpp"
@@ -556,5 +557,7 @@ class DeclaredGate final : public Gate {
     }
 };
 
-} // namespace ast
-} // namespace qasm3tools
+} /* namespace ast */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_AST_GATE_HPP_ */

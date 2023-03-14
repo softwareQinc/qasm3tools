@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -29,7 +29,8 @@
  * \brief Helper templates
  */
 
-#pragma once
+#ifndef QASM3TOOLS_UTILS_TEMPLATES_HPP_
+#define QASM3TOOLS_UTILS_TEMPLATES_HPP_
 
 namespace qasm3tools {
 namespace utils {
@@ -43,5 +44,7 @@ struct overloaded : Ts... {
 template <class... Ts>
 overloaded(Ts...) -> overloaded<Ts...>;
 
-} // namespace utils
-} // namespace qasm3tools
+} /* namespace utils */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_UTILS_TEMPLATES_HPP_ */

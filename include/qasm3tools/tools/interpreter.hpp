@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -29,7 +29,8 @@
  * \brief OpenQASM 3 program interpreter
  */
 
-#pragma once
+#ifndef QASM3TOOLS_TOOLS_INTERPRETER_HPP_
+#define QASM3TOOLS_TOOLS_INTERPRETER_HPP_
 
 #include "../ast/ast.hpp"
 #include "../ast/visitor.hpp"
@@ -79,9 +80,10 @@ struct hash<std::pair<qasmtools::ast::symbol, std::vector<double>>> {
         return lhs;
     }
 };
-} // namespace std
+} /* namespace std */
 
 namespace qpp {
+// TODO: replace by qpp::GATE
 /**
  * \brief Copied from qpp::Gates::CTRL
  */
@@ -237,7 +239,7 @@ dyn_mat<typename Derived::Scalar> CTRL(const Eigen::MatrixBase<Derived>& A,
 
     return result;
 }
-} // namespace qpp
+} /* namespace qpp */
 
 namespace qasm3tools {
 namespace tools {
@@ -876,7 +878,7 @@ xt::xarray<BasicType> to_creg(const BasicType& type) {
     throw RuntimeError();
 }
 
-} // namespace types
+} /* namespace types */
 
 using BasicType = types::BasicType;
 using ExprType = types::ExprType;
@@ -2805,5 +2807,7 @@ inline void execute(ast::Program& prog, std::list<std::string> inputs) {
     Executor(std::cout).run(prog, std::move(inputs));
 }
 
-} // namespace tools
-} // namespace qasm3tools
+} /* namespace tools */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_TOOLS_INTERPRETER_HPP_ */

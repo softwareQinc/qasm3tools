@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2022 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2023 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -29,7 +29,8 @@
  * \brief OpenQASM syntax trees
  */
 
-#pragma once
+#ifndef QASM3TOOLS_AST_BASE_HPP_
+#define QASM3TOOLS_AST_BASE_HPP_
 
 #include "../parser/position.hpp"
 #include "cloneable.hpp"
@@ -104,5 +105,7 @@ class ASTNode : public object::cloneable<ASTNode> {
     }
 };
 
-} // namespace ast
-} // namespace qasm3tools
+} /* namespace ast */
+} /* namespace qasm3tools */
+
+#endif /* QASM3TOOLS_AST_BASE_HPP_ */
