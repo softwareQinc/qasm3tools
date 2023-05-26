@@ -32,11 +32,11 @@
 #ifndef QASM3TOOLS_AST_SEMANTIC_HPP_
 #define QASM3TOOLS_AST_SEMANTIC_HPP_
 
+#include <unordered_map>
+
+#include "../utils/templates.hpp"
 #include "ast.hpp"
 #include "visitor.hpp"
-#include "../utils/templates.hpp"
-
-#include <unordered_map>
 
 namespace qasm3tools {
 namespace ast {
@@ -2244,8 +2244,7 @@ class TypeChecker final : public Visitor {
         expected_stmt_type_ = tmp;
 
         set(decl.id(),
-            GateType{(int) decl.c_params().size(),
-                     (int) decl.q_params().size()},
+            GateType{(int)decl.c_params().size(), (int)decl.q_params().size()},
             decl.pos());
     }
     void visit(QuantumDecl& decl) override {

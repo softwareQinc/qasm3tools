@@ -1,5 +1,6 @@
-#include "qasm3tools/utils/angle.hpp"
 #include "gtest/gtest.h"
+
+#include "qasm3tools/utils/angle.hpp"
 
 using namespace qasm3tools::utils;
 

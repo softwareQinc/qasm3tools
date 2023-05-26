@@ -32,10 +32,10 @@
 #ifndef QASM3TOOLS_AST_STMTBASE_HPP_
 #define QASM3TOOLS_AST_STMTBASE_HPP_
 
-#include "base.hpp"
-
 #include <optional>
 #include <vector>
+
+#include "base.hpp"
 
 namespace qasm3tools {
 namespace ast {

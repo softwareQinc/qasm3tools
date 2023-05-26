@@ -32,17 +32,17 @@
 #ifndef QASM3TOOLS_AST_STMT_HPP_
 #define QASM3TOOLS_AST_STMT_HPP_
 
+#include <functional>
+#include <list>
+#include <optional>
+#include <vector>
+
 #include "../utils/templates.hpp"
 #include "base.hpp"
 #include "exprbase.hpp"
 #include "indexid.hpp"
 #include "stmtbase.hpp"
 #include "stmtblock.hpp"
-
-#include <functional>
-#include <list>
-#include <optional>
-#include <vector>
 
 namespace qasm3tools {
 namespace ast {

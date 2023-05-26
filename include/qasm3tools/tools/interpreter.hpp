@@ -32,18 +32,9 @@
 #ifndef QASM3TOOLS_TOOLS_INTERPRETER_HPP_
 #define QASM3TOOLS_TOOLS_INTERPRETER_HPP_
 
-#include "../ast/ast.hpp"
-#include "../ast/visitor.hpp"
-#include "../utils/templates.hpp"
-#include "../utils/angle.hpp"
-
-#include "qpp/qpp.h"
-
-#include "../parser/parser.hpp"
-
 #include <algorithm>
-#include <cmath>
 #include <climits>
+#include <cmath>
 #include <list>
 #include <numeric>
 #include <tuple>
@@ -52,12 +43,21 @@
 #include <utility>
 #include <vector>
 
-#include <xtensor/xarray.hpp>
 #include <xtensor/xadapt.hpp>
+#include <xtensor/xarray.hpp>
 #include <xtensor/xbuilder.hpp>
 #include <xtensor/xio.hpp>
 #include <xtensor/xvectorize.hpp>
 #include <xtensor/xview.hpp>
+
+#include "../ast/ast.hpp"
+#include "../ast/visitor.hpp"
+#include "../utils/angle.hpp"
+#include "../utils/templates.hpp"
+
+#include "qpp/qpp.h"
+
+#include "../parser/parser.hpp"
 
 #define WHILE_ITERATION_LIMIT 1000
 
@@ -308,7 +308,7 @@ struct QASM_int {
 
     friend std::ostream& operator<<(std::ostream& os, const QASM_int& i) {
         if (!i.is_signed && i.width == 64) {
-            return os << (unsigned long long) i.value;
+            return os << (unsigned long long)i.value;
         }
         return os << i.value;
     }
@@ -458,33 +458,33 @@ inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
                 return QASM_int{t.width, t.is_signed, s.value};
             },
             [](const QASM_bool& s, const QASM_float&) -> BasicType {
-                return QASM_float{(double) s.value};
+                return QASM_float{(double)s.value};
             },
             [](const QASM_bool& s, const QASM_cbit&) -> BasicType {
                 return QASM_cbit{s.value};
             },
             [](const QASM_bool& s, const QASM_complex&) -> BasicType {
-                return QASM_complex{(cplx) s.value};
+                return QASM_complex{(cplx)s.value};
             },
             /* casting from int */
             [](const QASM_int& s, const QASM_bool&) -> BasicType {
-                return QASM_bool{(bool) s.value};
+                return QASM_bool{(bool)s.value};
             },
             [](const QASM_int& s, const QASM_int& t) -> BasicType {
                 return QASM_int{t.width, t.is_signed, s.value};
             },
             [](const QASM_int& s, const QASM_float&) -> BasicType {
-                return QASM_float{(double) s.value};
+                return QASM_float{(double)s.value};
             },
             [](const QASM_int& s, const QASM_complex&) -> BasicType {
-                return QASM_complex{(cplx) s.value};
+                return QASM_complex{(cplx)s.value};
             },
             /* casting from float */
             [](const QASM_float& s, const QASM_bool&) -> BasicType {
-                return QASM_bool{(bool) s.value};
+                return QASM_bool{(bool)s.value};
             },
             [](const QASM_float& s, const QASM_int& t) -> BasicType {
-                return QASM_int{t.width, t.is_signed, (long long) s.value};
+                return QASM_int{t.width, t.is_signed, (long long)s.value};
             },
             [](const QASM_float& s, const QASM_float&) -> BasicType {
                 return s;
@@ -493,7 +493,7 @@ inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
                 return QASM_angle{t.width, s.value};
             },
             [](const QASM_float& s, const QASM_complex&) -> BasicType {
-                return QASM_complex{(cplx) s.value};
+                return QASM_complex{(cplx)s.value};
             },
             /* casting from angle */
             [](const QASM_angle& s, const QASM_bool&) -> BasicType {
@@ -567,7 +567,7 @@ inline void overwrite_help(const xt::xarray<BasicType>& s, BasicType& t) {
                         ans <<= 1;
                         ans += smart_cast(*it, QASM_cbit{}).bit;
                     }
-                    v = QASM_int{v.width, v.is_signed, (long long) ans};
+                    v = QASM_int{v.width, v.is_signed, (long long)ans};
                     return;
                 }
                 std::cerr << "Failed to assign bit array to integer (size "
@@ -745,18 +745,16 @@ using value_type = std::variant<long long, unsigned long long, double, cplx>;
 inline value_type get_value_help(const BasicType& t) {
     return std::visit(
         utils::overloaded{
-            [](const QASM_bool& v) -> value_type {
-                return (long long) v.value;
-            },
+            [](const QASM_bool& v) -> value_type { return (long long)v.value; },
             [](const QASM_int& v) -> value_type {
                 if (v.is_signed) {
                     return v.value;
                 }
-                return (unsigned long long) v.value;
+                return (unsigned long long)v.value;
             },
             [](const QASM_float& v) -> value_type { return v.value; },
             [](const QASM_angle& v) -> value_type { return v.to_float(); },
-            [](const QASM_cbit& v) -> value_type { return (long long) v.bit; },
+            [](const QASM_cbit& v) -> value_type { return (long long)v.bit; },
             [](const QASM_complex& v) -> value_type { return v.value; },
             [](auto) -> value_type {
                 std::cerr << ": get_value called on type without a value\n";
@@ -800,7 +798,7 @@ inline BasicType value_to_basictype(value_type val) {
                               return QASM_int{-1, true, v};
                           },
                           [](unsigned long long v) -> BasicType {
-                              return QASM_int{-1, false, (long long) v};
+                              return QASM_int{-1, false, (long long)v};
                           },
                           [](double v) -> BasicType { return QASM_float{v}; },
                           [](cplx v) -> BasicType { return QASM_complex{v}; }},
@@ -1203,7 +1201,7 @@ class Executor final : ast::Visitor {
         switch (type.type()) {
             case ast::SDType::Bit: {
                 auto tmp =
-                    xt::xarray<BasicType>::from_shape({(unsigned long) n});
+                    xt::xarray<BasicType>::from_shape({(unsigned long)n});
                 tmp.fill(types::QASM_cbit{});
                 value_ = std::move(tmp);
                 break;
@@ -1257,7 +1255,7 @@ class Executor final : ast::Visitor {
         if (type.size()) {
             auto expr = dynamic_cast<ast::IntExpr*>(type.size()->get());
             auto tmp = xt::xarray<BasicType>::from_shape(
-                {(unsigned long) expr->value()});
+                {(unsigned long)expr->value()});
             tmp.fill(types::QASM_qubit{});
             value_ = std::move(tmp);
         } else {
@@ -1420,14 +1418,14 @@ class Executor final : ast::Visitor {
                                         v.width, v.is_signed,
                                         v.is_signed
                                             ? v.value << shift.value
-                                            : (unsigned long long) v.value
+                                            : (unsigned long long)v.value
                                                   << shift.value);
                                 } else {
                                     return types::QASM_int(
                                         v.width, v.is_signed,
                                         v.is_signed
                                             ? v.value >> shift.value
-                                            : (unsigned long long) v.value >>
+                                            : (unsigned long long)v.value >>
                                                   shift.value);
                                 }
                             },
@@ -1520,7 +1518,7 @@ class Executor final : ast::Visitor {
                                 return e1 * e2;
                             } else {
                                 if (expect_float_div_) {
-                                    return (double) e1 / (double) e2;
+                                    return (double)e1 / (double)e2;
                                 }
                                 return e1 / e2;
                             }
@@ -2744,7 +2742,7 @@ class Executor final : ast::Visitor {
      */
     template <typename T>
     static std::vector<T> left_rotate_shift(std::vector<T> bits, int shift) {
-        shift %= (int) bits.size();
+        shift %= (int)bits.size();
         if (shift < 0)
             shift += bits.size();
         std::rotate(bits.begin(), bits.begin() + shift, bits.end());

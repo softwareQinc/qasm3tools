@@ -3,41 +3,48 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/yidln2j88dssf4v1?svg=true)](https://ci.appveyor.com/project/vsoftco/qasm3tools)
 
 ## Setup
+
 ```bash
-mkdir build && cd build
-cmake ..
-make -j8
+cmake -B build
+cmake --build build --parallel 8
 ```
 
 This creates the `parser` executable.
+
 ```bash
 ./parser /path/to/circuit.qasm
 ```
 
 ## Interpreter
-To build the interpreter, you must have [qpp](https://github.com/softwareQinc/qpp) installed. In the build directory, do
+To build the interpreter, you must have [qpp](https://github.com/softwareQinc/qpp) installed.
+Execute 
+
 ```bash
-cmake .. -DWITH_INTERPRETER=ON
-make -j8
+cmake -B build -DWITH_INTERPRETER=ON
+cmake --build build --parallel 8
 ```
 This creates the `interpreter` executable. Usage:
 ```bash
 ./interpreter /path/to/circuit.qasm
 ```
 If the OpenQASM 3.0 file contains `n` input variables, then the interpreter requires exactly `n` additional commandline arguments to specify their values. For example, if the file contains
+
 ```
 input float[32] fl;
 input bool bl;
 ```
+
 Then it could be executed with
+
 ```bash
 ./interpreter example.qasm "pi/2" "true"
 ```
 
 ## Unit testing
+
 ```bash
-make -j8 unit_tests
-ctest
+cmake --build build --target unit_tests --parallel 8
+ctest --test-dir build
 ```
 
 ## Notes

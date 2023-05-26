@@ -31,6 +31,11 @@
 #ifndef QASM3TOOLS_PARSER_PARSER_HPP_
 #define QASM3TOOLS_PARSER_PARSER_HPP_
 
+#include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <tuple>
+
 #include "../ast/ast.hpp"
 #include "../ast/semantic.hpp"
 #include "antlr4-runtime.h"
@@ -38,11 +43,6 @@
 #include "qasm3LexerImpl.hpp"
 #include "qasm3ParserImpl.hpp"
 #include "qasm3ParserVisitor.h"
-
-#include <algorithm>
-#include <filesystem>
-#include <fstream>
-#include <tuple>
 
 namespace qasm3tools {
 namespace parser {

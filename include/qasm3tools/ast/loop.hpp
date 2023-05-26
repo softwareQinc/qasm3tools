@@ -32,14 +32,14 @@
 #ifndef QASM3TOOLS_AST_LOOP_HPP_
 #define QASM3TOOLS_AST_LOOP_HPP_
 
+#include <optional>
+#include <vector>
+
 #include "base.hpp"
 #include "exprbase.hpp"
 #include "stmtbase.hpp"
 #include "stmtblock.hpp"
 #include "type.hpp"
-
-#include <optional>
-#include <vector>
 
 namespace qasm3tools {
 namespace ast {

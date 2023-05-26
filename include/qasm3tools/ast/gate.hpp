@@ -32,13 +32,13 @@
 #ifndef QASM3TOOLS_AST_GATE_HPP_
 #define QASM3TOOLS_AST_GATE_HPP_
 
+#include <list>
+#include <vector>
+
 #include "base.hpp"
 #include "exprbase.hpp"
 #include "indexid.hpp"
 #include "stmtbase.hpp"
-
-#include <list>
-#include <vector>
 
 namespace qasm3tools {
 namespace ast {

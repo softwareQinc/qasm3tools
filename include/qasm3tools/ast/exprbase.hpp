@@ -32,9 +32,9 @@
 #ifndef QASM3TOOLS_AST_EXPRBASE_HPP_
 #define QASM3TOOLS_AST_EXPRBASE_HPP_
 
-#include "base.hpp"
-
 #include <optional>
+
+#include "base.hpp"
 
 namespace qasm3tools {
 namespace ast {

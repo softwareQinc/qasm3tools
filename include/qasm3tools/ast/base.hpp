@@ -32,13 +32,13 @@
 #ifndef QASM3TOOLS_AST_BASE_HPP_
 #define QASM3TOOLS_AST_BASE_HPP_
 
-#include "../parser/position.hpp"
-#include "cloneable.hpp"
-#include "visitor.hpp"
-
 #include <iostream>
 #include <memory>
 #include <string>
+
+#include "../parser/position.hpp"
+#include "cloneable.hpp"
+#include "visitor.hpp"
 
 namespace qasm3tools {
 namespace ast {

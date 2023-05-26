@@ -1,7 +1,8 @@
-#include "qasm3tools/parser/parser.hpp"
+#include <sstream>
+
 #include "gtest/gtest.h"
 
-#include <sstream>
+#include "qasm3tools/parser/parser.hpp"
 
 using namespace qasm3tools;
 

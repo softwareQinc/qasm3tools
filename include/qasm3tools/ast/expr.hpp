@@ -432,7 +432,7 @@ class UExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         os << op_;
         exp_->pretty_print(os, true);
@@ -538,7 +538,7 @@ class MathExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         os << op_ << "(";
         for (auto it = args_.begin(); it != args_.end(); it++)
@@ -618,7 +618,7 @@ class CastExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         os << *type_ << "(" << *exp_ << ")";
 
@@ -688,7 +688,7 @@ class SizeofExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         os << "sizeof(" << *arr_;
         if (dim_)
@@ -771,7 +771,7 @@ class FunctionCall final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         os << name_ << "(";
         for (auto it = args_.begin(); it != args_.end(); it++)
@@ -854,7 +854,7 @@ class AccessExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         exp_->pretty_print(os, true);
         os << *index_op_;
@@ -915,7 +915,7 @@ class ConstantExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         os << constant_;
         return os;
@@ -961,7 +961,7 @@ class IntExpr final : public Expr {
     std::optional<double> constant_eval() const override { return value_; }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         os << value_;
         return os;
@@ -1005,7 +1005,7 @@ class RealExpr final : public Expr {
     std::optional<double> constant_eval() const override { return value_; }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         std::streamsize ss = os.precision();
         os << std::setprecision(15) << value_ << std::setprecision(ss);
@@ -1052,7 +1052,7 @@ class ImagExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         std::streamsize ss = os.precision();
         os << std::setprecision(15) << value_ << std::setprecision(ss) << "im";
@@ -1097,7 +1097,7 @@ class BoolExpr final : public Expr {
     std::optional<double> constant_eval() const override { return value_; }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         os << (value_ ? "true" : "false");
         return os;
@@ -1143,7 +1143,7 @@ class VarExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
         os << var_;
         return os;
     }
@@ -1192,7 +1192,7 @@ class BitString final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
         os << text_;
         return os;
     }
@@ -1255,7 +1255,7 @@ class ArrayInitExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         os << "{";
         for (auto it = arr_.begin(); it != arr_.end(); it++)
@@ -1310,7 +1310,7 @@ class MeasureExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         os << "measure " << *q_arg_;
         return os;

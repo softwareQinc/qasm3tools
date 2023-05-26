@@ -32,11 +32,11 @@
 #ifndef QASM3TOOLS_AST_INDEXID_HPP_
 #define QASM3TOOLS_AST_INDEXID_HPP_
 
-#include "base.hpp"
-#include "exprbase.hpp"
-
 #include <optional>
 #include <vector>
+
+#include "base.hpp"
+#include "exprbase.hpp"
 
 namespace qasm3tools {
 namespace ast {

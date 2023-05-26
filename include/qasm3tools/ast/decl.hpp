@@ -32,13 +32,13 @@
 #ifndef QASM3TOOLS_AST_DECL_HPP_
 #define QASM3TOOLS_AST_DECL_HPP_
 
-#include "exprbase.hpp"
-#include "stmtblock.hpp"
-#include "type.hpp"
-
 #include <set>
 #include <variant>
 #include <vector>
+
+#include "exprbase.hpp"
+#include "stmtblock.hpp"
+#include "type.hpp"
 
 namespace qasm3tools {
 namespace ast {

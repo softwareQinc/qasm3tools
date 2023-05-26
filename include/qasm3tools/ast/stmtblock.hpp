@@ -32,12 +32,12 @@
 #ifndef QASM3TOOLS_AST_STMTBLOCK_HPP_
 #define QASM3TOOLS_AST_STMTBLOCK_HPP_
 
+#include <functional>
+#include <list>
+
 #include "../utils/templates.hpp"
 #include "base.hpp"
 #include "stmtbase.hpp"
-
-#include <functional>
-#include <list>
 
 namespace qasm3tools {
 namespace ast {

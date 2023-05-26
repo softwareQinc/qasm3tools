@@ -32,13 +32,13 @@
 #ifndef QASM3TOOLS_AST_TIMING_HPP_
 #define QASM3TOOLS_AST_TIMING_HPP_
 
+#include <iomanip>
+#include <optional>
+
 #include "exprbase.hpp"
 #include "indexid.hpp"
 #include "stmtbase.hpp"
 #include "stmtblock.hpp"
-
-#include <iomanip>
-#include <optional>
 
 namespace qasm3tools {
 namespace ast {
@@ -118,7 +118,7 @@ class TimeExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
 
         std::streamsize ss = os.precision();
         os << std::setprecision(15) << value_ << std::setprecision(ss)
@@ -170,7 +170,7 @@ class DurationofExpr final : public Expr {
     }
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool ctx) const override {
-        (void) ctx;
+        (void)ctx;
         os << "durationof(" << *block_ << ")";
         return os;
     }
