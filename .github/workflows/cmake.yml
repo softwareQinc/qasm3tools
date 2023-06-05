@@ -6,8 +6,8 @@ on:
   pull_request:
     branches: [ "**" ]
 
-env:
-  BUILD_TYPE: Debug
+#env:
+#  BUILD_TYPE: Debug
 
 jobs:
   build:
@@ -21,7 +21,7 @@ jobs:
 
       - name: Build the unit tests
         run: |
-          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          cmake -B ${{github.workspace}}/build
           cmake --build build --target unit_tests
 
       - name: Run the unit tests
