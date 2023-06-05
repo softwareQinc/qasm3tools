@@ -1316,6 +1316,7 @@ class TypeChecker final : public Visitor {
             case Stmt::Type::Quantum:
                 return actual == Stmt::Type::Quantum;
         }
+        return false;
     }
 
   public:

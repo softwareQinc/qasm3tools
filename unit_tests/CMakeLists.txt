@@ -12,6 +12,12 @@ aux_source_directory(tests TEST_FILES)
 aux_source_directory(tests/parser TEST_FILES)
 aux_source_directory(tests/utils TEST_FILES)
 
+#### Link Google Test dynamically if using MSVC, and add bigobj option
+if (MSVC)
+    add_compile_options(-bigobj)
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+endif ()
+
 add_executable(${TARGET_NAME} EXCLUDE_FROM_ALL tests/main.cpp)
 add_dependencies(unit_tests ${TARGET_NAME})
 
