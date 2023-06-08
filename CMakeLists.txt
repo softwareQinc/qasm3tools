@@ -9,7 +9,6 @@ enable_testing()
 #### Windows issues with Microsoft Visual Studio
 if (MSVC)
     # Disable spurious warnings with MSVC (warning C4996)
-    set_target_properties(${PROJECT_NAME} PROPERTIES COMMON_LANGUAGE_RUNTIME "")
     add_compile_definitions(_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
     add_compile_options(-bigobj)
     add_compile_definitions(NOMINMAX)
