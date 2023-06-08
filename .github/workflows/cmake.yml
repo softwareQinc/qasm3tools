@@ -27,7 +27,6 @@ jobs:
       - name: Build the unit tests
         run: |
           cp dist\Debug\antlr4-runtime.dll .\build\Debug
-          cp dist\Debug\antlr4-runtime.dll .\build\unit_tests\Debug
           cp dist\Debug\antlr4-runtime.dll .\build
           cp dist\Debug\antlr4-runtime.dll .
           cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
