@@ -4,14 +4,14 @@
 
 ## Setup
 
-```bash
+```shell
 cmake -B build
 cmake --build build --parallel 8
 ```
 
 This creates the `parser` executable.
 
-```bash
+```shell
 ./parser /path/to/circuit.qasm
 ```
 
@@ -21,14 +21,14 @@ To build the interpreter, you must
 have [qpp](https://github.com/softwareQinc/qpp) installed.
 Execute
 
-```bash
+```shell
 cmake -B build -DWITH_INTERPRETER=ON
 cmake --build build --parallel 8
 ```
 
 This creates the `interpreter` executable. Usage:
 
-```bash
+```shell
 ./interpreter /path/to/circuit.qasm
 ```
 
@@ -43,13 +43,13 @@ input bool bl;
 
 Then it could be executed with
 
-```bash
+```shell
 ./interpreter example.qasm "pi/2" "true"
 ```
 
 ## Unit testing
 
-```bash
+```shell
 cmake --build build --target unit_tests --parallel 8
 ctest --test-dir build
 ```
