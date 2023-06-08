@@ -4,6 +4,7 @@ set(TARGET_NAME "unit_tests")
 #### Link Google Test dynamically if using MSVC
 if (MSVC)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES COMMON_LANGUAGE_RUNTIME "")
 endif ()
 
 add_subdirectory(libs/googletest-release-1.12.1 EXCLUDE_FROM_ALL)
