@@ -19,17 +19,26 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Build the interpreter
+      - name: Build the parser
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           cmake --build build --parallel 4
-          cp dist\Debug\antlr4-runtime.dll .\build\Debug
-          .\build\Debug\parser.exe
 
       - name: Build the unit tests
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           cmake --build build --target unit_tests
+
+      - name: Copy antlr4cpp dll
+        if: matrix.os == 'windows-latest'
+        run: |
+          cp dist\Debug\antlr4-runtime.dll .\build\Debug
+          cp dist\Debug\antlr4-runtime.dll .\build\unit_tests\Debug
+
+      - name: Run the parser
+        run: |
+          cp dist\Debug\antlr4-runtime.dll .\build\Debug
+          .\build\Debug\parser.exe
 
       - name: Run the unit tests
         run: |
