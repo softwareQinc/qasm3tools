@@ -29,15 +29,22 @@ jobs:
           cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           cmake --build build --target unit_tests
 
-      - name: Copy antlr4cpp dll
+      - name: Run the parser POSIX
+        if: matrix.os != 'windows-latest'
+        run: |
+          ./build/parser
+
+      - name: Copy antlr4cpp dll Windows
         if: matrix.os == 'windows-latest'
         run: |
           cp dist\Debug\antlr4-runtime.dll .\build\Debug
           cp dist\Debug\antlr4-runtime.dll .\build\unit_tests\Debug
+          cp dist\Debug\antlr4-runtime.dll .\build
+          cp dist\Debug\antlr4-runtime.dll .
 
-      - name: Run the parser
+      - name: Run the parser Windows
+        if: matrix.os == 'windows-latest'
         run: |
-          cp dist\Debug\antlr4-runtime.dll .\build\Debug
           .\build\Debug\parser.exe
 
       - name: Run the unit tests
