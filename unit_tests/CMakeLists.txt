@@ -4,7 +4,6 @@ set(TARGET_NAME "unit_tests")
 #### Link Google Test dynamically if using MSVC
 if (MSVC)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    set_target_properties(${TARGET_NAME} PROPERTIES COMMON_LANGUAGE_RUNTIME "")
 endif ()
 
 add_subdirectory(libs/googletest-release-1.12.1 EXCLUDE_FROM_ALL)
@@ -30,6 +29,7 @@ foreach (FILE ${TEST_FILES})
     target_sources(${TARGET_NAME} PUBLIC ${FILE})
 endforeach ()
 
+set_target_properties(${TARGET_NAME} PROPERTIES COMMON_LANGUAGE_RUNTIME "")
 target_link_libraries(${TARGET_NAME} PUBLIC gmock libqasm3tools)
 
 gtest_discover_tests(${TARGET_NAME})
