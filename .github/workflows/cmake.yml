@@ -21,9 +21,9 @@ jobs:
 
       - name: Build the interpreter
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DWITH_INTERPRETER=ON
+          cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           cmake --build build --parallel 4
-          .\build\Debug\interpreter.exe
+          .\build\Debug\parser.exe
 
       - name: Build the unit tests
         run: |
