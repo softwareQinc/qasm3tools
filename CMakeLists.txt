@@ -8,8 +8,10 @@ enable_testing()
 
 #### Windows issues with Microsoft Visual Studio
 if (MSVC)
-    # Disable spurious Eigen warnings with MSVC (warning STL4007)
-    add_compile_definitions(_SILENCE_CXX17_ADAPTOR_TYPEDEFS_DEPRECATION_WARNING)
+    # Disable spurious warnings with MSVC (warning C4996)
+    #add_compile_definitions(_SILENCE_CXX17_ADAPTOR_TYPEDEFS_DEPRECATION_WARNING)
+    add_compile_definitions(_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
+    #add_compile_definitions(_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS)
     add_compile_options(-bigobj)
     add_compile_definitions(NOMINMAX)
 endif ()
