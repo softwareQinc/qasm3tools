@@ -20,7 +20,7 @@ endif(NOT WITH_DEMO)
 
 option(WITH_LIBCXX "Building with clang++ and libc++(in Linux). To enable with: -DWITH_LIBCXX=On" Off)
 option(WITH_STATIC_CRT "(Visual C++) Enable to statically link CRT, which avoids requiring users to install the redistribution package.
- To disable with: -DWITH_STATIC_CRT=Off" Off)
+ To disable with: -DWITH_STATIC_CRT=Off" On)
 
 project(LIBANTLR4)
 CMAKE_POLICY(SET CMP0048 NEW)
