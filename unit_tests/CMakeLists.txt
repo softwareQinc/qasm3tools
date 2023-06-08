@@ -29,7 +29,6 @@ foreach (FILE ${TEST_FILES})
     target_sources(${TARGET_NAME} PUBLIC ${FILE})
 endforeach ()
 
-set_target_properties(${TARGET_NAME} PROPERTIES COMMON_LANGUAGE_RUNTIME "")
 target_link_libraries(${TARGET_NAME} PUBLIC gmock libqasm3tools)
 
 gtest_discover_tests(${TARGET_NAME})
