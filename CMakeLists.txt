@@ -6,6 +6,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 enable_testing()
 
+#### Windows issues with Microsoft Visual Studio
+if (MSVC)
+    # Disable spurious Eigen warnings with MSVC (warning STL4007)
+    add_compile_definitions(_SILENCE_CXX17_ADAPTOR_TYPEDEFS_DEPRECATION_WARNING)
+    add_compile_options(-bigobj)
+    add_compile_definitions(NOMINMAX)
+endif ()
+
 #### qasm3tools root directory
 add_compile_definitions(PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")
 
