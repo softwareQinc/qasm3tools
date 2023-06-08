@@ -19,9 +19,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Build the interpreter
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DWITH_INTERPRETER=ON
+          cmake --build build --parallel 4
+          .\build\Debug\interpreter.exe
+
       - name: Build the unit tests
         run: |
-          cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           cmake --build build --target unit_tests
 
       - name: Run the unit tests
