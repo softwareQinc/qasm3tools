@@ -29,7 +29,8 @@ target_include_directories(libqasm3tools INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_generated/>)
 target_include_directories(libqasm3tools INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)
-target_link_libraries(libqasm3tools INTERFACE antlr4_static)
+#target_link_libraries(libqasm3tools INTERFACE antlr4_static)
+target_link_libraries(libqasm3tools INTERFACE antlr4_shared)
 
 #### parser executable
 set(PARSER "parser")
