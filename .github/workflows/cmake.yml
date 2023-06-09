@@ -47,6 +47,7 @@ jobs:
 
       - name: Run the parser Windows
         if: matrix.os == 'windows-latest'
+        shell: cmd
         run: |
           set "PATH=%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
           .\build\${{env.BUILD_TYPE}}\parser.exe
