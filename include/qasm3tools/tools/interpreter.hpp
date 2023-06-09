@@ -1801,22 +1801,23 @@ class Executor final : ast::Visitor {
                 exp.arg(0).accept(*this);
                 auto arg = types::get_value(value_);
                 types::value_type val = std::visit(
-                    utils::overloaded{[&exp](cplx v) -> types::value_type {
-                                          switch (exp.op()) {
-                                              case ast::MathOp::Real:
-                                                  return v.real();
-                                              default:
-                                                  return v.imag();
-                                          }
-                                      },
-                                      [&exp](auto v) -> types::value_type {
-                                          switch (exp.op()) {
-                                              case ast::MathOp::Real:
-                                                  return v;
-                                              default:
-                                                  return 0;
-                                          }
-                                      }},
+                    utils::overloaded{
+                        [&exp](cplx v) -> types::value_type {
+                            switch (exp.op()) {
+                                case ast::MathOp::Real:
+                                    return v.real();
+                                default:
+                                    return v.imag();
+                            }
+                        },
+                        [&exp](auto v) -> types::value_type {
+                            switch (exp.op()) {
+                                case ast::MathOp::Real:
+                                    return v;
+                                default:
+                                    return static_cast<long long int>(0);
+                            }
+                        }},
                     arg);
                 value_ = types::value_to_basictype(val);
                 return;
