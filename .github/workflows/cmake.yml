@@ -24,40 +24,40 @@ jobs:
           cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           cmake --build build --target antlr4_shared --parallel 4
 
-      - name: Build the parser
+      - name: Build parser
         run: |
           cmake --build build --parallel 4
 
-      - name: Build the unit tests POSIX
+      - name: Build unit tests POSIX
         if: matrix.os != 'windows-latest'
         run: |
           cmake --build build --target unit_tests
 
-      - name: Run the parser POSIX
+      - name: Run parser POSIX
         if: matrix.os != 'windows-latest'
         run: |
           ./build/parser
 
-      - name: Run the unit tests POSIX
+      - name: Run unit tests POSIX
         if: matrix.os != 'windows-latest'
         run: |
           ctest --test-dir build
 
-      - name: Build the unit tests Windows
+      - name: Build unit tests Windows
         if: matrix.os == 'windows-latest'
         shell: cmd
         run: |
           set "PATH=%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
           cmake --build build --target unit_tests
 
-      - name: Run the parser Windows
+      - name: Run parser Windows
         if: matrix.os == 'windows-latest'
         shell: cmd
         run: |
           set "PATH=%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
           .\build\${{env.BUILD_TYPE}}\parser.exe
 
-      - name: Run the unit tests Windows
+      - name: Run unit tests Windows
         if: matrix.os == 'windows-latest'
         shell: cmd
         run: |
