@@ -33,31 +33,24 @@ jobs:
         run: |
           cmake --build build --target unit_tests
 
-      - name: Build the unit tests Windows
-        if: matrix.os == 'windows-latest'
-        shell: cmd
-        run: |
-          set PATH="%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
-          cmake --build build --target unit_tests
-
-
       - name: Run the parser POSIX
         if: matrix.os != 'windows-latest'
         run: |
           ./build/parser
 
-      - name: Copy antlr4cpp dll Windows
+      - name: Build the unit tests Windows
         if: matrix.os == 'windows-latest'
+        shell: cmd
         run: |
-          cp dist\Debug\antlr4-runtime.dll .\build\Debug
-          cp dist\Debug\antlr4-runtime.dll .\build\unit_tests\Debug
-          cp dist\Debug\antlr4-runtime.dll .\build
-          cp dist\Debug\antlr4-runtime.dll .
+          set PATH="%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
+          cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          cmake --build build --target unit_tests
 
       - name: Run the parser Windows
         if: matrix.os == 'windows-latest'
         run: |
-          .\build\Debug\parser.exe
+          set PATH="%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
+          .\build\${{env.BUILD_TYPE}}\parser.exe
 
       - name: Run the unit tests
         run: |
