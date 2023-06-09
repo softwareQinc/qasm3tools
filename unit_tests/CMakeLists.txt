@@ -14,7 +14,6 @@ aux_source_directory(tests/utils TEST_FILES)
 
 #### Link Google Test dynamically if using MSVC, and add bigobj option
 if (MSVC)
-    add_compile_options(-bigobj)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 endif ()
 
@@ -30,7 +29,6 @@ foreach (FILE ${TEST_FILES})
     target_sources(${TARGET_NAME} PUBLIC ${FILE})
 endforeach ()
 
-target_link_libraries(${TARGET_NAME} PUBLIC gmock)
-target_link_libraries(${TARGET_NAME} PUBLIC libqasm3tools)
+target_link_libraries(${TARGET_NAME} PUBLIC gmock libqasm3tools)
 
 gtest_discover_tests(${TARGET_NAME})

@@ -6,6 +6,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 enable_testing()
 
+#### Windows issues with Microsoft Visual Studio
+if (MSVC)
+    # Disable spurious warnings with MSVC (warning C4996)
+    add_compile_definitions(_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
+endif ()
+
 #### qasm3tools root directory
 add_compile_definitions(PROJECT_ROOT_DIR="${PROJECT_SOURCE_DIR}")
 
@@ -23,7 +29,8 @@ target_include_directories(libqasm3tools INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/antlr4cpp_generated/>)
 target_include_directories(libqasm3tools INTERFACE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>)
-target_link_libraries(libqasm3tools INTERFACE antlr4_static)
+#target_link_libraries(libqasm3tools INTERFACE antlr4_static)
+target_link_libraries(libqasm3tools INTERFACE antlr4_shared)
 
 #### parser executable
 set(PARSER "parser")
