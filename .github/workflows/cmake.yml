@@ -38,6 +38,10 @@ jobs:
         run: |
           ./build/parser
 
+      - name: Run the unit tests POSIX
+        run: |
+          ctest --test-dir build
+
       - name: Build the unit tests Windows
         if: matrix.os == 'windows-latest'
         shell: cmd
@@ -52,6 +56,9 @@ jobs:
           set "PATH=%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
           .\build\${{env.BUILD_TYPE}}\parser.exe
 
-      - name: Run the unit tests
+      - name: Run the unit tests Windows
+        if: matrix.os == 'windows-latest'
+        shell: cmd
         run: |
+          set "PATH=%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
           ctest --test-dir build
