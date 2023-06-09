@@ -42,14 +42,13 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: cmd
         run: |
-          set PATH="%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
-          cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          set "PATH=%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
           cmake --build build --target unit_tests
 
       - name: Run the parser Windows
         if: matrix.os == 'windows-latest'
         run: |
-          set PATH="%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
+          set "PATH=%PATH%;${{github.workspace}}\dist\${{env.BUILD_TYPE}}"
           .\build\${{env.BUILD_TYPE}}\parser.exe
 
       - name: Run the unit tests
