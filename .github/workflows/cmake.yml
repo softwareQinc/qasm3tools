@@ -39,6 +39,7 @@ jobs:
           ./build/parser
 
       - name: Run the unit tests POSIX
+        if: matrix.os != 'windows-latest'
         run: |
           ctest --test-dir build
 
