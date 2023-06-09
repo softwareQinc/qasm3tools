@@ -19,18 +19,27 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Build antlr4_shared
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          cmake --build build --target antlr4_shared --parallel 4
+
       - name: Build the parser
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           cmake --build build --parallel 4
 
-      - name: Build the unit tests
+      - name: Build the unit tests POSIX
+        if: matrix.os != 'windows-latest'
         run: |
-          cp dist\Debug\antlr4-runtime.dll .\build\Debug
-          cp dist\Debug\antlr4-runtime.dll .\build
-          cp dist\Debug\antlr4-runtime.dll .
-          cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
           cmake --build build --target unit_tests
+
+      - name: Build the unit tests Windows
+        if: matrix.os == 'windows-latest'
+        shell: cmd
+        run: |
+          set PATH="%PATH%;${{github.workspace}}\dist\"
+          cmake --build build --target unit_tests
+
 
       - name: Run the parser POSIX
         if: matrix.os != 'windows-latest'
