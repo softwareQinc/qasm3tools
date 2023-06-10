@@ -340,7 +340,7 @@ class BExpr final : public Expr {
             case BinaryOp::Divide:
                 return *lexp / *rexp;
             case BinaryOp::Pow:
-                return pow(*lexp, *rexp);
+                return std::pow(*lexp, *rexp);
             default:
                 return std::nullopt; // can't evaluate other ops
         }
@@ -515,23 +515,23 @@ class MathExpr final : public Expr {
 
         switch (op_) {
             case MathOp::Arcsin:
-                return asin(*expr);
+                return std::asin(*expr);
             case MathOp::Sin:
-                return sin(*expr);
+                return std::sin(*expr);
             case MathOp::Arccos:
-                return acos(*expr);
+                return std::acos(*expr);
             case MathOp::Cos:
-                return cos(*expr);
+                return std::cos(*expr);
             case MathOp::Arctan:
-                return atan(*expr);
+                return std::atan(*expr);
             case MathOp::Tan:
-                return tan(*expr);
+                return std::tan(*expr);
             case MathOp::Exp:
-                return exp(*expr);
+                return std::exp(*expr);
             case MathOp::Log:
-                return log(*expr);
+                return std::log(*expr);
             case MathOp::Sqrt:
-                return sqrt(*expr);
+                return std::sqrt(*expr);
             default:
                 return std::nullopt; // can't evaluate other ops
         }

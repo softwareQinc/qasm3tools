@@ -1638,21 +1638,21 @@ class Executor final : ast::Visitor {
                     [&exp](auto v) -> types::value_type {
                         switch (exp.op()) {
                             case ast::MathOp::Arccos:
-                                return acos(v);
+                                return std::acos(v);
                             case ast::MathOp::Arcsin:
-                                return asin(v);
+                                return std::asin(v);
                             case ast::MathOp::Arctan:
-                                return atan(v);
+                                return std::atan(v);
                             case ast::MathOp::Cos:
-                                return cos(v);
+                                return std::cos(v);
                             case ast::MathOp::Log:
-                                return log(v);
+                                return std::log(v);
                             case ast::MathOp::Sin:
-                                return sin(v);
+                                return std::sin(v);
                             case ast::MathOp::Sqrt:
-                                return sqrt(v);
+                                return std::sqrt(v);
                             default:
-                                return tan(v);
+                                return std::tan(v);
                         }
                     },
                     arg);
@@ -1675,9 +1675,9 @@ class Executor final : ast::Visitor {
                         [&exp](auto v) -> types::value_type {
                             switch (exp.op()) {
                                 case ast::MathOp::Ceiling:
-                                    return ceil(v);
+                                    return std::ceil(v);
                                 default:
-                                    return floor(v);
+                                    return std::floor(v);
                             }
                         }},
                     arg);
@@ -1690,7 +1690,7 @@ class Executor final : ast::Visitor {
                 types::value_type val = std::visit(
                     utils::overloaded{
                         [](cplx v) -> types::value_type { return std::exp(v); },
-                        [](auto v) -> types::value_type { return ::exp(v); }},
+                        [](auto v) -> types::value_type { return std::exp(v); }}, // TODO check this
                     arg);
                 value_ = types::value_to_basictype(val);
                 return;

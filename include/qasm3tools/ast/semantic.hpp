@@ -853,7 +853,7 @@ class ConstExprChecker final : public Visitor {
                         value_ = *lexp / *rexp;
                         break;
                     case BinaryOp::Pow:
-                        value_ = pow(*lexp, *rexp);
+                        value_ = std::pow(*lexp, *rexp);
                         break;
                     default:
                         value_ = std::nullopt;
