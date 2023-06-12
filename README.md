@@ -2,6 +2,8 @@
 
 [![GitHub actions](https://github.com/softwareqinc/qasm3tools/actions/workflows/cmake.yml/badge.svg)](https://github.com/softwareQinc/qasm3tools/actions)
 
+---
+
 ## Setup
 
 ```shell
@@ -14,6 +16,8 @@ This creates the `parser` executable.
 ```shell
 ./parser /path/to/circuit.qasm
 ```
+
+---
 
 ## Interpreter
 
@@ -47,12 +51,16 @@ Then it could be executed with
 ./interpreter example.qasm "pi/2" "true"
 ```
 
+---
+
 ## Unit testing
 
 ```shell
 cmake --build build --target unit_tests --parallel 8
 ctest --test-dir build
 ```
+
+---
 
 ## Notes
 
