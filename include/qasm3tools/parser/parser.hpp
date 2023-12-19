@@ -359,9 +359,10 @@ class ASTConstructor : public qasm3ParserVisitor {
                 ctx->designator()->accept(this).as<ast::ptr<ast::Expr>>());
             return ast::ptr<ast::Stmt>(new ast::BoxStmt(
                 get_pos(ctx), std::move(duration), std::move(body)));
-        } else
+        } else {
             return ast::ptr<ast::Stmt>(
                 new ast::BoxStmt(get_pos(ctx), std::move(body)));
+        }
     }
 
     // delayStatement: DELAY designator gateOperandList? SEMICOLON;
@@ -392,22 +393,26 @@ class ASTConstructor : public qasm3ParserVisitor {
                       << ": warning: ignoring unexpected designator\n";
         }
         std::list<ast::ptr<ast::GateModifier>> mods;
-        for (auto x : ctx->gateModifier())
+        for (auto x : ctx->gateModifier()) {
             mods.emplace_back(
                 std::move(x->accept(this).as<ast::ptr<ast::GateModifier>>()));
+        }
         std::string gatename = "gphase";
-        if (ctx->Identifier())
+        if (ctx->Identifier()) {
             gatename = ctx->Identifier()->getText();
+        }
         std::vector<ast::ptr<ast::Expr>> c_args;
-        if (ctx->expressionList())
+        if (ctx->expressionList()) {
             c_args = std::move(ctx->expressionList()
                                    ->accept(this)
                                    .as<std::vector<ast::ptr<ast::Expr>>>());
+        }
         std::vector<ast::ptr<ast::IndexId>> q_args;
-        if (ctx->gateOperandList())
+        if (ctx->gateOperandList()) {
             q_args = std::move(ctx->gateOperandList()
                                    ->accept(this)
                                    .as<std::vector<ast::ptr<ast::IndexId>>>());
+        }
 
         if (gatename == "U") {
             if (c_args.size() != 3) {
@@ -470,9 +475,10 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any visitAliasDeclarationStatement(
         qasm3Parser::AliasDeclarationStatementContext* ctx) override {
         std::vector<ast::ptr<ast::Expr>> regs;
-        for (auto x : ctx->aliasExpression()->expression())
+        for (auto x : ctx->aliasExpression()->expression()) {
             regs.emplace_back(
                 std::move(x->accept(this).as<ast::ptr<ast::Expr>>()));
+        }
         return ast::ptr<ast::Stmt>(new ast::AliasStmt(
             get_pos(ctx), ctx->Identifier()->getText(), std::move(regs)));
     }
@@ -582,15 +588,17 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any
     visitDefStatement(qasm3Parser::DefStatementContext* ctx) override {
         std::vector<ast::ptr<ast::Param>> params;
-        if (ctx->argumentDefinitionList())
+        if (ctx->argumentDefinitionList()) {
             params = std::move(ctx->argumentDefinitionList()
                                    ->accept(this)
                                    .as<std::vector<ast::ptr<ast::Param>>>());
+        }
         std::optional<ast::ptr<ast::NonArrayType>> return_type = std::nullopt;
-        if (ctx->returnSignature())
+        if (ctx->returnSignature()) {
             return_type = std::move(ctx->returnSignature()
                                         ->accept(this)
                                         .as<ast::ptr<ast::NonArrayType>>());
+        }
         auto body = std::move(
             ctx->scope()->accept(this).as<ast::ptr<ast::ProgramBlock>>());
         return ast::ptr<ast::Stmt>(new ast::SubroutineDecl(
@@ -603,16 +611,18 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any
     visitExternStatement(qasm3Parser::ExternStatementContext* ctx) override {
         std::vector<ast::ptr<ast::ClassicalType>> param_types;
-        if (ctx->externArgumentList())
+        if (ctx->externArgumentList()) {
             param_types =
                 std::move(ctx->externArgumentList()
                               ->accept(this)
                               .as<std::vector<ast::ptr<ast::ClassicalType>>>());
+        }
         std::optional<ast::ptr<ast::NonArrayType>> return_type = std::nullopt;
-        if (ctx->returnSignature())
+        if (ctx->returnSignature()) {
             return_type = std::move(ctx->returnSignature()
                                         ->accept(this)
                                         .as<ast::ptr<ast::NonArrayType>>());
+        }
         return ast::ptr<ast::Stmt>(new ast::ExternDecl(
             get_pos(ctx), ctx->Identifier()->getText(), std::move(param_types),
             std::move(return_type)));
@@ -624,9 +634,10 @@ class ASTConstructor : public qasm3ParserVisitor {
     visitGateStatement(qasm3Parser::GateStatementContext* ctx) override {
         auto idlists = ctx->identifierList();
         std::vector<std::string> c_params;
-        if (idlists.size() > 1)
+        if (idlists.size() > 1) {
             c_params = std::move(
                 idlists.front()->accept(this).as<std::vector<std::string>>());
+        }
         auto q_params = std::move(
             idlists.back()->accept(this).as<std::vector<std::string>>());
         auto body = std::move(
@@ -646,30 +657,31 @@ class ASTConstructor : public qasm3ParserVisitor {
         ast::AssignOp op = ast::AssignOp::Equals;
         if (ctx->CompoundAssignmentOperator()) {
             std::string text = ctx->CompoundAssignmentOperator()->getText();
-            if (text == "+=")
+            if (text == "+=") {
                 op = ast::AssignOp::Plus;
-            else if (text == "-=")
+            } else if (text == "-=") {
                 op = ast::AssignOp::Minus;
-            else if (text == "*=")
+            } else if (text == "*=") {
                 op = ast::AssignOp::Times;
-            else if (text == "/=")
+            } else if (text == "/=") {
                 op = ast::AssignOp::Div;
-            else if (text == "&=")
+            } else if (text == "&=") {
                 op = ast::AssignOp::BitAnd;
-            else if (text == "|=")
+            } else if (text == "|=") {
                 op = ast::AssignOp::BitOr;
-            else if (text == "~=")
+            } else if (text == "~=") {
                 op = ast::AssignOp::Tilde;
-            else if (text == "^=")
+            } else if (text == "^=") {
                 op = ast::AssignOp::XOr;
-            else if (text == "<<=")
+            } else if (text == "<<=") {
                 op = ast::AssignOp::LeftBitShift;
-            else if (text == ">>=")
+            } else if (text == ">>=") {
                 op = ast::AssignOp::RightBitShift;
-            else if (text == "%=")
+            } else if (text == "%=") {
                 op = ast::AssignOp::Mod;
-            else
+            } else {
                 op = ast::AssignOp::Pow;
+            }
         }
         ast::ptr<ast::Expr> exp;
         if (ctx->expression()) {
@@ -731,8 +743,9 @@ class ASTConstructor : public qasm3ParserVisitor {
         auto rexp = std::move(
             ctx->expression(1)->accept(this).as<ast::ptr<ast::Expr>>());
         ast::BinaryOp op = ast::BinaryOp::Plus;
-        if (ctx->MINUS())
+        if (ctx->MINUS()) {
             op = ast::BinaryOp::Minus;
+        }
         return ast::ptr<ast::Expr>(
             new ast::BExpr(get_pos(ctx), std::move(lexp), op, std::move(rexp)));
     }
@@ -780,10 +793,11 @@ class ASTConstructor : public qasm3ParserVisitor {
         auto rexp = std::move(
             ctx->expression(1)->accept(this).as<ast::ptr<ast::Expr>>());
         ast::BinaryOp op = ast::BinaryOp::Times;
-        if (ctx->SLASH())
+        if (ctx->SLASH()) {
             op = ast::BinaryOp::Divide;
-        else if (ctx->PERCENT())
+        } else if (ctx->PERCENT()) {
             op = ast::BinaryOp::Mod;
+        }
         return ast::ptr<ast::Expr>(
             new ast::BExpr(get_pos(ctx), std::move(lexp), op, std::move(rexp)));
     }
@@ -846,10 +860,11 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any
     visitCallExpression(qasm3Parser::CallExpressionContext* ctx) override {
         std::vector<ast::ptr<ast::Expr>> args;
-        if (ctx->expressionList())
+        if (ctx->expressionList()) {
             args = std::move(ctx->expressionList()
                                  ->accept(this)
                                  .as<std::vector<ast::ptr<ast::Expr>>>());
+        }
         std::string fn = ctx->Identifier()->getText();
         auto search = call_map.find(fn);
         if (search != call_map.end()) {
@@ -882,8 +897,9 @@ class ASTConstructor : public qasm3ParserVisitor {
         auto rexp = std::move(
             ctx->expression(1)->accept(this).as<ast::ptr<ast::Expr>>());
         ast::BinaryOp op = ast::BinaryOp::LeftBitShift;
-        if (ctx->BitshiftOperator()->getText() == ">>")
+        if (ctx->BitshiftOperator()->getText() == ">>") {
             op = ast::BinaryOp::RightBitShift;
+        }
         return ast::ptr<ast::Expr>(
             new ast::BExpr(get_pos(ctx), std::move(lexp), op, std::move(rexp)));
     }
@@ -908,8 +924,9 @@ class ASTConstructor : public qasm3ParserVisitor {
         auto rexp = std::move(
             ctx->expression(1)->accept(this).as<ast::ptr<ast::Expr>>());
         ast::BinaryOp op = ast::BinaryOp::EQ;
-        if (ctx->EqualityOperator()->getText() == "!=")
+        if (ctx->EqualityOperator()->getText() == "!=") {
             op = ast::BinaryOp::NEQ;
+        }
         return ast::ptr<ast::Expr>(
             new ast::BExpr(get_pos(ctx), std::move(lexp), op, std::move(rexp)));
     }
@@ -941,10 +958,11 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any
     visitUnaryExpression(qasm3Parser::UnaryExpressionContext* ctx) override {
         ast::UnaryOp op = ast::UnaryOp::BitNot;
-        if (ctx->EXCLAMATION_POINT())
+        if (ctx->EXCLAMATION_POINT()) {
             op = ast::UnaryOp::LogicalNot;
-        else if (ctx->MINUS())
+        } else if (ctx->MINUS()) {
             op = ast::UnaryOp::Neg;
+        }
         auto exp = std::move(
             ctx->expression()->accept(this).as<ast::ptr<ast::Expr>>());
         return ast::ptr<ast::Expr>(
@@ -966,15 +984,16 @@ class ASTConstructor : public qasm3ParserVisitor {
         qasm3Parser::LiteralExpressionContext* ctx) override {
         if (ctx->Identifier()) {
             std::string text = ctx->Identifier()->getText();
-            if (text == "pi" || text == "π")
+            if (text == "pi" || text == "π") {
                 return ast::ptr<ast::Expr>(
                     new ast::ConstantExpr(get_pos(ctx), ast::Constant::Pi));
-            else if (text == "tau" || text == "τ")
+            } else if (text == "tau" || text == "τ") {
                 return ast::ptr<ast::Expr>(
                     new ast::ConstantExpr(get_pos(ctx), ast::Constant::Tau));
-            else if (text == "euler" || text == "ℇ")
+            } else if (text == "euler" || text == "ℇ") {
                 return ast::ptr<ast::Expr>(
                     new ast::ConstantExpr(get_pos(ctx), ast::Constant::Euler));
+            }
             return ast::ptr<ast::Expr>(new ast::VarExpr(get_pos(ctx), text));
         } else if (ctx->BinaryIntegerLiteral()) {
             std::string text = ctx->BinaryIntegerLiteral()->getText().substr(2);
@@ -1091,9 +1110,10 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any
     visitSetExpression(qasm3Parser::SetExpressionContext* ctx) override {
         std::vector<ast::ptr<ast::Expr>> exprs;
-        for (auto x : ctx->expression())
+        for (auto x : ctx->expression()) {
             exprs.emplace_back(
                 std::move(x->accept(this).as<ast::ptr<ast::Expr>>()));
+        }
         return exprs;
     }
 
@@ -1104,8 +1124,9 @@ class ASTConstructor : public qasm3ParserVisitor {
         std::vector<ast::ptr<ast::Expr>> arr;
         for (auto child : ctx->children) {
             auto a = child->accept(this);
-            if (a.isNotNull())
+            if (a.isNotNull()) {
                 arr.emplace_back(std::move(a.as<ast::ptr<ast::Expr>>()));
+            }
         }
         return ast::ptr<ast::Expr>(
             new ast::ArrayInitExpr(get_pos(ctx), std::move(arr)));
@@ -1151,9 +1172,10 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any visitIndexedIdentifier(
         qasm3Parser::IndexedIdentifierContext* ctx) override {
         std::vector<ast::ptr<ast::IndexOp>> ops;
-        for (auto x : ctx->indexOperator())
+        for (auto x : ctx->indexOperator()) {
             ops.emplace_back(
                 std::move(x->accept(this).as<ast::ptr<ast::IndexOp>>()));
+        }
         return ast::IndexId::create(get_pos(ctx), ctx->Identifier()->getText(),
                                     std::move(ops));
     }
@@ -1185,9 +1207,10 @@ class ASTConstructor : public qasm3ParserVisitor {
                     ctx->expression()->accept(this).as<ast::ptr<ast::Expr>>());
                 return ast::ptr<ast::GateModifier>(new ast::CtrlModifier(
                     get_pos(ctx), ctx->NEGCTRL(), std::move(exp)));
-            } else
+            } else {
                 return ast::ptr<ast::GateModifier>(
                     new ast::CtrlModifier(get_pos(ctx), ctx->NEGCTRL()));
+            }
         }
     }
 
@@ -1225,16 +1248,17 @@ class ASTConstructor : public qasm3ParserVisitor {
                 new ast::ComplexType(get_pos(ctx)));
         } else {
             ast::SDType type;
-            if (ctx->BIT())
+            if (ctx->BIT()) {
                 type = ast::SDType::Bit;
-            else if (ctx->INT())
+            } else if (ctx->INT()) {
                 type = ast::SDType::Int;
-            else if (ctx->UINT())
+            } else if (ctx->UINT()) {
                 type = ast::SDType::Uint;
-            else if (ctx->FLOAT())
+            } else if (ctx->FLOAT()) {
                 type = ast::SDType::Float;
-            else
+            } else {
                 type = ast::SDType::Angle;
+            }
             if (ctx->designator()) {
                 auto size = std::move(
                     ctx->designator()->accept(this).as<ast::ptr<ast::Expr>>());
@@ -1410,9 +1434,10 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any visitArgumentDefinitionList(
         qasm3Parser::ArgumentDefinitionListContext* ctx) override {
         std::vector<ast::ptr<ast::Param>> params;
-        for (auto x : ctx->argumentDefinition())
+        for (auto x : ctx->argumentDefinition()) {
             params.emplace_back(
                 std::move(x->accept(this).as<ast::ptr<ast::Param>>()));
+        }
         return params;
     }
 
@@ -1433,9 +1458,10 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any
     visitExpressionList(qasm3Parser::ExpressionListContext* ctx) override {
         std::vector<ast::ptr<ast::Expr>> exprs;
-        for (auto x : ctx->expression())
+        for (auto x : ctx->expression()) {
             exprs.emplace_back(
                 std::move(x->accept(this).as<ast::ptr<ast::Expr>>()));
+        }
         return exprs;
     }
 
@@ -1443,8 +1469,9 @@ class ASTConstructor : public qasm3ParserVisitor {
     virtual antlrcpp::Any
     visitIdentifierList(qasm3Parser::IdentifierListContext* ctx) override {
         std::vector<std::string> ids;
-        for (auto x : ctx->Identifier())
+        for (auto x : ctx->Identifier()) {
             ids.push_back(x->getText());
+        }
         return ids;
     }
 
@@ -1508,8 +1535,9 @@ class ASTConstructor : public qasm3ParserVisitor {
  * \brief Parse a specified file without semantic checking
  */
 inline ast::ptr<ast::Program> parse_file_helper(std::string fname) {
-    if (!std::filesystem::exists(fname))
+    if (!std::filesystem::exists(fname)) {
         throw std::logic_error("File \"" + fname + "\" not found!\n");
+    }
     antlr4::ANTLRFileStream input;
     input.loadFromFile(fname);
     qasm3Lexer lexer(&input);
@@ -1518,8 +1546,9 @@ inline ast::ptr<ast::Program> parse_file_helper(std::string fname) {
     qasm3Parser parser(&tokens);
     parser.setBuildParseTree(true);
     qasm3Parser::ProgramContext* tree = parser.program();
-    if (parser.getNumberOfSyntaxErrors() > 0)
+    if (parser.getNumberOfSyntaxErrors() > 0) {
         throw std::logic_error("Parsing failed!");
+    }
     return ASTConstructor().make_ast(tree);
 }
 
@@ -1536,8 +1565,9 @@ inline ast::ptr<ast::Program> parse_string_helper(const std::string& str,
     qasm3Parser parser(&tokens);
     parser.setBuildParseTree(true);
     qasm3Parser::ProgramContext* tree = parser.program();
-    if (parser.getNumberOfSyntaxErrors() > 0)
+    if (parser.getNumberOfSyntaxErrors() > 0) {
         throw std::logic_error("Parsing failed!");
+    }
     return ASTConstructor().make_ast(tree);
 }
 

@@ -172,16 +172,18 @@ class SingleDesignatorType : public NonArrayType {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << type_;
-        if (size_)
+        if (size_) {
             os << "[" << **size_ << "]";
+        }
         return os;
     }
 
   protected:
     SingleDesignatorType* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (size_)
+        if (size_) {
             tmp = object::clone(**size_);
+        }
         return new SingleDesignatorType(pos_, type_, std::move(tmp));
     }
 };
@@ -266,16 +268,18 @@ class ComplexType : public NonArrayType {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "complex";
-        if (subtype_)
+        if (subtype_) {
             os << "[" << **subtype_ << "]";
+        }
         return os;
     }
 
   protected:
     ComplexType* clone() const override {
         std::optional<ptr<NonArrayType>> tmp = std::nullopt;
-        if (subtype_)
+        if (subtype_) {
             tmp = object::clone(**subtype_);
+        }
         return new ComplexType(pos_, std::move(tmp));
     }
 };
@@ -344,8 +348,9 @@ class ArrayType : public ClassicalType {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "array[" << *subtype_;
-        for (auto& dim : dims_)
+        for (auto& dim : dims_) {
             os << ", " << *dim;
+        }
         os << "]";
         return os;
     }
@@ -353,8 +358,9 @@ class ArrayType : public ClassicalType {
   protected:
     ArrayType* clone() const override {
         std::vector<ptr<Expr>> tmp;
-        for (auto& dim : dims_)
+        for (auto& dim : dims_) {
             tmp.emplace_back(object::clone(*dim));
+        }
         return new ArrayType(pos_, object::clone(*subtype_), std::move(tmp));
     }
 };
@@ -417,8 +423,9 @@ class ArrayRefType : public ClassicalType {
     std::ostream& pretty_print(std::ostream& os) const override {
         os << (is_mutable_ ? "mutable" : "readonly") << " array[" << *subtype_;
         std::visit(utils::overloaded{[&os](const std::vector<ptr<Expr>>& dims) {
-                                         for (auto& dim : dims)
+                                         for (auto& dim : dims) {
                                              os << ", " << *dim;
+                                         }
                                      },
                                      [&os](const ptr<Expr>& dims) {
                                          os << ", #dim = " << *dims;
@@ -433,9 +440,10 @@ class ArrayRefType : public ClassicalType {
         Dimensions dims_copy = std::vector<ptr<Expr>>();
         std::visit(utils::overloaded{
                        [&dims_copy](const std::vector<ptr<Expr>>& dims) {
-                           for (auto& dim : dims)
+                           for (auto& dim : dims) {
                                std::get<std::vector<ptr<Expr>>>(dims_copy)
                                    .emplace_back(object::clone(*dim));
+                           }
                        },
                        [&dims_copy](const ptr<Expr>& dims) {
                            dims_copy = object::clone(*dims);
@@ -496,16 +504,18 @@ class QubitType : public QuantumType {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "qubit";
-        if (size_)
+        if (size_) {
             os << "[" << **size_ << "]";
+        }
         return os;
     }
 
   protected:
     QubitType* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (size_)
+        if (size_) {
             tmp = object::clone(**size_);
+        }
         return new QubitType(pos_, std::move(tmp));
     }
 };

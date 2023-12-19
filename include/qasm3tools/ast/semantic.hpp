@@ -165,8 +165,9 @@ class ConstExprChecker final : public Visitor {
                               << ": error : designator size must be "
                                  "positive\n";
                     error_ = true;
-                } else
+                } else {
                     type.size() = ptr<Expr>(new IntExpr({}, *size));
+                }
             } else {
                 std::cerr << type.pos()
                           << ": error : designator size is not a "
@@ -177,8 +178,9 @@ class ConstExprChecker final : public Visitor {
     }
     void visit(NoDesignatorType&) override {}
     void visit(ComplexType& type) override {
-        if (type.subtype())
+        if (type.subtype()) {
             (**type.subtype()).accept(*this);
+        }
     }
     void visit(ArrayType& type) override {
         type.subtype().accept(*this);
@@ -474,8 +476,9 @@ class ConstExprChecker final : public Visitor {
                               << ": error : number of control bits must be "
                                  "positive\n";
                     error_ = true;
-                } else
+                } else {
                     mod.n() = ptr<Expr>(new IntExpr({}, *n));
+                }
             } else {
                 std::cerr << mod.pos()
                           << ": error : number of control bits is not a "
@@ -493,8 +496,9 @@ class ConstExprChecker final : public Visitor {
         }
     }
     void visit(UGate& gate) override {
-        for (auto& mod : gate.modifiers())
+        for (auto& mod : gate.modifiers()) {
             mod->accept(*this);
+        }
         gate.theta().accept(*this);
         if (replacement_expr_) {
             gate.set_theta(std::move(*replacement_expr_));
@@ -513,8 +517,9 @@ class ConstExprChecker final : public Visitor {
         gate.foreach_qarg([this](IndexId& qarg) { qarg.accept(*this); });
     }
     void visit(GPhase& gate) override {
-        for (auto& mod : gate.modifiers())
+        for (auto& mod : gate.modifiers()) {
             mod->accept(*this);
+        }
         gate.gamma().accept(*this);
         if (replacement_expr_) {
             gate.set_gamma(std::move(*replacement_expr_));
@@ -523,8 +528,9 @@ class ConstExprChecker final : public Visitor {
         gate.foreach_qarg([this](IndexId& qarg) { qarg.accept(*this); });
     }
     void visit(DeclaredGate& gate) override {
-        for (auto& mod : gate.modifiers())
+        for (auto& mod : gate.modifiers()) {
             mod->accept(*this);
+        }
         for (int i = 0; i < gate.num_cargs(); i++) {
             gate.carg(i).accept(*this);
             if (replacement_expr_) {
@@ -775,9 +781,9 @@ class ConstExprChecker final : public Visitor {
      * \param typ The type of the symbol
      */
     void set(const ast::symbol& id, Type typ, const parser::Position& pos) {
-        if (symbol_table_.empty())
+        if (symbol_table_.empty()) {
             throw std::logic_error("No current symbol table!");
-        else if (lookup_local(id)) {
+        } else if (lookup_local(id)) {
             std::cerr << pos << ": error : redefinition of \"" << id << "\"\n";
             error_ = true;
             return;
@@ -858,16 +864,18 @@ class ConstExprChecker final : public Visitor {
                     default:
                         value_ = std::nullopt;
                 }
-            } else
+            } else {
                 value_ = std::nullopt;
+            }
         }
         void visit(UExpr& exp) override {
             exp.subexp().accept(*this);
             auto subexp = value_;
             if (subexp && exp.op() == UnaryOp::Neg) {
                 value_ = -(*subexp);
-            } else
+            } else {
                 value_ = std::nullopt;
+            }
         }
         void visit(MathExpr&) override { value_ = std::nullopt; }
         void visit(CastExpr& exp) override {
@@ -1295,8 +1303,9 @@ class TypeChecker final : public Visitor {
                 (sub == StdType::Float &&
                  (sup == StdType::Float || sup == StdType::Complex)) ||
                 (sub == StdType::Complex && sup == StdType::Complex) ||
-                (sub == StdType::Angle && sup == StdType::Angle))
+                (sub == StdType::Angle && sup == StdType::Angle)) {
                 return true;
+            }
         }
         return false;
     }
@@ -1351,8 +1360,9 @@ class TypeChecker final : public Visitor {
             error_ = true;
         } else {
             std::get<ArrType>(tmp).dims -= indices.num_single_indices();
-            if (std::get<ArrType>(tmp).dims == 0)
+            if (std::get<ArrType>(tmp).dims == 0) {
                 tmp = std::get<ArrType>(tmp).subtype;
+            }
         }
         indices.foreach_index(
             [this](IndexEntity& index) { index.accept(*this); });
@@ -2134,8 +2144,9 @@ class TypeChecker final : public Visitor {
 
         auto tmp_stmt = expected_stmt_type_;
         expected_stmt_type_ = Stmt::Type::Regular;
-        if (tmp_stmt == Stmt::Type::Quantum) // maintain quantum stmt scope
+        if (tmp_stmt == Stmt::Type::Quantum) { // maintain quantum stmt scope
             expected_stmt_type_ = Stmt::Type::Quantum;
+        }
         push_scope();
         set(stmt.var(), tmp, stmt.pos());
         stmt.body().accept(*this);
@@ -2152,8 +2163,9 @@ class TypeChecker final : public Visitor {
 
         auto tmp = expected_stmt_type_;
         expected_stmt_type_ = Stmt::Type::Regular;
-        if (tmp == Stmt::Type::Quantum) // maintain quantum stmt scope
+        if (tmp == Stmt::Type::Quantum) { // maintain quantum stmt scope
             expected_stmt_type_ = Stmt::Type::Quantum;
+        }
         push_scope();
         stmt.body().accept(*this);
         pop_scope();
@@ -2353,9 +2365,9 @@ class TypeChecker final : public Visitor {
      * \param typ The type of the symbol
      */
     void set(const ast::symbol& id, Type typ, const parser::Position& pos) {
-        if (symbol_table_.empty())
+        if (symbol_table_.empty()) {
             throw std::logic_error("No current symbol table!");
-        else if (lookup_local(id)) {
+        } else if (lookup_local(id)) {
             std::cerr << pos << ": error : redefinition of \"" << id << "\"\n";
             error_ = true;
             return;
@@ -2388,8 +2400,9 @@ class TypeChecker final : public Visitor {
      */
     void visit_optional_classical_expr(std::optional<ptr<Expr>>& exp,
                                        const ExprType& expected_type) {
-        if (exp)
+        if (exp) {
             visit_classical_expr(**exp, expected_type);
+        }
     }
 
     /**
@@ -2401,8 +2414,10 @@ class TypeChecker final : public Visitor {
         exp.accept(*this);
         if (std::holds_alternative<StdType>(type_)) {
             auto t = std::get<StdType>(type_);
-            if (t == StdType::Int || t == StdType::Float || t == StdType::Angle)
+            if (t == StdType::Int || t == StdType::Float ||
+                t == StdType::Angle) {
                 return;
+            }
         }
         std::cerr << exp.pos() << ": error : expected numeric type, but got '"
                   << type_ << "' type : \"" << exp << "\"\n";
@@ -2448,8 +2463,9 @@ class TypeChecker final : public Visitor {
  * \brief Checks a program for semantic errors
  */
 inline void check_source(Program& prog) {
-    if (ConstExprChecker().run(prog) || TypeChecker().run(prog))
+    if (ConstExprChecker().run(prog) || TypeChecker().run(prog)) {
         throw SemanticError();
+    }
 }
 
 } /* namespace ast */

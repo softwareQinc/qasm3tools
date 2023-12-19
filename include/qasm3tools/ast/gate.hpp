@@ -101,8 +101,9 @@ class CtrlModifier : public GateModifier {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << (neg_ ? "negctrl" : "ctrl");
-        if (n_)
+        if (n_) {
             os << "(" << **n_ << ")";
+        }
         os << " @ ";
         return os;
     }
@@ -110,8 +111,9 @@ class CtrlModifier : public GateModifier {
   protected:
     CtrlModifier* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (n_)
+        if (n_) {
             tmp = object::clone(**n_);
+        }
         return new CtrlModifier(pos_, neg_, std::move(tmp));
     }
 };
@@ -242,8 +244,9 @@ class Gate : public QuantumStmt {
      * \param f Void function accepting a reference to an argument
      */
     void foreach_qarg(std::function<void(IndexId&)> f) {
-        for (auto& x : q_args_)
+        for (auto& x : q_args_) {
             f(*x);
+        }
     }
 
     /**
@@ -261,13 +264,15 @@ class Gate : public QuantumStmt {
     std::vector<ptr<IndexId>> q_args_;       ///< list of quantum arguments
 
     void print_modifiers(std::ostream& os) const {
-        for (auto& x : modifiers_)
+        for (auto& x : modifiers_) {
             os << *x;
+        }
     }
 
     void print_qargs(std::ostream& os) const {
-        for (auto it = q_args_.begin(); it != q_args_.end(); it++)
+        for (auto it = q_args_.begin(); it != q_args_.end(); it++) {
             os << (it == q_args_.begin() ? " " : ",") << **it;
+        }
     }
 
     virtual Gate* clone() const = 0;
@@ -367,11 +372,13 @@ class UGate final : public Gate {
   protected:
     UGate* clone() const override {
         std::list<ptr<GateModifier>> tmp;
-        for (auto& x : modifiers_)
+        for (auto& x : modifiers_) {
             tmp.emplace_back(object::clone(*x));
+        }
         std::vector<ptr<IndexId>> q_tmp;
-        for (auto& x : q_args_)
+        for (auto& x : q_args_) {
             q_tmp.emplace_back(object::clone(*x));
+        }
         return new UGate(pos_, std::move(tmp), object::clone(*theta_),
                          object::clone(*phi_), object::clone(*lambda_),
                          std::move(q_tmp));
@@ -437,11 +444,13 @@ class GPhase final : public Gate {
   protected:
     GPhase* clone() const override {
         std::list<ptr<GateModifier>> tmp;
-        for (auto& x : modifiers_)
+        for (auto& x : modifiers_) {
             tmp.emplace_back(object::clone(*x));
+        }
         std::vector<ptr<IndexId>> q_tmp;
-        for (auto& x : q_args_)
+        for (auto& x : q_args_) {
             q_tmp.emplace_back(object::clone(*x));
+        }
         return new GPhase(pos_, std::move(tmp), object::clone(*gamma_),
                           std::move(q_tmp));
     }
@@ -513,8 +522,9 @@ class DeclaredGate final : public Gate {
      * \param f Void function accepting an expression reference
      */
     void foreach_carg(std::function<void(Expr&)> f) {
-        for (auto& x : c_args_)
+        for (auto& x : c_args_) {
             f(*x);
+        }
     }
 
     /**
@@ -531,8 +541,9 @@ class DeclaredGate final : public Gate {
         os << name_;
         if (c_args_.size() > 0) {
             os << "(";
-            for (auto it = c_args_.begin(); it != c_args_.end(); it++)
+            for (auto it = c_args_.begin(); it != c_args_.end(); it++) {
                 os << (it == c_args_.begin() ? "" : ",") << **it;
+            }
             os << ")";
         }
         print_qargs(os);
@@ -543,14 +554,17 @@ class DeclaredGate final : public Gate {
   protected:
     DeclaredGate* clone() const override {
         std::list<ptr<GateModifier>> tmp;
-        for (auto& x : modifiers_)
+        for (auto& x : modifiers_) {
             tmp.emplace_back(object::clone(*x));
+        }
         std::vector<ptr<Expr>> c_tmp;
-        for (auto& x : c_args_)
+        for (auto& x : c_args_) {
             c_tmp.emplace_back(object::clone(*x));
+        }
         std::vector<ptr<IndexId>> q_tmp;
-        for (auto& x : q_args_)
+        for (auto& x : q_args_) {
             q_tmp.emplace_back(object::clone(*x));
+        }
 
         return new DeclaredGate(pos_, std::move(tmp), name_, std::move(c_tmp),
                                 std::move(q_tmp));

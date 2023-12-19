@@ -253,8 +253,9 @@ class DelayStmt final : public TimingStmt {
      * \param f Void function accepting a reference to an argument
      */
     void foreach_qarg(std::function<void(IndexId&)> f) {
-        for (auto& x : q_args_)
+        for (auto& x : q_args_) {
             f(*x);
+        }
     }
 
     /**
@@ -282,8 +283,9 @@ class DelayStmt final : public TimingStmt {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "delay[" << *duration_ << "]";
-        for (auto it = q_args_.begin(); it != q_args_.end(); it++)
+        for (auto it = q_args_.begin(); it != q_args_.end(); it++) {
             os << (it == q_args_.begin() ? " " : ",") << **it;
+        }
         os << ";\n";
         return os;
     }
@@ -291,8 +293,9 @@ class DelayStmt final : public TimingStmt {
   protected:
     DelayStmt* clone() const override {
         std::vector<ptr<IndexId>> q_tmp;
-        for (auto& x : q_args_)
+        for (auto& x : q_args_) {
             q_tmp.emplace_back(object::clone(*x));
+        }
 
         return new DelayStmt(pos_, object::clone(*duration_), std::move(q_tmp));
     }
@@ -355,8 +358,9 @@ class BoxStmt final : public TimingStmt {
     std::ostream& pretty_print(std::ostream& os, bool,
                                size_t indents) const override {
         os << "box ";
-        if (duration_)
+        if (duration_) {
             os << "[" << **duration_ << "] ";
+        }
         circuit_->pretty_print(os, indents);
         return os;
     }
@@ -364,8 +368,9 @@ class BoxStmt final : public TimingStmt {
   protected:
     BoxStmt* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (duration_)
+        if (duration_) {
             tmp = object::clone(**duration_);
+        }
         return new BoxStmt(pos_, std::move(tmp), object::clone(*circuit_));
     }
 };

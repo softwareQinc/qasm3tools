@@ -79,8 +79,9 @@ class BlockBase : public ASTNode {
      * \param f Void function accepting a reference to the statement
      */
     void foreach_stmt(std::function<void(Stmt&)> f) {
-        for (auto& x : body_)
+        for (auto& x : body_) {
             f(*x);
+        }
     }
 
     /**
@@ -106,16 +107,19 @@ class BlockBase : public ASTNode {
         os << "{\n";
         for (auto& x : body_) {
             for (auto& ann : x->annotations()) {
-                for (size_t i = 0; i <= indents; i++)
+                for (size_t i = 0; i <= indents; i++) {
                     os << "\t";
+                }
                 os << *ann;
             }
-            for (size_t i = 0; i <= indents; i++)
+            for (size_t i = 0; i <= indents; i++) {
                 os << "\t";
+            }
             x->pretty_print(os, false, indents + 1);
         }
-        for (size_t i = 0; i < indents; i++)
+        for (size_t i = 0; i < indents; i++) {
             os << "\t";
+        }
         os << "}\n";
 
         return os;

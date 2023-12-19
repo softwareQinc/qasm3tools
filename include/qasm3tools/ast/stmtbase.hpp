@@ -86,8 +86,9 @@ class Annotation final : public ASTNode {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << keyword_;
-        if (rest_)
+        if (rest_) {
             os << " " << *rest_;
+        }
         os << "\n";
         return os;
     }

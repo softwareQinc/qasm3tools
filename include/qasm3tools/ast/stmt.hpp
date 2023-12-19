@@ -203,8 +203,9 @@ class BarrierStmt final : public QuantumStmt {
      * \param f Void function accepting a reference to the argument
      */
     void foreach_arg(std::function<void(IndexId&)> f) {
-        for (auto& x : args_)
+        for (auto& x : args_) {
             f(*x);
+        }
     }
 
     /**
@@ -218,8 +219,9 @@ class BarrierStmt final : public QuantumStmt {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "barrier";
-        for (auto it = args_.begin(); it != args_.end(); it++)
+        for (auto it = args_.begin(); it != args_.end(); it++) {
             os << (it == args_.begin() ? " " : ",") << **it;
+        }
         os << ";\n";
         return os;
     }
@@ -227,8 +229,9 @@ class BarrierStmt final : public QuantumStmt {
   protected:
     BarrierStmt* clone() const override {
         std::vector<ptr<IndexId>> tmp;
-        for (auto& x : args_)
+        for (auto& x : args_) {
             tmp.emplace_back(object::clone(*x));
+        }
         return new BarrierStmt(pos_, std::move(tmp));
     }
 };
@@ -300,8 +303,9 @@ class IfStmt final : public Stmt {
         os << "if (" << *cond_ << ") ";
         then_->pretty_print(os, indents);
         if (!(else_->body().empty())) {
-            for (size_t i = 0; i < indents; i++)
+            for (size_t i = 0; i < indents; i++) {
                 os << "\t";
+            }
             os << "else ";
             else_->pretty_print(os, indents);
         }
@@ -417,8 +421,9 @@ class ReturnStmt final : public Stmt {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "return";
-        if (value_)
+        if (value_) {
             os << " " << **value_;
+        }
         os << ";\n";
         return os;
     }
@@ -426,8 +431,9 @@ class ReturnStmt final : public Stmt {
   protected:
     ReturnStmt* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (value_)
+        if (value_) {
             tmp = object::clone(**value_);
+        }
         return new ReturnStmt(pos_, std::move(tmp));
     }
 };
@@ -519,15 +525,17 @@ class AliasStmt final : public Stmt {
      * \param f Void function accepting a reference to the argument
      */
     void foreach_reg(std::function<void(Expr&)> f) {
-        for (auto& x : regs_)
+        for (auto& x : regs_) {
             f(*x);
+        }
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
         os << "let " << alias_ << " = ";
-        for (auto it = regs_.begin(); it != regs_.end(); it++)
+        for (auto it = regs_.begin(); it != regs_.end(); it++) {
             os << (it == regs_.begin() ? "" : " ++ ") << **it;
+        }
         os << ";\n";
         return os;
     }
@@ -535,8 +543,9 @@ class AliasStmt final : public Stmt {
   protected:
     AliasStmt* clone() const override {
         std::vector<ptr<Expr>> tmp;
-        for (auto& x : regs_)
+        for (auto& x : regs_) {
             tmp.emplace_back(object::clone(*x));
+        }
         return new AliasStmt(pos_, alias_, std::move(tmp));
     }
 };

@@ -125,13 +125,16 @@ class RangeSet : public IndexSet {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "[";
-        if (start_)
+        if (start_) {
             os << **start_;
+        }
         os << ":";
-        if (step_)
+        if (step_) {
             os << **step_ << ":";
-        if (stop_)
+        }
+        if (stop_) {
             os << **stop_;
+        }
         os << "]";
         return os;
     }
@@ -139,14 +142,17 @@ class RangeSet : public IndexSet {
   protected:
     RangeSet* clone() const override {
         std::optional<ptr<Expr>> tmp_start = std::nullopt;
-        if (start_)
+        if (start_) {
             tmp_start = object::clone(**start_);
+        }
         std::optional<ptr<Expr>> tmp_step = std::nullopt;
-        if (step_)
+        if (step_) {
             tmp_step = object::clone(**step_);
+        }
         std::optional<ptr<Expr>> tmp_stop = std::nullopt;
-        if (stop_)
+        if (stop_) {
             tmp_stop = object::clone(**stop_);
+        }
         return new RangeSet(pos_, std::move(tmp_start), std::move(tmp_step),
                             std::move(tmp_stop));
     }
@@ -187,8 +193,9 @@ class ListSet : public IndexSet {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "{";
-        for (auto it = indices_.begin(); it != indices_.end(); it++)
+        for (auto it = indices_.begin(); it != indices_.end(); it++) {
             os << (it == indices_.begin() ? "" : ", ") << **it;
+        }
         os << "}";
         return os;
     }
@@ -196,8 +203,9 @@ class ListSet : public IndexSet {
   protected:
     ListSet* clone() const override {
         std::vector<ptr<Expr>> tmp;
-        for (auto& x : indices_)
+        for (auto& x : indices_) {
             tmp.emplace_back(object::clone(*x));
+        }
         return new ListSet(pos_, std::move(tmp));
     }
 };

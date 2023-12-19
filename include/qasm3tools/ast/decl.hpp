@@ -206,8 +206,9 @@ class SubroutineDecl final : public GlobalStmt, public Decl {
             os << (it == params_.begin() ? "" : ", ") << **it;
         }
         os << ")";
-        if (return_type_)
+        if (return_type_) {
             os << " -> " << **return_type_;
+        }
         os << " ";
         body_->pretty_print(os, indents);
         return os;
@@ -216,11 +217,13 @@ class SubroutineDecl final : public GlobalStmt, public Decl {
   protected:
     SubroutineDecl* clone() const override {
         std::vector<ptr<Param>> tmp_params;
-        for (auto& x : params_)
+        for (auto& x : params_) {
             tmp_params.emplace_back(object::clone(*x));
+        }
         std::optional<ptr<NonArrayType>> tmp_return = std::nullopt;
-        if (return_type_)
+        if (return_type_) {
             tmp_return = object::clone(**return_type_);
+        }
         return new SubroutineDecl(pos_, id_, std::move(tmp_params),
                                   std::move(tmp_return), object::clone(*body_));
     }
@@ -283,8 +286,9 @@ class ExternDecl final : public GlobalStmt, public Decl {
             os << (it == param_types_.begin() ? "" : ", ") << **it;
         }
         os << ")";
-        if (return_type_)
+        if (return_type_) {
             os << " -> " << **return_type_;
+        }
         os << ";\n";
         return os;
     }
@@ -292,11 +296,13 @@ class ExternDecl final : public GlobalStmt, public Decl {
   protected:
     ExternDecl* clone() const override {
         std::vector<ptr<ClassicalType>> tmp_params;
-        for (auto& x : param_types_)
+        for (auto& x : param_types_) {
             tmp_params.emplace_back(object::clone(*x));
+        }
         std::optional<ptr<NonArrayType>> tmp_return = std::nullopt;
-        if (return_type_)
+        if (return_type_) {
             tmp_return = object::clone(**return_type_);
+        }
         return new ExternDecl(pos_, id_, std::move(tmp_params),
                               std::move(tmp_return));
     }
@@ -377,8 +383,9 @@ class GateDecl final : public GlobalStmt, public Decl {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool suppress_std,
                                size_t indents) const override {
-        if (suppress_std && is_std_gate(id_))
+        if (suppress_std && is_std_gate(id_)) {
             return os;
+        }
 
         os << "gate " << id_;
         if (c_params_.size() > 0) {
@@ -510,11 +517,13 @@ class ClassicalDecl final : public Stmt, public Decl {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, bool, size_t) const override {
-        if (is_const_)
+        if (is_const_) {
             os << "const ";
+        }
         os << *type_ << " " << id_;
-        if (equalsexp_)
+        if (equalsexp_) {
             os << " = " << **equalsexp_;
+        }
         os << ";\n";
         return os;
     }
@@ -522,8 +531,9 @@ class ClassicalDecl final : public Stmt, public Decl {
   protected:
     ClassicalDecl* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (equalsexp_)
+        if (equalsexp_) {
             tmp = object::clone(**equalsexp_);
+        }
         return new ClassicalDecl(pos_, id_, object::clone(*type_),
                                  std::move(tmp), is_const_);
     }

@@ -208,27 +208,33 @@ class RangeIndex : public IndexEntity {
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
-        if (start_)
+        if (start_) {
             os << **start_;
+        }
         os << ":";
-        if (step_)
+        if (step_) {
             os << **step_ << ":";
-        if (stop_)
+        }
+        if (stop_) {
             os << **stop_;
+        }
         return os;
     }
 
   protected:
     RangeIndex* clone() const override {
         std::optional<ptr<Expr>> tmp_start = std::nullopt;
-        if (start_)
+        if (start_) {
             tmp_start = object::clone(**start_);
+        }
         std::optional<ptr<Expr>> tmp_step = std::nullopt;
-        if (step_)
+        if (step_) {
             tmp_step = object::clone(**step_);
+        }
         std::optional<ptr<Expr>> tmp_stop = std::nullopt;
-        if (stop_)
+        if (stop_) {
             tmp_stop = object::clone(**stop_);
+        }
         return new RangeIndex(pos_, std::move(tmp_start), std::move(tmp_step),
                               std::move(tmp_stop));
     }
@@ -270,8 +276,9 @@ class IndexEntityList : public IndexOp {
     int num_single_indices() const override {
         int ans = 0;
         for (auto& index : indices_) {
-            if (index->is_single_index())
+            if (index->is_single_index()) {
                 ++ans;
+            }
         }
         return ans;
     }
@@ -283,15 +290,17 @@ class IndexEntityList : public IndexOp {
      * \param f Void function accepting a reference to the index entity
      */
     void foreach_index(std::function<void(IndexEntity&)> f) {
-        for (auto& x : indices_)
+        for (auto& x : indices_) {
             f(*x);
+        }
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "[";
-        for (auto it = indices_.begin(); it != indices_.end(); it++)
+        for (auto it = indices_.begin(); it != indices_.end(); it++) {
             os << (it == indices_.begin() ? "" : ", ") << **it;
+        }
         os << "]";
         return os;
     }
@@ -299,8 +308,9 @@ class IndexEntityList : public IndexOp {
   protected:
     IndexEntityList* clone() const override {
         std::vector<ptr<IndexEntity>> tmp;
-        for (auto& x : indices_)
+        for (auto& x : indices_) {
             tmp.emplace_back(object::clone(*x));
+        }
         return new IndexEntityList(pos_, std::move(tmp));
     }
 };
@@ -343,8 +353,9 @@ class ListSlice : public IndexOp {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << "[{";
-        for (auto it = indices_.begin(); it != indices_.end(); it++)
+        for (auto it = indices_.begin(); it != indices_.end(); it++) {
             os << (it == indices_.begin() ? "" : ", ") << **it;
+        }
         os << "}]";
         return os;
     }
@@ -352,8 +363,9 @@ class ListSlice : public IndexOp {
   protected:
     ListSlice* clone() const override {
         std::vector<ptr<Expr>> tmp;
-        for (auto& x : indices_)
+        for (auto& x : indices_) {
             tmp.emplace_back(object::clone(*x));
+        }
         return new ListSlice(pos_, std::move(tmp));
     }
 };
@@ -415,23 +427,26 @@ class IndexId final : public ASTNode {
      * \param f Void function accepting a reference to the argument
      */
     void foreach_index_op(std::function<void(IndexOp&)> f) {
-        for (auto& x : index_ops_)
+        for (auto& x : index_ops_) {
             f(*x);
+        }
     }
 
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os) const override {
         os << var_;
-        for (auto& x : index_ops_)
+        for (auto& x : index_ops_) {
             os << *x;
+        }
         return os;
     }
 
   protected:
     IndexId* clone() const override {
         std::vector<ptr<IndexOp>> tmp;
-        for (auto& x : index_ops_)
+        for (auto& x : index_ops_) {
             tmp.emplace_back(object::clone(*x));
+        }
         return new IndexId(pos_, var_, std::move(tmp));
     }
 };

@@ -323,8 +323,9 @@ class BExpr final : public Expr {
         auto lexp = lexp_->constant_eval();
         auto rexp = rexp_->constant_eval();
 
-        if (!lexp || !rexp)
+        if (!lexp || !rexp) {
             return std::nullopt;
+        }
 
         switch (op_) {
             case BinaryOp::EQ:
@@ -420,8 +421,9 @@ class UExpr final : public Expr {
     std::optional<double> constant_eval() const override {
         auto expr = exp_->constant_eval();
 
-        if (!expr)
+        if (!expr) {
             return std::nullopt;
+        }
 
         switch (op_) {
             case UnaryOp::Neg:
@@ -505,13 +507,15 @@ class MathExpr final : public Expr {
     void set_arg(int i, ptr<Expr> expr) { args_[i] = std::move(expr); }
 
     std::optional<double> constant_eval() const override {
-        if (args_.size() != 1)
+        if (args_.size() != 1) {
             return std::nullopt;
+        }
 
         auto expr = args_[0]->constant_eval();
 
-        if (!expr)
+        if (!expr) {
             return std::nullopt;
+        }
 
         switch (op_) {
             case MathOp::Arcsin:
@@ -541,8 +545,9 @@ class MathExpr final : public Expr {
         (void)ctx;
 
         os << op_ << "(";
-        for (auto it = args_.begin(); it != args_.end(); it++)
+        for (auto it = args_.begin(); it != args_.end(); it++) {
             os << (it == args_.begin() ? "" : ",") << **it;
+        }
         os << ")";
 
         return os;
@@ -551,8 +556,9 @@ class MathExpr final : public Expr {
   protected:
     MathExpr* clone() const override {
         std::vector<ptr<Expr>> tmp;
-        for (auto& x : args_)
+        for (auto& x : args_) {
             tmp.emplace_back(object::clone(*x));
+        }
         return new MathExpr(pos_, op_, std::move(tmp));
     }
 };
@@ -691,8 +697,9 @@ class SizeofExpr final : public Expr {
         (void)ctx;
 
         os << "sizeof(" << *arr_;
-        if (dim_)
+        if (dim_) {
             os << ", " << **dim_;
+        }
         os << ")";
 
         return os;
@@ -701,8 +708,9 @@ class SizeofExpr final : public Expr {
   protected:
     SizeofExpr* clone() const override {
         std::optional<ptr<Expr>> tmp = std::nullopt;
-        if (dim_)
+        if (dim_) {
             tmp = object::clone(**dim_);
+        }
         return new SizeofExpr(pos_, object::clone(*arr_), std::move(tmp));
     }
 };
@@ -774,8 +782,9 @@ class FunctionCall final : public Expr {
         (void)ctx;
 
         os << name_ << "(";
-        for (auto it = args_.begin(); it != args_.end(); it++)
+        for (auto it = args_.begin(); it != args_.end(); it++) {
             os << (it == args_.begin() ? "" : ",") << **it;
+        }
         os << ")";
 
         return os;
@@ -784,8 +793,9 @@ class FunctionCall final : public Expr {
   protected:
     FunctionCall* clone() const override {
         std::vector<ptr<Expr>> tmp;
-        for (auto& x : args_)
+        for (auto& x : args_) {
             tmp.emplace_back(object::clone(*x));
+        }
         return new FunctionCall(pos_, name_, std::move(tmp));
     }
 };
@@ -1258,8 +1268,9 @@ class ArrayInitExpr final : public Expr {
         (void)ctx;
 
         os << "{";
-        for (auto it = arr_.begin(); it != arr_.end(); it++)
+        for (auto it = arr_.begin(); it != arr_.end(); it++) {
             os << (it == arr_.begin() ? "" : ", ") << **it;
+        }
         os << "}";
 
         return os;
@@ -1268,8 +1279,9 @@ class ArrayInitExpr final : public Expr {
   protected:
     ArrayInitExpr* clone() const override {
         std::vector<ptr<Expr>> tmp;
-        for (auto& x : arr_)
+        for (auto& x : arr_) {
             tmp.emplace_back(object::clone(*x));
+        }
         return new ArrayInitExpr(pos_, std::move(tmp));
     }
 };

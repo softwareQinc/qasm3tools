@@ -123,8 +123,9 @@ class Program final : public BlockBase<Program> {
     void accept(Visitor& visitor) override { visitor.visit(*this); }
     std::ostream& pretty_print(std::ostream& os, size_t) const override {
         os << "OPENQASM 3.0;\n";
-        if (std_include_)
+        if (std_include_) {
             os << "include \"stdgates.inc\";\n";
+        }
         os << "\n";
         for (auto& x : body_) {
             for (auto& ann : x->annotations()) {

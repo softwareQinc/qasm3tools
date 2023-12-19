@@ -95,36 +95,43 @@ dyn_mat<typename Derived::Scalar> GATE(const Eigen::MatrixBase<Derived>& A,
     // EXCEPTION CHECKS
 
     // check matrix zero-size
-    if (!internal::check_nonzero_size(rA))
+    if (!internal::check_nonzero_size(rA)) {
         throw exception::ZeroSize("qpp::Gates::GATE()", "A");
+    }
 
     // check square matrix
-    if (!internal::check_square_mat(rA))
+    if (!internal::check_square_mat(rA)) {
         throw exception::MatrixNotSquare("qpp::Gates::GATE()", "A");
+    }
 
     // check zero-size
-    if (target.empty())
+    if (target.empty()) {
         throw exception::ZeroSize("qpp::Gates::GATE()", "target");
+    }
 
     // check that dims is a valid dimension vector
-    if (!internal::check_dims(dims))
+    if (!internal::check_dims(dims)) {
         throw exception::DimsInvalid("qpp::Gates::GATE()", "dims");
+    }
 
     // check that target is valid w.r.t. dims
-    if (!internal::check_subsys_match_dims(target, dims))
+    if (!internal::check_subsys_match_dims(target, dims)) {
         throw exception::SubsysMismatchDims("qpp::Gates::GATE()",
                                             "dims/target");
+    }
 
     // check that target list match the dimension of the matrix
     using Index = typename dyn_mat<typename Derived::Scalar>::Index;
 
     idx DA = 1;
-    for (idx elem : target)
+    for (idx elem : target) {
         DA *= dims[elem];
+    }
 
-    if (rA.rows() != static_cast<Index>(DA))
+    if (rA.rows() != static_cast<Index>(DA)) {
         throw exception::MatrixMismatchSubsys("qpp::Gates::GATE()",
                                               "A/dims/target");
+    }
 
     // END EXCEPTION CHECKS
 
@@ -150,8 +157,9 @@ dyn_mat<typename Derived::Scalar> GATE(const Eigen::MatrixBase<Derived>& A,
 
     idx D = prod(dims);
     idx Dsubsys_bar = 1;
-    for (idx elem : subsys_bar)
+    for (idx elem : subsys_bar) {
         Dsubsys_bar *= dims[elem];
+    }
 
     std::copy(std::begin(subsys_bar), std::end(subsys_bar),
               std::begin(Csubsys_bar));
@@ -187,13 +195,15 @@ dyn_mat<typename Derived::Scalar> GATE(const Eigen::MatrixBase<Derived>& A,
             // construct the result row multi-index
 
             // first the target part
-            for (idx k = 0; k < n_gate; ++k)
+            for (idx k = 0; k < n_gate; ++k) {
                 midx_row[target[k]] = midxA_row[k];
+            }
 
             // then the complement part (equal for column)
-            for (idx k = 0; k < n_subsys_bar; ++k)
+            for (idx k = 0; k < n_subsys_bar; ++k) {
                 midx_row[Csubsys_bar[k]] = midx_col[Csubsys_bar[k]] =
                     midx_bar[k];
+            }
 
             // run over the target column multi-index
             for (idx b = 0; b < DA; ++b) {
@@ -201,8 +211,9 @@ dyn_mat<typename Derived::Scalar> GATE(const Eigen::MatrixBase<Derived>& A,
                 internal::n2multiidx(b, n_gate, CdimsA, midxA_col);
 
                 // construct the result column multi-index
-                for (idx k = 0; k < n_gate; ++k)
+                for (idx k = 0; k < n_gate; ++k) {
                     midx_col[target[k]] = midxA_col[k];
+                }
 
                 // finally write the values
                 result(internal::multiidx2n(midx_row, n, Cdims),
@@ -224,8 +235,9 @@ dyn_mat<typename Derived::Scalar> GATE(const Eigen::MatrixBase<Derived>& A,
     // EXCEPTION CHECKS
 
     // check valid local dimension
-    if (d == 0)
+    if (d == 0) {
         throw exception::DimsInvalid("qpp::Gates::GATE()", "d");
+    }
     // END EXCEPTION CHECKS
 
     return GATE(A, target, std::vector<idx>(n, d));
@@ -298,10 +310,11 @@ struct QASM_int {
             } else if (is_signed) {
                 const long long half_maxbits = maxbits >> 1;
                 // range is [-2^(width-1), 2^(width-1)-1]
-                if (value >= half_maxbits)
+                if (value >= half_maxbits) {
                     value -= maxbits;
-                else if (value < -half_maxbits)
+                } else if (value < -half_maxbits) {
                     value += maxbits;
+                }
             }
         }
     }
@@ -351,8 +364,9 @@ struct QASM_angle {
         double tmp = utils::pi;
         double ans = 0;
         for (auto it = bits.rbegin(); it != bits.rend(); it++) {
-            if (*it)
+            if (*it) {
                 ans += tmp;
+            }
             tmp /= 2;
         }
         return ans;
@@ -498,8 +512,9 @@ inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
             /* casting from angle */
             [](const QASM_angle& s, const QASM_bool&) -> BasicType {
                 for (bool bit : s.bits) {
-                    if (bit)
+                    if (bit) {
                         return QASM_bool{true};
+                    }
                 }
                 return QASM_bool{false};
             },
@@ -507,9 +522,9 @@ inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
                 return QASM_float{s.to_float()};
             },
             [](const QASM_angle& s, const QASM_angle& t) -> BasicType {
-                if (s.width == t.width)
+                if (s.width == t.width) {
                     return s;
-                else if (s.width > t.width) {
+                } else if (s.width > t.width) {
                     // truncate
                     return QASM_angle{std::vector<bool>(
                         s.bits.begin() + (s.width - t.width), s.bits.end())};
@@ -1058,22 +1073,23 @@ class Executor final : ast::Visitor {
             stop = types::smart_cast_to_basic(value_, types::QASM_int{-1});
         }
         int a = start.value, c = step.value, b = stop.value;
-        if (a == INT_MAX && b == INT_MAX && c == INT_MAX)
+        if (a == INT_MAX && b == INT_MAX && c == INT_MAX) {
             index_entities_.push_back(xt::all());
-        else if (a == INT_MAX && b == INT_MAX)
+        } else if (a == INT_MAX && b == INT_MAX) {
             index_entities_.push_back(xt::range(_, _, c));
-        else if (a == INT_MAX && c == INT_MAX)
+        } else if (a == INT_MAX && c == INT_MAX) {
             index_entities_.push_back(xt::range(_, b));
-        else if (b == INT_MAX && c == INT_MAX)
+        } else if (b == INT_MAX && c == INT_MAX) {
             index_entities_.push_back(xt::range(a, _));
-        else if (a == INT_MAX)
+        } else if (a == INT_MAX) {
             index_entities_.push_back(xt::range(_, b, c));
-        else if (b == INT_MAX)
+        } else if (b == INT_MAX) {
             index_entities_.push_back(xt::range(a, _, c));
-        else if (c == INT_MAX)
+        } else if (c == INT_MAX) {
             index_entities_.push_back(xt::range(a, b));
-        else
+        } else {
             index_entities_.push_back(xt::range(a, b, c));
+        }
     }
     void visit(ast::IndexEntityList& indices) override {
         // save array
@@ -1690,7 +1706,9 @@ class Executor final : ast::Visitor {
                 types::value_type val = std::visit(
                     utils::overloaded{
                         [](cplx v) -> types::value_type { return std::exp(v); },
-                        [](auto v) -> types::value_type { return std::exp(v); }}, // TODO check this
+                        [](auto v) -> types::value_type {
+                            return std::exp(v);
+                        }}, // TODO check this
                     arg);
                 value_ = types::value_to_basictype(val);
                 return;
@@ -1740,8 +1758,9 @@ class Executor final : ast::Visitor {
                 if (std::holds_alternative<BasicType>(value_)) {
                     auto& val = std::get<BasicType>(value_);
                     if (std::holds_alternative<types::QASM_angle>(val)) {
-                        for (bool bit : std::get<types::QASM_angle>(val).bits)
+                        for (bool bit : std::get<types::QASM_angle>(val).bits) {
                             n += bit;
+                        }
                     } else {
                         std::cerr << exp.pos()
                                   << ": error : invalid first argument to "
@@ -1974,8 +1993,9 @@ class Executor final : ast::Visitor {
                 auto& x = std::get<xt::xarray<BasicType*>>(entry);
                 std::vector<BasicType> x_deref;
                 x_deref.reserve(x.size());
-                for (BasicType* i : x)
+                for (BasicType* i : x) {
                     x_deref.push_back(*i);
+                }
                 value_ = xt::xarray<BasicType>(xt::adapt(x_deref, x.shape()));
             } else if (std::holds_alternative<BasicType*>(entry)) {
                 value_ = *(std::get<BasicType*>(entry));
@@ -2007,8 +2027,9 @@ class Executor final : ast::Visitor {
         } else if (std::holds_alternative<xt::xarray<BasicType>>(value_)) {
             std::vector<unsigned long> shape = {n};
             auto element = std::get<xt::xarray<BasicType>>(value_);
-            for (auto i : element.shape())
+            for (auto i : element.shape()) {
                 shape.push_back(i);
+            }
             auto tmp = xt::xarray<BasicType>::from_shape(shape);
             xt::view(tmp, 0) = std::move(element);
             for (int i = 1; i < exp.size(); i++) {
@@ -2093,10 +2114,11 @@ class Executor final : ast::Visitor {
         auto cond = types::smart_cast_to_basic(value_, types::QASM_bool());
 
         push_scope();
-        if (cond.value)
+        if (cond.value) {
             stmt.then().accept(*this);
-        else
+        } else {
             stmt.els().accept(*this);
+        }
         pop_scope();
     }
     void visit(ast::BreakStmt&) override { control_flow_ = ControlFlow::Break; }
@@ -2404,8 +2426,9 @@ class Executor final : ast::Visitor {
                         break;
                     }
                 }
-            } else
+            } else {
                 break;
+            }
         }
     }
     // Timing Statements
@@ -2607,8 +2630,9 @@ class Executor final : ast::Visitor {
      * \param typ The type of the symbol
      */
     void set(const ast::symbol& id, Type typ) {
-        if (symbol_table_.empty())
+        if (symbol_table_.empty()) {
             throw std::logic_error("No current symbol table!");
+        }
 
         symbol_table_.front()[id] = typ;
     }
@@ -2701,8 +2725,9 @@ class Executor final : ast::Visitor {
     static xt::xarray<BasicType*> get_reference(xt::xarray<BasicType>& arr) {
         std::vector<BasicType*> arr_ref;
         arr_ref.reserve(arr.size());
-        for (BasicType& i : arr)
+        for (BasicType& i : arr) {
             arr_ref.push_back(std::addressof(i));
+        }
         return xt::adapt(arr_ref, arr.shape());
     }
 
@@ -2744,8 +2769,9 @@ class Executor final : ast::Visitor {
     template <typename T>
     static std::vector<T> left_rotate_shift(std::vector<T> bits, int shift) {
         shift %= (int)bits.size();
-        if (shift < 0)
+        if (shift < 0) {
             shift += bits.size();
+        }
         std::rotate(bits.begin(), bits.begin() + shift, bits.end());
         return bits;
     }
