@@ -7,7 +7,6 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 find_package(qpp REQUIRED)
 
-#### antlr4cpp library
+# antlr4cpp library
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../antlr4cpp_runtime
-                 ${CMAKE_CURRENT_SOURCE_DIR}/../dist
-                 EXCLUDE_FROM_ALL)
+                 ${CMAKE_CURRENT_SOURCE_DIR}/../dist EXCLUDE_FROM_ALL)
