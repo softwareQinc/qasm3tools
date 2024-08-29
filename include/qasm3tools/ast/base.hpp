@@ -32,8 +32,8 @@
 #ifndef QASM3TOOLS_AST_BASE_HPP_
 #define QASM3TOOLS_AST_BASE_HPP_
 
-#include <iostream>
 #include <memory>
+#include <ostream>
 #include <string>
 
 #include "../parser/position.hpp"

@@ -35,9 +35,9 @@
 #define QASM3TOOLS_UTILS_ANGLE_HPP_
 
 #include <cmath>
-#include <iostream>
 #include <numeric>
 #include <optional>
+#include <ostream>
 #include <variant>
 
 #include "templates.hpp"
