@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2024 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2025 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -31,7 +31,7 @@
 #ifndef QASM3TOOLS_PARSER_POSITION_HPP_
 #define QASM3TOOLS_PARSER_POSITION_HPP_
 
-#include <ostream>
+#include <iostream>
 #include <string>
 
 namespace qasm3tools {

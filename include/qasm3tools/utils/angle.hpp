@@ -1,7 +1,7 @@
 /*
  * This file is part of qasm3tools.
  *
- * Copyright (c) 2019 - 2024 softwareQ Inc. All rights reserved.
+ * Copyright (c) 2019 - 2025 softwareQ Inc. All rights reserved.
  *
  * MIT License
  *
@@ -35,9 +35,9 @@
 #define QASM3TOOLS_UTILS_ANGLE_HPP_
 
 #include <cmath>
+#include <iostream>
 #include <numeric>
 #include <optional>
-#include <ostream>
 #include <variant>
 
 #include "templates.hpp"
