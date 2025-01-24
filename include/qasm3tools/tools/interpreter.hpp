@@ -55,7 +55,7 @@
 #include "../utils/angle.hpp"
 #include "../utils/templates.hpp"
 
-#include "qpp/qpp.h"
+#include "qpp/qpp.hpp"
 
 #include "../parser/parser.hpp"
 
@@ -809,14 +809,13 @@ inline value_type get_value(const ExprType& x) {
  */
 inline BasicType value_to_basictype(value_type val) {
     return std::visit(
-        utils::overloaded{[](long long v) -> BasicType {
-                              return QASM_int{-1, true, v};
-                          },
-                          [](unsigned long long v) -> BasicType {
-                              return QASM_int{-1, false, (long long)v};
-                          },
-                          [](double v) -> BasicType { return QASM_float{v}; },
-                          [](cplx v) -> BasicType { return QASM_complex{v}; }},
+        utils::overloaded{
+            [](long long v) -> BasicType { return QASM_int{-1, true, v}; },
+            [](unsigned long long v) -> BasicType {
+                return QASM_int{-1, false, (long long)v};
+            },
+            [](double v) -> BasicType { return QASM_float{v}; },
+            [](cplx v) -> BasicType { return QASM_complex{v}; }},
         val);
 }
 
