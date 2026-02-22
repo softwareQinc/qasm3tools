@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/tools/interpreter.hpp
- * \brief OpenQASM 3 program interpreter
+ * @file qasm3tools/tools/interpreter.hpp
+ * @brief OpenQASM 3 program interpreter
  */
 
 #ifndef QASM3TOOLS_TOOLS_INTERPRETER_HPP_
@@ -63,7 +63,7 @@
 
 namespace std {
 /**
- * \brief Hash function for gate calls
+ * @brief Hash function for gate calls
  *
  * Allows gate calls to be used as keys in std::unordered_map.
  * Implementation and magic numbers taken from boost::hash_combine.
@@ -84,7 +84,7 @@ struct hash<std::pair<qasmtools::ast::symbol, std::vector<double>>> {
 
 namespace qpp {
 /**
- * \brief Copied from qpp::Gates::GATE()
+ * @brief Copied from qpp::Gates::GATE()
  */
 template <typename Derived>
 dyn_mat<typename Derived::Scalar> GATE(const Eigen::MatrixBase<Derived>& A,
@@ -226,7 +226,7 @@ dyn_mat<typename Derived::Scalar> GATE(const Eigen::MatrixBase<Derived>& A,
 }
 
 /**
- * \brief Copied from qpp::Gates::GATE()
+ * @brief Copied from qpp::Gates::GATE()
  */
 template <typename Derived>
 dyn_mat<typename Derived::Scalar> GATE(const Eigen::MatrixBase<Derived>& A,
@@ -251,8 +251,8 @@ using idx = qpp::idx;
 using cplx = qpp::cplx;
 
 /**
- * \class qasm3tools::tools::RuntimeError
- * \brief Exception class for runtime errors
+ * @class qasm3tools::tools::RuntimeError
+ * @brief Exception class for runtime errors
  */
 class RuntimeError : public std::exception {
   public:
@@ -262,8 +262,8 @@ class RuntimeError : public std::exception {
 };
 
 /**
- * \class qasm3tools::tools::NotImplementedError
- * \brief Exception class for non-implemented features
+ * @class qasm3tools::tools::NotImplementedError
+ * @brief Exception class for non-implemented features
  */
 class NotImplementedError : public std::exception {
   public:
@@ -403,7 +403,7 @@ struct QASM_qubit {
 };
 
 /**
- * \brief OpenQASM non-array types as a std::variant
+ * @brief OpenQASM non-array types as a std::variant
  */
 using BasicType = std::variant<QASM_bool, QASM_int, QASM_float, QASM_angle,
                                QASM_cbit, QASM_complex, QASM_qubit>;
@@ -414,7 +414,7 @@ std::ostream& operator<<(std::ostream& os, const BasicType& exp) {
 }
 
 /**
- * \brief Reference to a bit in an integer or angle
+ * @brief Reference to a bit in an integer or angle
  */
 class BitReference {
     using RefType = std::variant<std::monostate, QASM_int*, QASM_angle*>;
@@ -447,7 +447,7 @@ class BitReference {
 };
 
 /**
- * \brief OpenQASM expression types as a std::variant
+ * @brief OpenQASM expression types as a std::variant
  *
  * BasicType and xt::xarray<BasicType> are used for computing most expressions.
  *
@@ -461,7 +461,7 @@ using ExprType = std::variant<QASM_none, BasicType, xt::xarray<BasicType>,
                               xt::xarray<BitReference>>;
 
 /**
- * \brief Cast source expression to target type
+ * @brief Cast source expression to target type
  */
 inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
     return std::visit(
@@ -560,7 +560,7 @@ inline BasicType basic_cast(const BasicType& source, const BasicType& target) {
 }
 
 /**
- * \brief Cast but return target type instead of a std::variant
+ * @brief Cast but return target type instead of a std::variant
  */
 template <typename T>
 inline T smart_cast(const BasicType& source, const T& target) {
@@ -668,7 +668,7 @@ inline void overwrite_help(const BasicType& s, xt::xarray<BasicType*>& t) {
 }
 
 /**
- * \brief Assign source expression to target while preserving target's type
+ * @brief Assign source expression to target while preserving target's type
  */
 inline void overwrite(const ExprType& source, ExprType& target) {
     return std::visit(
@@ -727,7 +727,7 @@ inline void overwrite(const ExprType& source, ExprType& target) {
 }
 
 /**
- * \brief Cast expression to a basic type
+ * @brief Cast expression to a basic type
  */
 inline BasicType cast_to_basic(const ExprType& source, BasicType target) {
     std::visit(utils::overloaded{[&target](const BasicType& s) {
@@ -745,7 +745,7 @@ inline BasicType cast_to_basic(const ExprType& source, BasicType target) {
 }
 
 /**
- * \brief Cast expression to a basic type and return target type
+ * @brief Cast expression to a basic type and return target type
  */
 template <typename T>
 inline T smart_cast_to_basic(const ExprType& source, T target) {
@@ -755,7 +755,7 @@ inline T smart_cast_to_basic(const ExprType& source, T target) {
 using value_type = std::variant<long long, unsigned long long, double, cplx>;
 
 /**
- * \brief Get numerical value of a non-array expression
+ * @brief Get numerical value of a non-array expression
  */
 inline value_type get_value_help(const BasicType& t) {
     return std::visit(
@@ -778,7 +778,7 @@ inline value_type get_value_help(const BasicType& t) {
         t);
 }
 /**
- * \brief Get numerical value of a classical register (by converting to int)
+ * @brief Get numerical value of a classical register (by converting to int)
  */
 inline value_type get_value_help(const xt::xarray<BasicType>& s) {
     unsigned long long ans = 0;
@@ -789,7 +789,7 @@ inline value_type get_value_help(const xt::xarray<BasicType>& s) {
     return ans;
 }
 /**
- * \brief Get numerical value of an expression
+ * @brief Get numerical value of an expression
  */
 inline value_type get_value(const ExprType& x) {
     return std::visit(
@@ -805,7 +805,7 @@ inline value_type get_value(const ExprType& x) {
         x);
 }
 /**
- * \brief Convert numerical value to a basic expression
+ * @brief Convert numerical value to a basic expression
  */
 inline BasicType value_to_basictype(value_type val) {
     return std::visit(
@@ -820,7 +820,7 @@ inline BasicType value_to_basictype(value_type val) {
 }
 
 /**
- * \brief Convert integer/angle reference to a bit array reference
+ * @brief Convert integer/angle reference to a bit array reference
  */
 xt::xarray<BitReference> to_creg_ref(BasicType* type) {
     if (std::holds_alternative<QASM_int>(*type)) {
@@ -850,7 +850,7 @@ xt::xarray<BitReference> to_creg_ref(BasicType* type) {
 }
 
 /**
- * \brief Convert integer/angle expression to a bit array expression
+ * @brief Convert integer/angle expression to a bit array expression
  */
 xt::xarray<BasicType> to_creg(const BasicType& type) {
     if (std::holds_alternative<QASM_int>(type)) {
@@ -889,18 +889,18 @@ using ExprType = types::ExprType;
 using cmat = qpp::cmat;
 
 /**
- * \brief Table of computed matrices. Maps [gatename, {args}] -> cmat
+ * @brief Table of computed matrices. Maps [gatename, {args}] -> cmat
  */
 static std::unordered_map<std::pair<ast::symbol, std::vector<double>>, cmat>
     known_matrices{};
 
 /**
- * \class qasm3tools::tools::Executor
- * \brief Program interpreter
+ * @class qasm3tools::tools::Executor
+ * @brief Program interpreter
  */
 class Executor final : ast::Visitor {
     /**
-     * \brief Data struct for quantum gate types
+     * @brief Data struct for quantum gate types
      */
     struct GateType {
         std::vector<ast::symbol> c_param_names; ///< parameter names
@@ -909,7 +909,7 @@ class Executor final : ast::Visitor {
     };
 
     /**
-     * \brief Data struct for subroutine types
+     * @brief Data struct for subroutine types
      */
     struct SubroutineType {
         std::vector<ExprType> param_types;    ///< function signature
@@ -919,17 +919,17 @@ class Executor final : ast::Visitor {
     };
 
     /**
-     * \brief OpenQASM types as a std::variant
+     * @brief OpenQASM types as a std::variant
      */
     using Type = std::variant<ExprType, GateType, SubroutineType>;
 
     /**
-     * \brief Enum class for control statements
+     * @brief Enum class for control statements
      */
     enum class ControlFlow { Break, Continue, Return, End };
 
     /**
-     * \brief Ranges for looping
+     * @brief Ranges for looping
      */
     struct LoopRange {
         int start;
@@ -940,7 +940,7 @@ class Executor final : ast::Visitor {
     };
 
     /**
-     * \brief Subsystem information used to compute gate matrices
+     * @brief Subsystem information used to compute gate matrices
      *
      * Example: gate ccx a, b, c { <body> }
      * Then dims = 3 and ids = {{"a", 0}, {"b", 1}, {"c", 2}}
@@ -951,7 +951,7 @@ class Executor final : ast::Visitor {
     };
 
     /**
-     * \brief Apply gate modifiers to the matrix_ member. Then:
+     * @brief Apply gate modifiers to the matrix_ member. Then:
      *
      * If we are computing a gate matrix, then we need to take a product of
      * matrices. prev_matrix is the product of the matrices of all quantum
@@ -2594,23 +2594,23 @@ class Executor final : ast::Visitor {
     std::ostream& os_;
 
     /**
-     * \brief Enters a new scope
+     * @brief Enters a new scope
      */
     void push_scope() { symbol_table_.push_front({}); }
 
     /**
-     * \brief Exits the current scope
+     * @brief Exits the current scope
      */
     void pop_scope() { symbol_table_.pop_front(); }
 
     /**
-     * \brief Looks up a symbol in the symbol table
+     * @brief Looks up a symbol in the symbol table
      *
      * Lookup checks in each symbol table going backwards up the enclosing
      * scopes.
      *
-     * \param id Const reference to a symbol
-     * \return Reference to the type of the symbol
+     * @param id Const reference to a symbol
+     * @return Reference to the type of the symbol
      */
     Type& lookup(const ast::symbol& id) {
         for (auto& table : symbol_table_) {
@@ -2623,10 +2623,10 @@ class Executor final : ast::Visitor {
     }
 
     /**
-     * \brief Assigns a symbol in the current scope
+     * @brief Assigns a symbol in the current scope
      *
-     * \param id Const reference to a symbol
-     * \param typ The type of the symbol
+     * @param id Const reference to a symbol
+     * @param typ The type of the symbol
      */
     void set(const ast::symbol& id, Type typ) {
         if (symbol_table_.empty()) {
@@ -2637,7 +2637,7 @@ class Executor final : ast::Visitor {
     }
 
     /**
-     * \brief Prints list of global variables and their values
+     * @brief Prints list of global variables and their values
      */
     void print_global_vars() const {
         os_ << "Final values:\n";
@@ -2670,7 +2670,7 @@ class Executor final : ast::Visitor {
     }
 
     /**
-     * \brief Prints the state vector
+     * @brief Prints the state vector
      */
     void print_psi() {
         os_ << ">> Final state (transpose):\n";
@@ -2678,7 +2678,7 @@ class Executor final : ast::Visitor {
     }
 
     /**
-     * \brief Check indices in entities are in bounds for array x
+     * @brief Check indices in entities are in bounds for array x
      */
     template <typename T>
     static void
@@ -2702,7 +2702,7 @@ class Executor final : ast::Visitor {
     }
 
     /**
-     * \brief Check indices for a list slice are in bounds for array x
+     * @brief Check indices for a list slice are in bounds for array x
      */
     template <typename T>
     static void check_indices_in_bounds(const xt::xarray<T>& x,
@@ -2719,7 +2719,7 @@ class Executor final : ast::Visitor {
     }
 
     /**
-     * \brief Get array of pointers to the elements of the given array
+     * @brief Get array of pointers to the elements of the given array
      */
     static xt::xarray<BasicType*> get_reference(xt::xarray<BasicType>& arr) {
         std::vector<BasicType*> arr_ref;
@@ -2731,7 +2731,7 @@ class Executor final : ast::Visitor {
     }
 
     /**
-     * \brief Left shift bit vector
+     * @brief Left shift bit vector
      */
     static std::vector<bool> left_shift(std::vector<bool> bits, int shift) {
         if (shift < 0) {
@@ -2763,7 +2763,7 @@ class Executor final : ast::Visitor {
     }
 
     /**
-     * \brief Left rotate shift bit vector
+     * @brief Left rotate shift bit vector
      */
     template <typename T>
     static std::vector<T> left_rotate_shift(std::vector<T> bits, int shift) {
@@ -2776,7 +2776,7 @@ class Executor final : ast::Visitor {
     }
 
     /**
-     * \brief Right shift bit vector
+     * @brief Right shift bit vector
      */
     static std::vector<bool> right_shift(std::vector<bool> bits, int shift) {
         if (shift < 0) {
@@ -2807,7 +2807,7 @@ class Executor final : ast::Visitor {
     }
 
     /**
-     * \brief Right rotate shift bit vector
+     * @brief Right rotate shift bit vector
      */
     template <typename T>
     static std::vector<T> right_rotate_shift(std::vector<T> bits, int shift) {
@@ -2816,7 +2816,7 @@ class Executor final : ast::Visitor {
 };
 
 /**
- * \brief Executes a program
+ * @brief Executes a program
  */
 inline void execute(ast::Program& prog, std::list<std::string> inputs) {
     Executor(std::cout).run(prog, std::move(inputs));

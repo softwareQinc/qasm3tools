@@ -26,8 +26,8 @@
  */
 
 /**
- * \file qasm3tools/ast/cloneable.hpp
- * \brief Covariance and smart pointers
+ * @file qasm3tools/ast/cloneable.hpp
+ * @brief Covariance and smart pointers
  */
 
 #ifndef QASM3TOOLS_AST_CLONEABLE_HPP_

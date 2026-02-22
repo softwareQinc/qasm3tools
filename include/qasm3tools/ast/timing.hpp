@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/timing.hpp
- * \brief Classes for timing expressions and statements
+ * @file qasm3tools/ast/timing.hpp
+ * @brief Classes for timing expressions and statements
  */
 
 #ifndef QASM3TOOLS_AST_TIMING_HPP_
@@ -44,7 +44,7 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \brief Enum of time units
+ * @brief Enum of time units
  */
 enum class TimeUnit { dt, ns, us, mus, ms, s };
 inline std::ostream& operator<<(std::ostream& os, const TimeUnit& tu) {
@@ -72,9 +72,9 @@ inline std::ostream& operator<<(std::ostream& os, const TimeUnit& tu) {
 }
 
 /**
- * \class qasm3tools::ast::TimeExpr
- * \brief Class for time expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::TimeExpr
+ * @brief Class for time expressions
+ * @see qasm3tools::ast::Expr
  */
 class TimeExpr final : public Expr {
     double value_;   ///< the floating point value
@@ -82,17 +82,17 @@ class TimeExpr final : public Expr {
 
   public:
     /**
-     * \brief Construct a time expression
+     * @brief Construct a time expression
      *
-     * \param pos The source position
-     * \param val The floating point value
-     * \param units The units
+     * @param pos The source position
+     * @param val The floating point value
+     * @param units The units
      */
     TimeExpr(parser::Position pos, double value, TimeUnit units)
         : Expr(pos), value_(value), units_(units) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<TimeExpr> create(parser::Position pos, double value,
                                 TimeUnit units) {
@@ -100,16 +100,16 @@ class TimeExpr final : public Expr {
     }
 
     /**
-     * \brief Get the real value
+     * @brief Get the real value
      *
-     * \return The floating point value
+     * @return The floating point value
      */
     double value() const { return value_; }
 
     /**
-     * \brief Get the units
+     * @brief Get the units
      *
-     * \return The units
+     * @return The units
      */
     TimeUnit units() const { return units_; }
 
@@ -133,25 +133,25 @@ class TimeExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::DurationofExpr
- * \brief Class for durationof({...}) expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::DurationofExpr
+ * @brief Class for durationof({...}) expressions
+ * @see qasm3tools::ast::Expr
  */
 class DurationofExpr final : public Expr {
     ptr<ProgramBlock> block_; // the quantum block
 
   public:
     /**
-     * \brief Construct a duration expression
+     * @brief Construct a duration expression
      *
-     * \param pos The source position
-     * \param block The quantum block
+     * @param pos The source position
+     * @param block The quantum block
      */
     DurationofExpr(parser::Position pos, ptr<ProgramBlock> block)
         : Expr(pos), block_(std::move(block)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<DurationofExpr> create(parser::Position pos,
                                       ptr<ProgramBlock> block) {
@@ -159,9 +159,9 @@ class DurationofExpr final : public Expr {
     }
 
     /**
-     * \brief Get the quantum block
+     * @brief Get the quantum block
      *
-     * \return Reference to the quantum block
+     * @return Reference to the quantum block
      */
     ProgramBlock& block() { return *block_; }
 
@@ -182,8 +182,8 @@ class DurationofExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::TimingStmt
- * \brief Statement sub-class for timing statements
+ * @class qasm3tools::ast::TimingStmt
+ * @brief Statement sub-class for timing statements
  */
 class TimingStmt : public QuantumStmt {
   public:
@@ -195,9 +195,9 @@ class TimingStmt : public QuantumStmt {
 };
 
 /**
- * \class qasm3tools::ast::DelayStmt
- * \brief Class for delay statements
- * \see qasm3tools::ast::Stmt
+ * @class qasm3tools::ast::DelayStmt
+ * @brief Class for delay statements
+ * @see qasm3tools::ast::Stmt
  */
 class DelayStmt final : public TimingStmt {
     ptr<Expr> duration_;               ///< delay duration
@@ -205,11 +205,11 @@ class DelayStmt final : public TimingStmt {
 
   public:
     /**
-     * \brief Constructs a delay statement
+     * @brief Constructs a delay statement
      *
-     * \param pos The source position
-     * \param duration The duration
-     * \param q_args Rvalue reference to a list of quantum arguments
+     * @param pos The source position
+     * @param duration The duration
+     * @param q_args Rvalue reference to a list of quantum arguments
      */
     DelayStmt(parser::Position pos, ptr<Expr> duration,
               std::vector<ptr<IndexId>>&& q_args)
@@ -217,7 +217,7 @@ class DelayStmt final : public TimingStmt {
           q_args_(std::move(q_args)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<DelayStmt> create(parser::Position pos, ptr<Expr> duration,
                                  std::vector<ptr<IndexId>>&& q_args) {
@@ -226,31 +226,31 @@ class DelayStmt final : public TimingStmt {
     }
 
     /**
-     * \brief Get the number of quantum arguments
+     * @brief Get the number of quantum arguments
      *
-     * \return The number of arguments
+     * @return The number of arguments
      */
     int num_qargs() const { return static_cast<int>(q_args_.size()); }
 
     /**
-     * \brief Get the ith quantum argument
+     * @brief Get the ith quantum argument
      *
-     * \param i The number of the argument, 0-indexed
-     * \return Reference to the argument
+     * @param i The number of the argument, 0-indexed
+     * @return Reference to the argument
      */
     IndexId& qarg(int i) { return *q_args_[i]; }
 
     /**
-     * \brief Get the list of quantum arguments
+     * @brief Get the list of quantum arguments
      *
-     * \return Reference to the list of arguments
+     * @return Reference to the list of arguments
      */
     std::vector<ptr<IndexId>>& qargs() { return q_args_; }
 
     /**
-     * \brief Apply a function to each quantum argument
+     * @brief Apply a function to each quantum argument
      *
-     * \param f Void function accepting a reference to an argument
+     * @param f Void function accepting a reference to an argument
      */
     void foreach_qarg(std::function<void(IndexId&)> f) {
         for (auto& x : q_args_) {
@@ -259,24 +259,24 @@ class DelayStmt final : public TimingStmt {
     }
 
     /**
-     * \brief Set the ith quantum argument
+     * @brief Set the ith quantum argument
      *
-     * \param i The number of the argument, 0-indexed
-     * \param arg The new argument
+     * @param i The number of the argument, 0-indexed
+     * @param arg The new argument
      */
     void set_qarg(int i, ptr<IndexId> arg) { q_args_[i] = std::move(arg); }
 
     /**
-     * \brief Get the duration
+     * @brief Get the duration
      *
-     * \return Reference to thr duration
+     * @return Reference to thr duration
      */
     Expr& duration() { return *duration_; }
 
     /**
-     * \brief Set the duration
+     * @brief Set the duration
      *
-     * \param d The new duration
+     * @param d The new duration
      */
     void set_duration(ptr<Expr> d) { duration_ = std::move(d); }
 
@@ -302,9 +302,9 @@ class DelayStmt final : public TimingStmt {
 };
 
 /**
- * \class qasm3tools::ast::BoxStmt
- * \brief Class for box statements
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::BoxStmt
+ * @brief Class for box statements
+ * @see qasm3tools::ast::StmtBase
  */
 class BoxStmt final : public TimingStmt {
     std::optional<ptr<Expr>> duration_; ///< box duration
@@ -312,11 +312,11 @@ class BoxStmt final : public TimingStmt {
 
   public:
     /**
-     * \brief Constructs a box statement
+     * @brief Constructs a box statement
      *
-     * \param pos The source position
-     * \param duration Optional box duration (default = std::nullopt)
-     * \param circuit The boxed subcircuit
+     * @param pos The source position
+     * @param duration Optional box duration (default = std::nullopt)
+     * @param circuit The boxed subcircuit
      */
     BoxStmt(parser::Position pos, ptr<ProgramBlock> circuit)
         : TimingStmt(pos), duration_(std::nullopt),
@@ -327,7 +327,7 @@ class BoxStmt final : public TimingStmt {
           circuit_(std::move(circuit)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<BoxStmt> create(parser::Position pos,
                                ptr<ProgramBlock> circuit) {
@@ -341,16 +341,16 @@ class BoxStmt final : public TimingStmt {
     }
 
     /**
-     * \brief Get the box duration
+     * @brief Get the box duration
      *
-     * \return A reference to the duration
+     * @return A reference to the duration
      */
     std::optional<ptr<Expr>>& duration() { return duration_; }
 
     /**
-     * \brief Get the boxed subcircuit
+     * @brief Get the boxed subcircuit
      *
-     * \return Reference to the subcircuit
+     * @return Reference to the subcircuit
      */
     ProgramBlock& circuit() { return *circuit_; }
 

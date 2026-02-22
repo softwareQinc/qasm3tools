@@ -25,7 +25,7 @@
  */
 
 /**
- * \file qasm3tools/parser/parser.hpp
+ * @file qasm3tools/parser/parser.hpp
  */
 
 #ifndef QASM3TOOLS_PARSER_PARSER_HPP_
@@ -48,7 +48,7 @@ namespace qasm3tools {
 namespace parser {
 
 /**
- * \brief OpenQASM 3.0 standard library (stdgates.inc) as a string constant
+ * @brief OpenQASM 3.0 standard library (stdgates.inc) as a string constant
  */
 static const std::string std_include =
     "gate p(λ) a { ctrl @ gphase(λ) a; }\n"
@@ -1532,7 +1532,7 @@ class ASTConstructor : public qasm3ParserVisitor {
 };
 
 /**
- * \brief Parse a specified file without semantic checking
+ * @brief Parse a specified file without semantic checking
  */
 inline ast::ptr<ast::Program> parse_file_helper(std::string fname) {
     if (!std::filesystem::exists(fname)) {
@@ -1553,7 +1553,7 @@ inline ast::ptr<ast::Program> parse_file_helper(std::string fname) {
 }
 
 /**
- * \brief Parse a string without semantic checking
+ * @brief Parse a string without semantic checking
  */
 inline ast::ptr<ast::Program> parse_string_helper(const std::string& str,
                                                   std::string name = "") {
@@ -1572,7 +1572,7 @@ inline ast::ptr<ast::Program> parse_string_helper(const std::string& str,
 }
 
 /**
- * \brief Parse a specified file
+ * @brief Parse a specified file
  */
 inline ast::ptr<ast::Program> parse_file(std::string fname) {
     auto result = parse_file_helper(fname);
@@ -1581,7 +1581,7 @@ inline ast::ptr<ast::Program> parse_file(std::string fname) {
 }
 
 /**
- * \brief Parse a string
+ * @brief Parse a string
  */
 inline ast::ptr<ast::Program> parse_string(const std::string& str,
                                            std::string name = "") {

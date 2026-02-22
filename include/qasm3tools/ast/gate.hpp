@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/gate.hpp
- * \brief OpenQASM gates
+ * @file qasm3tools/ast/gate.hpp
+ * @brief OpenQASM gates
  */
 
 #ifndef QASM3TOOLS_AST_GATE_HPP_
@@ -44,8 +44,8 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::GateModifier
- * \brief Class for gate modifiers
+ * @class qasm3tools::ast::GateModifier
+ * @brief Class for gate modifiers
  */
 class GateModifier : public ASTNode {
   public:
@@ -57,26 +57,26 @@ class GateModifier : public ASTNode {
 };
 
 /**
- * \class qasm3tools::ast::CtrlModifier
- * \brief Class for control modifiers
+ * @class qasm3tools::ast::CtrlModifier
+ * @brief Class for control modifiers
  */
 class CtrlModifier : public GateModifier {
     bool neg_;                   // true for negctrl, false for ctrl
     std::optional<ptr<Expr>> n_; // number of control bits
   public:
     /**
-     * \brief Constructs a control modifier
+     * @brief Constructs a control modifier
      *
-     * \param pos The source position
-     * \param neg True for negctrl, false for ctrl
-     * \param n The number of control bits
+     * @param pos The source position
+     * @param neg True for negctrl, false for ctrl
+     * @param n The number of control bits
      */
     CtrlModifier(parser::Position pos, bool neg,
                  std::optional<ptr<Expr>>&& n = std::nullopt)
         : GateModifier(pos), neg_(neg), n_(std::move(n)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<CtrlModifier>
     create(parser::Position pos, bool neg,
@@ -85,16 +85,16 @@ class CtrlModifier : public GateModifier {
     }
 
     /**
-     * \brief Get whether the modifier is negctrl or ctrl
+     * @brief Get whether the modifier is negctrl or ctrl
      *
-     * \return True for negctrl, false for ctrl
+     * @return True for negctrl, false for ctrl
      */
     bool neg() const { return neg_; }
 
     /**
-     * \brief Get the number of control bits
+     * @brief Get the number of control bits
      *
-     * \return Optional expr number of control bits
+     * @return Optional expr number of control bits
      */
     std::optional<ptr<Expr>>& n() { return n_; }
 
@@ -119,20 +119,20 @@ class CtrlModifier : public GateModifier {
 };
 
 /**
- * \class qasm3tools::ast::InvModifier
- * \brief Class for inversion modifiers
+ * @class qasm3tools::ast::InvModifier
+ * @brief Class for inversion modifiers
  */
 class InvModifier : public GateModifier {
   public:
     /**
-     * \brief Constructs an inversion modifier
+     * @brief Constructs an inversion modifier
      *
-     * \param pos The source position
+     * @param pos The source position
      */
     InvModifier(parser::Position pos) : GateModifier(pos) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<InvModifier> create(parser::Position pos) {
         return std::make_unique<InvModifier>(pos);
@@ -149,40 +149,40 @@ class InvModifier : public GateModifier {
 };
 
 /**
- * \class qasm3tools::ast::PowModifier
- * \brief Class for powering modifiers
+ * @class qasm3tools::ast::PowModifier
+ * @brief Class for powering modifiers
  */
 class PowModifier : public GateModifier {
     ptr<Expr> r_;
 
   public:
     /**
-     * \brief Constructs a powering modifier
+     * @brief Constructs a powering modifier
      *
-     * \param pos The source position
-     * \param r The power
+     * @param pos The source position
+     * @param r The power
      */
     PowModifier(parser::Position pos, ptr<Expr> r)
         : GateModifier(pos), r_(std::move(r)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<PowModifier> create(parser::Position pos, ptr<Expr> r) {
         return std::make_unique<PowModifier>(pos, std::move(r));
     }
 
     /**
-     * \brief Get the power
+     * @brief Get the power
      *
-     * \return A reference to the power
+     * @return A reference to the power
      */
     Expr& r() { return *r_; }
 
     /**
-     * \brief Set the power
+     * @brief Set the power
      *
-     * \param r The new power
+     * @param r The new power
      */
     void set_r(ptr<Expr> r) { r_ = std::move(r); }
 
@@ -199,8 +199,8 @@ class PowModifier : public GateModifier {
 };
 
 /**
- * \class qasm3tools::ast::Gate
- * \brief Statement sub-class for gate
+ * @class qasm3tools::ast::Gate
+ * @brief Statement sub-class for gate
  */
 class Gate : public QuantumStmt {
   public:
@@ -210,38 +210,38 @@ class Gate : public QuantumStmt {
           q_args_(std::move(q_args)) {}
 
     /**
-     * \brief Get the list of gate modifiers
+     * @brief Get the list of gate modifiers
      *
-     * \return Reference to the list of gate modifiers
+     * @return Reference to the list of gate modifiers
      */
     std::list<ptr<GateModifier>>& modifiers() { return modifiers_; }
 
     /**
-     * \brief Get the number of quantum arguments
+     * @brief Get the number of quantum arguments
      *
-     * \return The number of arguments
+     * @return The number of arguments
      */
     int num_qargs() const { return static_cast<int>(q_args_.size()); }
 
     /**
-     * \brief Get the ith quantum argument
+     * @brief Get the ith quantum argument
      *
-     * \param i The number of the argument, 0-indexed
-     * \return Reference to the argument
+     * @param i The number of the argument, 0-indexed
+     * @return Reference to the argument
      */
     IndexId& qarg(int i) { return *q_args_[i]; }
 
     /**
-     * \brief Get the list of quantum arguments
+     * @brief Get the list of quantum arguments
      *
-     * \return Reference to the list of arguments
+     * @return Reference to the list of arguments
      */
     std::vector<ptr<IndexId>>& qargs() { return q_args_; }
 
     /**
-     * \brief Apply a function to each quantum argument
+     * @brief Apply a function to each quantum argument
      *
-     * \param f Void function accepting a reference to an argument
+     * @param f Void function accepting a reference to an argument
      */
     void foreach_qarg(std::function<void(IndexId&)> f) {
         for (auto& x : q_args_) {
@@ -250,10 +250,10 @@ class Gate : public QuantumStmt {
     }
 
     /**
-     * \brief Set the ith quantum argument
+     * @brief Set the ith quantum argument
      *
-     * \param i The number of the argument, 0-indexed
-     * \param arg The new argument
+     * @param i The number of the argument, 0-indexed
+     * @param arg The new argument
      */
     void set_qarg(int i, ptr<IndexId> arg) { q_args_[i] = std::move(arg); }
 
@@ -279,9 +279,9 @@ class Gate : public QuantumStmt {
 };
 
 /**
- * \class qasm3tools::ast::UGate
- * \brief Class for U gates
- * \see qasm3tools::ast::Gate
+ * @class qasm3tools::ast::UGate
+ * @brief Class for U gates
+ * @see qasm3tools::ast::Gate
  */
 class UGate final : public Gate {
     ptr<Expr> theta_;  ///< theta angle
@@ -290,14 +290,14 @@ class UGate final : public Gate {
 
   public:
     /**
-     * \brief Constructs a U gate
+     * @brief Constructs a U gate
      *
-     * \param pos The source position
-     * \param modifiers The gate modifiers
-     * \param theta The theta angle
-     * \param phi The phi angle
-     * \param lambda The lambda angle
-     * \param arg Rvalue reference to the quantum argument
+     * @param pos The source position
+     * @param modifiers The gate modifiers
+     * @param theta The theta angle
+     * @param phi The phi angle
+     * @param lambda The lambda angle
+     * @param arg Rvalue reference to the quantum argument
      */
     UGate(parser::Position pos, std::list<ptr<GateModifier>>&& modifiers,
           ptr<Expr> theta, ptr<Expr> phi, ptr<Expr> lambda,
@@ -307,7 +307,7 @@ class UGate final : public Gate {
           lambda_(std::move(lambda)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<UGate> create(parser::Position pos,
                              std::list<ptr<GateModifier>>&& modifiers,
@@ -319,44 +319,44 @@ class UGate final : public Gate {
     }
 
     /**
-     * \brief Get the theta angle
+     * @brief Get the theta angle
      *
-     * \return Reference to the angle expression
+     * @return Reference to the angle expression
      */
     Expr& theta() { return *theta_; }
 
     /**
-     * \brief Get the phi angle
+     * @brief Get the phi angle
      *
-     * \return Reference to the angle expression
+     * @return Reference to the angle expression
      */
     Expr& phi() { return *phi_; }
 
     /**
-     * \brief Get the lambda angle
+     * @brief Get the lambda angle
      *
-     * \return Reference to the angle expression
+     * @return Reference to the angle expression
      */
     Expr& lambda() { return *lambda_; }
 
     /**
-     * \brief Set the theta angle
+     * @brief Set the theta angle
      *
-     * \param theta The new angle expression
+     * @param theta The new angle expression
      */
     void set_theta(ptr<Expr> theta) { theta_ = std::move(theta); }
 
     /**
-     * \brief Set the phi angle
+     * @brief Set the phi angle
      *
-     * \param theta The new angle expression
+     * @param theta The new angle expression
      */
     void set_phi(ptr<Expr> phi) { phi_ = std::move(phi); }
 
     /**
-     * \brief Set the lambda angle
+     * @brief Set the lambda angle
      *
-     * \param theta The new angle expression
+     * @param theta The new angle expression
      */
     void set_lambda(ptr<Expr> lambda) { lambda_ = std::move(lambda); }
 
@@ -386,21 +386,21 @@ class UGate final : public Gate {
 };
 
 /**
- * \class qasm3tools::ast::GPhase
- * \brief Class for global phase gates
- * \see qasm3tools::ast::Gate
+ * @class qasm3tools::ast::GPhase
+ * @brief Class for global phase gates
+ * @see qasm3tools::ast::Gate
  */
 class GPhase final : public Gate {
     ptr<Expr> gamma_; ///< gamma angle
 
   public:
     /**
-     * \brief Constructs a U gate
+     * @brief Constructs a U gate
      *
-     * \param pos The source position
-     * \param modifiers The gate modifiers
-     * \param gamma The gamma angle
-     * \param arg Rvalue reference to the quantum argument
+     * @param pos The source position
+     * @param modifiers The gate modifiers
+     * @param gamma The gamma angle
+     * @param arg Rvalue reference to the quantum argument
      */
     GPhase(parser::Position pos, std::list<ptr<GateModifier>>&& modifiers,
            ptr<Expr> gamma, std::vector<ptr<IndexId>>&& q_args)
@@ -408,7 +408,7 @@ class GPhase final : public Gate {
           gamma_(std::move(gamma)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<GPhase> create(parser::Position pos,
                               std::list<ptr<GateModifier>>&& modifiers,
@@ -419,16 +419,16 @@ class GPhase final : public Gate {
     }
 
     /**
-     * \brief Get the gamma angle
+     * @brief Get the gamma angle
      *
-     * \return Reference to the angle expression
+     * @return Reference to the angle expression
      */
     Expr& gamma() { return *gamma_; }
 
     /**
-     * \brief Set the theta angle
+     * @brief Set the theta angle
      *
-     * \param theta The new angle expression
+     * @param theta The new angle expression
      */
     void set_gamma(ptr<Expr> gamma) { gamma_ = std::move(gamma); }
 
@@ -457,9 +457,9 @@ class GPhase final : public Gate {
 };
 
 /**
- * \class qasm3tools::ast::DeclaredGate
- * \brief Class for declared gate applications
- * \see qasm3tools::ast::Gate
+ * @class qasm3tools::ast::DeclaredGate
+ * @brief Class for declared gate applications
+ * @see qasm3tools::ast::Gate
  */
 class DeclaredGate final : public Gate {
     symbol name_;                   ///< gate identifier
@@ -467,13 +467,13 @@ class DeclaredGate final : public Gate {
 
   public:
     /**
-     * \brief Constructs an application of a declared gate
+     * @brief Constructs an application of a declared gate
      *
-     * \param pos The source position
-     * \param modifiers The gate modifiers
-     * \param name The gate name
-     * \param c_args Rvalue reference to a list of classical arguments
-     * \param q_args Rvalue reference to a list of quantum arguments
+     * @param pos The source position
+     * @param modifiers The gate modifiers
+     * @param name The gate name
+     * @param c_args Rvalue reference to a list of classical arguments
+     * @param q_args Rvalue reference to a list of quantum arguments
      */
     DeclaredGate(parser::Position pos, std::list<ptr<GateModifier>>&& modifiers,
                  symbol name, std::vector<ptr<Expr>>&& c_args,
@@ -482,7 +482,7 @@ class DeclaredGate final : public Gate {
           c_args_(std::move(c_args)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<DeclaredGate> create(parser::Position pos,
                                     std::list<ptr<GateModifier>>&& modifiers,
@@ -495,31 +495,31 @@ class DeclaredGate final : public Gate {
     }
 
     /**
-     * \brief Get the gate name
+     * @brief Get the gate name
      *
-     * \return Const reference to the gate name
+     * @return Const reference to the gate name
      */
     const symbol& name() const { return name_; }
 
     /**
-     * \brief Get the number of classical arguments
+     * @brief Get the number of classical arguments
      *
-     * \return The number of arguments
+     * @return The number of arguments
      */
     int num_cargs() const { return static_cast<int>(c_args_.size()); }
 
     /**
-     * \brief Get the ith classical argument
+     * @brief Get the ith classical argument
      *
-     * \param i The number of the argument, 0-indexed
-     * \return Reference to an expression
+     * @param i The number of the argument, 0-indexed
+     * @return Reference to an expression
      */
     Expr& carg(int i) { return *(c_args_[i]); }
 
     /**
-     * \brief Apply a function to each classical argument
+     * @brief Apply a function to each classical argument
      *
-     * \param f Void function accepting an expression reference
+     * @param f Void function accepting an expression reference
      */
     void foreach_carg(std::function<void(Expr&)> f) {
         for (auto& x : c_args_) {
@@ -528,10 +528,10 @@ class DeclaredGate final : public Gate {
     }
 
     /**
-     * \brief Set the ith classical argument
+     * @brief Set the ith classical argument
      *
-     * \param i The number of the argument, 0-indexed
-     * \param expr An expression giving the new argument
+     * @param i The number of the argument, 0-indexed
+     * @param expr An expression giving the new argument
      */
     void set_carg(int i, ptr<Expr> expr) { c_args_[i] = std::move(expr); }
 

@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/indexid.hpp
- * \brief OpenQASM indexed identifiers
+ * @file qasm3tools/ast/indexid.hpp
+ * @brief OpenQASM indexed identifiers
  */
 
 #ifndef QASM3TOOLS_AST_INDEXID_HPP_
@@ -42,8 +42,8 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::IndexOp
- * \brief Class for index operators
+ * @class qasm3tools::ast::IndexOp
+ * @brief Class for index operators
  */
 class IndexOp : public ASTNode {
   public:
@@ -51,14 +51,14 @@ class IndexOp : public ASTNode {
     virtual ~IndexOp() = default;
 
     /**
-     * \brief Get the number of single indices (i.e. non-slices) in the access
+     * @brief Get the number of single indices (i.e. non-slices) in the access
      *
      * return The number of single indices
      */
     virtual int num_single_indices() const = 0;
 
     /**
-     * \brief Get the number of index entities in the access
+     * @brief Get the number of index entities in the access
      *
      * return The number of index entities
      */
@@ -69,8 +69,8 @@ class IndexOp : public ASTNode {
 };
 
 /**
- * \class qasm3tools::ast::IndexEntity
- * \brief Class for index entities
+ * @class qasm3tools::ast::IndexEntity
+ * @brief Class for index entities
  */
 class IndexEntity : public ASTNode {
   public:
@@ -78,7 +78,7 @@ class IndexEntity : public ASTNode {
     virtual ~IndexEntity() = default;
 
     /**
-     * \brief Get whether the index entity is a single index
+     * @brief Get whether the index entity is a single index
      *
      * return Whether the index entity is a single index
      */
@@ -89,40 +89,40 @@ class IndexEntity : public ASTNode {
 };
 
 /**
- * \class qasm3tools::ast::SingleIndex
- * \brief Class for single indices
+ * @class qasm3tools::ast::SingleIndex
+ * @brief Class for single indices
  */
 class SingleIndex : public IndexEntity {
     ptr<Expr> index_; ///< the index
 
   public:
     /**
-     * \brief Constructs a single index
+     * @brief Constructs a single index
      *
-     * \param pos The source position
-     * \param index The index
+     * @param pos The source position
+     * @param index The index
      */
     SingleIndex(parser::Position pos, ptr<Expr> index)
         : IndexEntity(pos), index_(std::move(index)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<SingleIndex> create(parser::Position pos, ptr<Expr> index) {
         return std::make_unique<SingleIndex>(pos, std::move(index));
     }
 
     /**
-     * \brief Get the index
+     * @brief Get the index
      *
-     * \return A reference to the index
+     * @return A reference to the index
      */
     Expr& index() { return *index_; }
 
     /**
-     * \brief Set the index
+     * @brief Set the index
      *
-     * \param index The new index
+     * @param index The new index
      */
     void set_index(ptr<Expr> index) { index_ = std::move(index); }
 
@@ -141,8 +141,8 @@ class SingleIndex : public IndexEntity {
 };
 
 /**
- * \class qasm3tools::ast::RangeIndex
- * \brief Class for range slices
+ * @class qasm3tools::ast::RangeIndex
+ * @brief Class for range slices
  */
 class RangeIndex : public IndexEntity {
     std::optional<ptr<Expr>> start_; ///< the start index
@@ -150,12 +150,12 @@ class RangeIndex : public IndexEntity {
     std::optional<ptr<Expr>> stop_;  ///< the stop index
   public:
     /**
-     * \brief Constructs a range slice
+     * @brief Constructs a range slice
      *
-     * \param pos The source position
-     * \param start Start index
-     * \param step Optional step size (default = std::nullopt)
-     * \param stop Stop index
+     * @param pos The source position
+     * @param start Start index
+     * @param step Optional step size (default = std::nullopt)
+     * @param stop Stop index
      */
     RangeIndex(parser::Position pos, std::optional<ptr<Expr>>&& start,
                std::optional<ptr<Expr>>&& stop)
@@ -167,7 +167,7 @@ class RangeIndex : public IndexEntity {
           stop_(std::move(stop)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<RangeIndex> create(parser::Position pos,
                                   std::optional<ptr<Expr>>&& start,
@@ -184,21 +184,21 @@ class RangeIndex : public IndexEntity {
     }
 
     /**
-     * \brief Get the start index
+     * @brief Get the start index
      *
      * return std::optional reference to start index
      */
     std::optional<ptr<Expr>>& start() { return start_; }
 
     /**
-     * \brief Get the step size
+     * @brief Get the step size
      *
      * return std::optional reference to step size
      */
     std::optional<ptr<Expr>>& step() { return step_; }
 
     /**
-     * \brief Get the stop index
+     * @brief Get the stop index
      *
      * return std::optional reference to stop index
      */
@@ -241,25 +241,25 @@ class RangeIndex : public IndexEntity {
 };
 
 /**
- * \class qasm3tools::ast::IndexEntityList
- * \brief Class for index entity lists
+ * @class qasm3tools::ast::IndexEntityList
+ * @brief Class for index entity lists
  */
 class IndexEntityList : public IndexOp {
     std::vector<ptr<IndexEntity>> indices_; ///< list of index entities
 
   public:
     /**
-     * \brief Construct an index entity list
+     * @brief Construct an index entity list
      *
-     * \param pos The source position
-     * \param indices The list of index entities
+     * @param pos The source position
+     * @param indices The list of index entities
      */
     IndexEntityList(parser::Position pos,
                     std::vector<ptr<IndexEntity>>&& indices)
         : IndexOp(pos), indices_(std::move(indices)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<IndexEntityList>
     create(parser::Position pos, std::vector<ptr<IndexEntity>>&& indices) {
@@ -267,9 +267,9 @@ class IndexEntityList : public IndexOp {
     }
 
     /**
-     * \brief Get the list of index entities
+     * @brief Get the list of index entities
      *
-     * \return Reference to the list of index entities
+     * @return Reference to the list of index entities
      */
     std::vector<ptr<IndexEntity>>& indices() { return indices_; }
 
@@ -285,9 +285,9 @@ class IndexEntityList : public IndexOp {
     int num_index_entities() const override { return indices_.size(); }
 
     /**
-     * \brief Apply a function to each index entity
+     * @brief Apply a function to each index entity
      *
-     * \param f Void function accepting a reference to the index entity
+     * @param f Void function accepting a reference to the index entity
      */
     void foreach_index(std::function<void(IndexEntity&)> f) {
         for (auto& x : indices_) {
@@ -316,24 +316,24 @@ class IndexEntityList : public IndexOp {
 };
 
 /**
- * \class qasm3tools::ast::ListSlice
- * \brief Class for list slices
+ * @class qasm3tools::ast::ListSlice
+ * @brief Class for list slices
  */
 class ListSlice : public IndexOp {
     std::vector<ptr<Expr>> indices_;
 
   public:
     /**
-     * \brief Construct a list slice
+     * @brief Construct a list slice
      *
-     * \param pos The source position
-     * \param indices The list of indices
+     * @param pos The source position
+     * @param indices The list of indices
      */
     ListSlice(parser::Position pos, std::vector<ptr<Expr>>&& indices)
         : IndexOp(pos), indices_(std::move(indices)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ListSlice> create(parser::Position pos,
                                  std::vector<ptr<Expr>>&& indices) {
@@ -341,9 +341,9 @@ class ListSlice : public IndexOp {
     }
 
     /**
-     * \brief Get the list of indices
+     * @brief Get the list of indices
      *
-     * \return Reference to the list of indices
+     * @return Reference to the list of indices
      */
     std::vector<ptr<Expr>>& indices() { return indices_; }
 
@@ -371,8 +371,8 @@ class ListSlice : public IndexOp {
 };
 
 /**
- * \class qasm3tools::ast::IndexId
- * \brief Class for indexed identifiers
+ * @class qasm3tools::ast::IndexId
+ * @brief Class for indexed identifiers
  *
  * Represents accesses into a register or array.
  */
@@ -382,18 +382,18 @@ class IndexId final : public ASTNode {
 
   public:
     /**
-     * \brief Construct an indexed identifiers
+     * @brief Construct an indexed identifiers
      *
-     * \param pos The source position
-     * \param var The register name
-     * \param index_ops The sequence of index operators
+     * @param pos The source position
+     * @param var The register name
+     * @param index_ops The sequence of index operators
      */
     IndexId(parser::Position pos, symbol var,
             std::vector<ptr<IndexOp>>&& index_ops)
         : ASTNode(pos), var_(var), index_ops_(std::move(index_ops)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<IndexId> create(parser::Position pos, symbol var,
                                std::vector<ptr<IndexOp>>&& index_ops) {
@@ -401,30 +401,30 @@ class IndexId final : public ASTNode {
     }
 
     /**
-     * \brief Get the register name
+     * @brief Get the register name
      *
      * return Const reference to the register name
      */
     const symbol& var() const { return var_; }
 
     /**
-     * \brief Get the number of index operators
+     * @brief Get the number of index operators
      *
-     * \return The number of index operators
+     * @return The number of index operators
      */
     int num_index_ops() const { return static_cast<int>(index_ops_.size()); }
 
     /**
-     * \brief Get the list of index operators
+     * @brief Get the list of index operators
      *
-     * \return Reference to the list of index operators
+     * @return Reference to the list of index operators
      */
     std::vector<ptr<IndexOp>>& index_ops() { return index_ops_; }
 
     /**
-     * \brief Apply a function to each index operator
+     * @brief Apply a function to each index operator
      *
-     * \param f Void function accepting a reference to the argument
+     * @param f Void function accepting a reference to the argument
      */
     void foreach_index_op(std::function<void(IndexOp&)> f) {
         for (auto& x : index_ops_) {

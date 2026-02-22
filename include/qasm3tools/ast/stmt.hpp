@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/stmt.hpp
- * \brief OpenQASM statements
+ * @file qasm3tools/ast/stmt.hpp
+ * @brief OpenQASM statements
  */
 
 #ifndef QASM3TOOLS_AST_STMT_HPP_
@@ -48,41 +48,41 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::ExprStmt
- * \brief Class for expression statements
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::ExprStmt
+ * @brief Class for expression statements
+ * @see qasm3tools::ast::StmtBase
  */
 class ExprStmt final : public Stmt {
     ptr<Expr> exp_; ///< the expression
 
   public:
     /**
-     * \brief Constructs an expression statement
+     * @brief Constructs an expression statement
      *
-     * \param pos The source position
-     * \param exp The expression
+     * @param pos The source position
+     * @param exp The expression
      */
     ExprStmt(parser::Position pos, ptr<Expr> exp)
         : Stmt(pos), exp_(std::move(exp)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ExprStmt> create(parser::Position pos, ptr<Expr> exp) {
         return std::make_unique<ExprStmt>(pos, std::move(exp));
     }
 
     /**
-     * \brief Get the expression
+     * @brief Get the expression
      *
-     * \return Reference to the expression
+     * @return Reference to the expression
      */
     Expr& exp() { return *exp_; }
 
     /**
-     * \brief Set the expression
+     * @brief Set the expression
      *
-     * \param exp The new expression
+     * @param exp The new expression
      */
     void set_exp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
@@ -99,41 +99,41 @@ class ExprStmt final : public Stmt {
 };
 
 /**
- * \class qasm3tools::ast::ResetStmt
- * \brief Class for reset statements
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::ResetStmt
+ * @brief Class for reset statements
+ * @see qasm3tools::ast::StmtBase
  */
 class ResetStmt final : public QuantumStmt {
     ptr<IndexId> q_arg_; ///< the quantum bit|register
 
   public:
     /**
-     * \brief Constructs a reset statement
+     * @brief Constructs a reset statement
      *
-     * \param pos The source position
-     * \param q_arg Rvalue reference to the quantum argument
+     * @param pos The source position
+     * @param q_arg Rvalue reference to the quantum argument
      */
     ResetStmt(parser::Position pos, ptr<IndexId> q_arg)
         : QuantumStmt(pos), q_arg_(std::move(q_arg)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ResetStmt> create(parser::Position pos, ptr<IndexId> q_arg) {
         return std::make_unique<ResetStmt>(pos, std::move(q_arg));
     }
 
     /**
-     * \brief Get the quantum argument
+     * @brief Get the quantum argument
      *
-     * \return Reference to the quantum argument
+     * @return Reference to the quantum argument
      */
     IndexId& q_arg() { return *q_arg_; }
 
     /**
-     * \brief Set the quantum argument
+     * @brief Set the quantum argument
      *
-     * \param arg The new quantum argument
+     * @param arg The new quantum argument
      */
     void set_arg(ptr<IndexId> arg) { q_arg_ = std::move(arg); }
 
@@ -150,25 +150,25 @@ class ResetStmt final : public QuantumStmt {
 };
 
 /**
- * \class qasm3tools::ast::BarrierStmt
- * \brief Class for barrier statement
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::BarrierStmt
+ * @brief Class for barrier statement
+ * @see qasm3tools::ast::StmtBase
  */
 class BarrierStmt final : public QuantumStmt {
     std::vector<ptr<IndexId>> args_; ///< list of quantum bits|registers
 
   public:
     /**
-     * \brief Constructs a barrier gate
+     * @brief Constructs a barrier gate
      *
-     * \param pos The source position
-     * \param args Rvalue reference to a list of arguments
+     * @param pos The source position
+     * @param args Rvalue reference to a list of arguments
      */
     BarrierStmt(parser::Position pos, std::vector<ptr<IndexId>>&& args)
         : QuantumStmt(pos), args_(std::move(args)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<BarrierStmt> create(parser::Position pos,
                                    std::vector<ptr<IndexId>>&& args) {
@@ -176,31 +176,31 @@ class BarrierStmt final : public QuantumStmt {
     }
 
     /**
-     * \brief Get the number of arguments
+     * @brief Get the number of arguments
      *
-     * \return The number of arguments
+     * @return The number of arguments
      */
     int num_args() const { return static_cast<int>(args_.size()); }
 
     /**
-     * \brief Get the list of arguments
+     * @brief Get the list of arguments
      *
-     * \return Reference to the list of arguments
+     * @return Reference to the list of arguments
      */
     std::vector<ptr<IndexId>>& args() { return args_; }
 
     /**
-     * \brief Get the ith argument
+     * @brief Get the ith argument
      *
-     * \param i The number of the argument (0 indexed)
-     * \return Reference to the ith argument
+     * @param i The number of the argument (0 indexed)
+     * @return Reference to the ith argument
      */
     IndexId& arg(int i) { return *args_[i]; }
 
     /**
-     * \brief Apply a function to each argument
+     * @brief Apply a function to each argument
      *
-     * \param f Void function accepting a reference to the argument
+     * @param f Void function accepting a reference to the argument
      */
     void foreach_arg(std::function<void(IndexId&)> f) {
         for (auto& x : args_) {
@@ -209,10 +209,10 @@ class BarrierStmt final : public QuantumStmt {
     }
 
     /**
-     * \brief Set the ith argument
+     * @brief Set the ith argument
      *
-     * \param i The number of the argument (0 indexed)
-     * \param arg The new argument
+     * @param i The number of the argument (0 indexed)
+     * @param arg The new argument
      */
     void set_arg(int i, ptr<IndexId> arg) { args_[i] = std::move(arg); }
 
@@ -237,9 +237,9 @@ class BarrierStmt final : public QuantumStmt {
 };
 
 /**
- * \class qasm3tools::ast::IfStmt
- * \brief Class for if statements
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::IfStmt
+ * @brief Class for if statements
+ * @see qasm3tools::ast::StmtBase
  */
 class IfStmt final : public Stmt {
     ptr<Expr> cond_;         ///< boolean expression to check
@@ -248,12 +248,12 @@ class IfStmt final : public Stmt {
 
   public:
     /**
-     * \brief Constructs an if statement
+     * @brief Constructs an if statement
      *
-     * \param pos The source position
-     * \param cond The boolean to check
-     * \param then The block to execute in the then branch
-     * \param els The block to execute in the else branch
+     * @param pos The source position
+     * @param cond The boolean to check
+     * @param then The block to execute in the then branch
+     * @param els The block to execute in the else branch
      */
     IfStmt(parser::Position pos, ptr<Expr> cond, ptr<ProgramBlock> then,
            ptr<ProgramBlock> els)
@@ -261,7 +261,7 @@ class IfStmt final : public Stmt {
           else_(std::move(els)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<IfStmt> create(parser::Position pos, ptr<Expr> cond,
                               ptr<ProgramBlock> then, ptr<ProgramBlock> els) {
@@ -270,30 +270,30 @@ class IfStmt final : public Stmt {
     }
 
     /**
-     * \brief Get the boolean expression
+     * @brief Get the boolean expression
      *
-     * \return A reference to the boolean expression
+     * @return A reference to the boolean expression
      */
     Expr& cond() { return *cond_; }
 
     /**
-     * \brief Set the boolean expression
+     * @brief Set the boolean expression
      *
-     * \param cond The new expression
+     * @param cond The new expression
      */
     void set_cond(ptr<Expr> cond) { cond_ = std::move(cond); }
 
     /**
-     * \brief Get the then branch
+     * @brief Get the then branch
      *
-     * \return Reference to the "then" block
+     * @return Reference to the "then" block
      */
     ProgramBlock& then() { return *then_; }
 
     /**
-     * \brief Get the else branch
+     * @brief Get the else branch
      *
-     * \return Reference to the "else" block
+     * @return Reference to the "else" block
      */
     ProgramBlock& els() { return *else_; }
 
@@ -320,22 +320,22 @@ class IfStmt final : public Stmt {
 };
 
 /**
- * \class qasm3tools::ast::BreakStmt
- * \brief Class for "break" statements
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::BreakStmt
+ * @brief Class for "break" statements
+ * @see qasm3tools::ast::StmtBase
  */
 class BreakStmt final : public Stmt {
 
   public:
     /**
-     * \brief Construct a break statement
+     * @brief Construct a break statement
      *
-     * \param pos The source position
+     * @param pos The source position
      */
     BreakStmt(parser::Position pos) : Stmt(pos) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<BreakStmt> create(parser::Position pos) {
         return std::make_unique<BreakStmt>(pos);
@@ -352,22 +352,22 @@ class BreakStmt final : public Stmt {
 };
 
 /**
- * \class qasm3tools::ast::ContinueStmt
- * \brief Class for "continue" statements
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::ContinueStmt
+ * @brief Class for "continue" statements
+ * @see qasm3tools::ast::StmtBase
  */
 class ContinueStmt final : public Stmt {
 
   public:
     /**
-     * \brief Construct a continue statement
+     * @brief Construct a continue statement
      *
-     * \param pos The source position
+     * @param pos The source position
      */
     ContinueStmt(parser::Position pos) : Stmt(pos) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ContinueStmt> create(parser::Position pos) {
         return std::make_unique<ContinueStmt>(pos);
@@ -384,26 +384,26 @@ class ContinueStmt final : public Stmt {
 };
 
 /**
- * \class qasm3tools::ast::ReturnStmt
- * \brief Class for "return" statements
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::ReturnStmt
+ * @brief Class for "return" statements
+ * @see qasm3tools::ast::StmtBase
  */
 class ReturnStmt final : public Stmt {
     std::optional<ptr<Expr>> value_;
 
   public:
     /**
-     * \brief Construct a return statement
+     * @brief Construct a return statement
      *
-     * \param pos The source position
-     * \param value Optional return expression
+     * @param pos The source position
+     * @param value Optional return expression
      */
     ReturnStmt(parser::Position pos,
                std::optional<ptr<Expr>>&& value = std::nullopt)
         : Stmt(pos), value_(std::move(value)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ReturnStmt>
     create(parser::Position pos,
@@ -412,9 +412,9 @@ class ReturnStmt final : public Stmt {
     }
 
     /**
-     * \brief Get the returned expression
+     * @brief Get the returned expression
      *
-     * \return Reference to the returned expression
+     * @return Reference to the returned expression
      */
     std::optional<ptr<Expr>>& value() { return value_; }
 
@@ -439,22 +439,22 @@ class ReturnStmt final : public Stmt {
 };
 
 /**
- * \class qasm3tools::ast::EndStmt
- * \brief Class for "end" statements
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::EndStmt
+ * @brief Class for "end" statements
+ * @see qasm3tools::ast::StmtBase
  */
 class EndStmt final : public Stmt {
 
   public:
     /**
-     * \brief Construct an end statement
+     * @brief Construct an end statement
      *
-     * \param pos The source position
+     * @param pos The source position
      */
     EndStmt(parser::Position pos) : Stmt(pos) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<EndStmt> create(parser::Position pos) {
         return std::make_unique<EndStmt>(pos);
@@ -471,9 +471,9 @@ class EndStmt final : public Stmt {
 };
 
 /**
- * \class qasm3tools::ast::AliasStmt
- * \brief Class for alias statements
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::AliasStmt
+ * @brief Class for alias statements
+ * @see qasm3tools::ast::StmtBase
  */
 class AliasStmt final : public Stmt {
     symbol alias_;                ///< the alias name
@@ -481,17 +481,17 @@ class AliasStmt final : public Stmt {
 
   public:
     /**
-     * \brief Constructs an alias statement
+     * @brief Constructs an alias statement
      *
-     * \param pos The source position
-     * \param alias The alias name
-     * \param regs The concatenated quantum bits|registers
+     * @param pos The source position
+     * @param alias The alias name
+     * @param regs The concatenated quantum bits|registers
      */
     AliasStmt(parser::Position pos, symbol alias, std::vector<ptr<Expr>>&& regs)
         : Stmt(pos), alias_(alias), regs_(std::move(regs)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<AliasStmt> create(parser::Position pos, symbol alias,
                                  std::vector<ptr<Expr>>&& regs) {
@@ -499,30 +499,30 @@ class AliasStmt final : public Stmt {
     }
 
     /**
-     * \brief Get the alias name
+     * @brief Get the alias name
      *
-     * \return Const reference to the alias name
+     * @return Const reference to the alias name
      */
     const symbol& alias() const { return alias_; }
 
     /**
-     * \brief Get the number of concatenated registers
+     * @brief Get the number of concatenated registers
      *
-     * \return The number of concatenated registers
+     * @return The number of concatenated registers
      */
     int num_regs() const { return static_cast<int>(regs_.size()); }
 
     /**
-     * \brief Get the list of concatenated registers
+     * @brief Get the list of concatenated registers
      *
-     * \return Reference to the list of concatenated registers
+     * @return Reference to the list of concatenated registers
      */
     std::vector<ptr<Expr>>& regs() { return regs_; }
 
     /**
-     * \brief Apply a function to each concatenated register
+     * @brief Apply a function to each concatenated register
      *
-     * \param f Void function accepting a reference to the argument
+     * @param f Void function accepting a reference to the argument
      */
     void foreach_reg(std::function<void(Expr&)> f) {
         for (auto& x : regs_) {
@@ -551,7 +551,7 @@ class AliasStmt final : public Stmt {
 };
 
 /**
- * \brief Enum of assignment operators
+ * @brief Enum of assignment operators
  */
 enum class AssignOp {
     Equals,
@@ -614,9 +614,9 @@ inline std::ostream& operator<<(std::ostream& os, const AssignOp& aop) {
 }
 
 /**
- * \class qasm3tools::ast::AssignmentStmt
- * \brief Class for assignment statements
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::AssignmentStmt
+ * @brief Class for assignment statements
+ * @see qasm3tools::ast::StmtBase
  */
 class AssignmentStmt final : public Stmt {
     ptr<IndexId> lval_; ///< lvalue to assign to
@@ -625,19 +625,19 @@ class AssignmentStmt final : public Stmt {
 
   public:
     /**
-     * \brief Constructs an assignment statement
+     * @brief Constructs an assignment statement
      *
-     * \param pos The source position
-     * \param lval The lvalue to assign to
-     * \param op The assignment operator
-     * \param exp The expression
+     * @param pos The source position
+     * @param lval The lvalue to assign to
+     * @param op The assignment operator
+     * @param exp The expression
      */
     AssignmentStmt(parser::Position pos, ptr<IndexId> lval, AssignOp op,
                    ptr<Expr> exp)
         : Stmt(pos), lval_(std::move(lval)), op_(op), exp_(std::move(exp)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<AssignmentStmt> create(parser::Position pos, ptr<IndexId> lval,
                                       AssignOp op, ptr<Expr> exp) {
@@ -646,37 +646,37 @@ class AssignmentStmt final : public Stmt {
     }
 
     /**
-     * \brief Get the lvalue to assign to
+     * @brief Get the lvalue to assign to
      *
-     * \return Reference to the lvalue to assign to
+     * @return Reference to the lvalue to assign to
      */
     IndexId& lval() { return *lval_; }
 
     /**
-     * \brief Get the assignment operator
+     * @brief Get the assignment operator
      *
-     * \return An assignment operator enum
+     * @return An assignment operator enum
      */
     AssignOp op() const { return op_; }
 
     /**
-     * \brief Set the assignment operator
+     * @brief Set the assignment operator
      *
-     * \param op The new assignment operator
+     * @param op The new assignment operator
      */
     void set_op(AssignOp op) { op_ = op; }
 
     /**
-     * \brief Get the expression
+     * @brief Get the expression
      *
-     * \return Reference to the expression
+     * @return Reference to the expression
      */
     Expr& exp() { return *exp_; }
 
     /**
-     * \brief Set the expression
+     * @brief Set the expression
      *
-     * \param exp The new expression
+     * @param exp The new expression
      */
     void set_exp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
@@ -694,34 +694,34 @@ class AssignmentStmt final : public Stmt {
 };
 
 /**
- * \class qasm3tools::ast::PragmaStmt
- * \brief Class for pragma statements
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::PragmaStmt
+ * @brief Class for pragma statements
+ * @see qasm3tools::ast::StmtBase
  */
 class PragmaStmt final : public GlobalStmt {
     std::string content_; ///< pragma content
 
   public:
     /**
-     * \brief Constructs a pragma statement
+     * @brief Constructs a pragma statement
      *
-     * \param pos The source position
-     * \param content The pragma content
+     * @param pos The source position
+     * @param content The pragma content
      */
     PragmaStmt(parser::Position pos, std::string content)
         : GlobalStmt(pos), content_(content) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<PragmaStmt> create(parser::Position pos, std::string content) {
         return std::make_unique<PragmaStmt>(pos, content);
     }
 
     /**
-     * \brief Get the pragma content
+     * @brief Get the pragma content
      *
-     * \return The content
+     * @return The content
      */
     std::string content() { return content_; }
 

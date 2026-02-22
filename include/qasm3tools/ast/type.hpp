@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/type.hpp
- * \brief OpenQASM data types
+ * @file qasm3tools/ast/type.hpp
+ * @brief OpenQASM data types
  */
 
 #ifndef QASM3TOOLS_AST_TYPE_HPP_
@@ -43,8 +43,8 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::Type
- * \brief Class for types
+ * @class qasm3tools::ast::Type
+ * @brief Class for types
  */
 class Type : public ASTNode {
   public:
@@ -56,7 +56,7 @@ class Type : public ASTNode {
 };
 
 /**
- * \brief Enum of single-designator types
+ * @brief Enum of single-designator types
  */
 enum class SDType { Bit, Int, Uint, Float, Angle };
 inline std::ostream& operator<<(std::ostream& os, const SDType& t) {
@@ -81,7 +81,7 @@ inline std::ostream& operator<<(std::ostream& os, const SDType& t) {
 }
 
 /**
- * \brief Enum of no-designator types
+ * @brief Enum of no-designator types
  */
 enum class NDType { Bool, Duration, Stretch };
 inline std::ostream& operator<<(std::ostream& os, const NDType& t) {
@@ -100,8 +100,8 @@ inline std::ostream& operator<<(std::ostream& os, const NDType& t) {
 }
 
 /**
- * \class qasm3tools::ast::ClassicalType
- * \brief Class for classical types
+ * @class qasm3tools::ast::ClassicalType
+ * @brief Class for classical types
  */
 class ClassicalType : public Type {
   public:
@@ -113,8 +113,8 @@ class ClassicalType : public Type {
 };
 
 /**
- * \class qasm3tools::ast::NonArrayType
- * \brief Class for non-array classical types
+ * @class qasm3tools::ast::NonArrayType
+ * @brief Class for non-array classical types
  */
 class NonArrayType : public ClassicalType {
   public:
@@ -126,8 +126,8 @@ class NonArrayType : public ClassicalType {
 };
 
 /**
- * \class qasm3tools::ast::SingleDesignatorType
- * \brief Type sub-class for single-designator types
+ * @class qasm3tools::ast::SingleDesignatorType
+ * @brief Type sub-class for single-designator types
  */
 class SingleDesignatorType : public NonArrayType {
     SDType type_;
@@ -135,18 +135,18 @@ class SingleDesignatorType : public NonArrayType {
 
   public:
     /**
-     * \brief Constructs a single-designator type
+     * @brief Constructs a single-designator type
      *
-     * \param pos The source position
-     * \param type The type name
-     * \param size The size
+     * @param pos The source position
+     * @param type The type name
+     * @param size The size
      */
     SingleDesignatorType(parser::Position pos, SDType type,
                          std::optional<ptr<Expr>>&& size = std::nullopt)
         : NonArrayType(pos), type_(type), size_(std::move(size)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<SingleDesignatorType>
     create(parser::Position pos, SDType type,
@@ -156,16 +156,16 @@ class SingleDesignatorType : public NonArrayType {
     }
 
     /**
-     * \brief Get the type name
+     * @brief Get the type name
      *
-     * \return A single-designator type enum
+     * @return A single-designator type enum
      */
     SDType type() { return type_; }
 
     /**
-     * \brief Get the size
+     * @brief Get the size
      *
-     * \return Optional expr size
+     * @return Optional expr size
      */
     std::optional<ptr<Expr>>& size() { return size_; }
 
@@ -189,33 +189,33 @@ class SingleDesignatorType : public NonArrayType {
 };
 
 /**
- * \class qasm3tools::ast::NoDesignatorType
- * \brief Type sub-class for no-designator types
+ * @class qasm3tools::ast::NoDesignatorType
+ * @brief Type sub-class for no-designator types
  */
 class NoDesignatorType : public NonArrayType {
     NDType type_;
 
   public:
     /**
-     * \brief Constructs a no-designator type
+     * @brief Constructs a no-designator type
      *
-     * \param pos The source position
-     * \param type The type name
+     * @param pos The source position
+     * @param type The type name
      */
     NoDesignatorType(parser::Position pos, NDType type)
         : NonArrayType(pos), type_(type) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<NoDesignatorType> create(parser::Position pos, NDType type) {
         return std::make_unique<NoDesignatorType>(pos, type);
     }
 
     /**
-     * \brief Get the type name
+     * @brief Get the type name
      *
-     * \return A single-designator type enum
+     * @return A single-designator type enum
      */
     NDType type() { return type_; }
 
@@ -232,25 +232,25 @@ class NoDesignatorType : public NonArrayType {
 };
 
 /**
- * \class qasm3tools::ast::ComplexType
- * \brief Type sub-class for complex types
+ * @class qasm3tools::ast::ComplexType
+ * @brief Type sub-class for complex types
  */
 class ComplexType : public NonArrayType {
     std::optional<ptr<NonArrayType>> subtype_;
 
   public:
     /**
-     * \brief Constructs a bit type
+     * @brief Constructs a bit type
      *
-     * \param pos The source position
-     * \param subtype The subtype
+     * @param pos The source position
+     * @param subtype The subtype
      */
     ComplexType(parser::Position pos,
                 std::optional<ptr<NonArrayType>> subtype = std::nullopt)
         : NonArrayType(pos), subtype_(std::move(subtype)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ComplexType>
     create(parser::Position pos,
@@ -259,9 +259,9 @@ class ComplexType : public NonArrayType {
     }
 
     /**
-     * \brief Get the subtype
+     * @brief Get the subtype
      *
-     * \return Reference to the subtype
+     * @return Reference to the subtype
      */
     std::optional<ptr<NonArrayType>>& subtype() { return subtype_; }
 
@@ -285,8 +285,8 @@ class ComplexType : public NonArrayType {
 };
 
 /**
- * \class qasm3tools::ast::ArrayType
- * \brief Class for classical array types
+ * @class qasm3tools::ast::ArrayType
+ * @brief Class for classical array types
  */
 class ArrayType : public ClassicalType {
     ptr<NonArrayType> subtype_;   ///< non-array subtype
@@ -294,11 +294,11 @@ class ArrayType : public ClassicalType {
 
   public:
     /**
-     * \brief Construct a classical array types
+     * @brief Construct a classical array types
      *
-     * \param pos The source position
-     * \param subtype The non-array subtype
-     * \param dims The dimension specification
+     * @param pos The source position
+     * @param subtype The non-array subtype
+     * @param dims The dimension specification
      */
     ArrayType(parser::Position pos, ptr<NonArrayType> subtype,
               std::vector<ptr<Expr>>&& dims)
@@ -306,7 +306,7 @@ class ArrayType : public ClassicalType {
           dims_(std::move(dims)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ArrayType> create(parser::Position pos,
                                  ptr<NonArrayType> subtype,
@@ -316,32 +316,32 @@ class ArrayType : public ClassicalType {
     }
 
     /**
-     * \brief Get the subtype
+     * @brief Get the subtype
      *
-     * \return Reference to the non-array subtype
+     * @return Reference to the non-array subtype
      */
     NonArrayType& subtype() { return *subtype_; }
 
     /**
-     * \brief Get the number of dimensions
+     * @brief Get the number of dimensions
      *
-     * \return The number of dimensions
+     * @return The number of dimensions
      */
     int dims() const { return static_cast<int>(dims_.size()); }
 
     /**
-     * \brief Get the ith dimension size
+     * @brief Get the ith dimension size
      *
-     * \param i The number of the dimension, 0-indexed
-     * \return Reference to an expression
+     * @param i The number of the dimension, 0-indexed
+     * @return Reference to an expression
      */
     Expr& dim(int i) { return *(dims_[i]); }
 
     /**
-     * \brief Set the ith dimension size
+     * @brief Set the ith dimension size
      *
-     * \param i The number of the dimension, 0-indexed
-     * \param expr An expression giving the new dimension size
+     * @param i The number of the dimension, 0-indexed
+     * @param expr An expression giving the new dimension size
      */
     void set_dim(int i, ptr<Expr> expr) { dims_[i] = std::move(expr); }
 
@@ -366,8 +366,8 @@ class ArrayType : public ClassicalType {
 };
 
 /**
- * \class qasm3tools::ast::ArrayRefType
- * \brief Class for array reference types
+ * @class qasm3tools::ast::ArrayRefType
+ * @brief Class for array reference types
  */
 class ArrayRefType : public ClassicalType {
     ptr<NonArrayType> subtype_; ///< non-array subtype
@@ -380,12 +380,12 @@ class ArrayRefType : public ClassicalType {
 
   public:
     /**
-     * \brief Construct an array reference types
+     * @brief Construct an array reference types
      *
-     * \param pos The source position
-     * \param subtype The non-array subtype
-     * \param dims The dimension specification
-     * \param is_mutable Whether the array reference is mutable
+     * @param pos The source position
+     * @param subtype The non-array subtype
+     * @param dims The dimension specification
+     * @param is_mutable Whether the array reference is mutable
      */
     ArrayRefType(parser::Position pos, ptr<NonArrayType> subtype,
                  Dimensions&& dims, bool is_mutable = false)
@@ -393,7 +393,7 @@ class ArrayRefType : public ClassicalType {
           dims_(std::move(dims)), is_mutable_(is_mutable) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ArrayRefType> create(parser::Position pos,
                                     ptr<NonArrayType> subtype,
@@ -404,16 +404,16 @@ class ArrayRefType : public ClassicalType {
     }
 
     /**
-     * \brief Get the subtype
+     * @brief Get the subtype
      *
-     * \return Reference to the non-array subtype
+     * @return Reference to the non-array subtype
      */
     NonArrayType& subtype() { return *subtype_; }
 
     /**
-     * \brief Get the dimension specification
+     * @brief Get the dimension specification
      *
-     * \return Reference to the dimension specification
+     * @return Reference to the dimension specification
      */
     Dimensions& dims() { return dims_; }
 
@@ -455,8 +455,8 @@ class ArrayRefType : public ClassicalType {
 };
 
 /**
- * \class qasm3tools::ast::QuantumType
- * \brief Class for quantum types
+ * @class qasm3tools::ast::QuantumType
+ * @brief Class for quantum types
  */
 class QuantumType : public Type {
   public:
@@ -468,25 +468,25 @@ class QuantumType : public Type {
 };
 
 /**
- * \class qasm3tools::ast::QubitType
- * \brief Type sub-class for qubit types
+ * @class qasm3tools::ast::QubitType
+ * @brief Type sub-class for qubit types
  */
 class QubitType : public QuantumType {
     std::optional<ptr<Expr>> size_;
 
   public:
     /**
-     * \brief Constructs a qubit type
+     * @brief Constructs a qubit type
      *
-     * \param pos The source position
-     * \param size The size
+     * @param pos The source position
+     * @param size The size
      */
     QubitType(parser::Position pos,
               std::optional<ptr<Expr>>&& size = std::nullopt)
         : QuantumType(pos), size_(std::move(size)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<QubitType>
     create(parser::Position pos,
@@ -495,9 +495,9 @@ class QubitType : public QuantumType {
     }
 
     /**
-     * \brief Get the size
+     * @brief Get the size
      *
-     * \return Optional expr size
+     * @return Optional expr size
      */
     std::optional<ptr<Expr>>& size() { return size_; }
 

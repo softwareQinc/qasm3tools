@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/utils/templates.hpp
- * \brief Helper templates
+ * @file qasm3tools/utils/templates.hpp
+ * @brief Helper templates
  */
 
 #ifndef QASM3TOOLS_UTILS_TEMPLATES_HPP_
@@ -35,7 +35,7 @@
 namespace qasm3tools {
 namespace utils {
 /**
- * \brief Convenience template for variant visitors
+ * @brief Convenience template for variant visitors
  */
 template <class... Ts>
 struct overloaded : Ts... {

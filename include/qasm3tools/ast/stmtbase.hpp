@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/stmtbase.hpp
- * \brief Base classes for OpenQASM statements
+ * @file qasm3tools/ast/stmtbase.hpp
+ * @brief Base classes for OpenQASM statements
  */
 
 #ifndef QASM3TOOLS_AST_STMTBASE_HPP_
@@ -41,8 +41,8 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::Annotation
- * \brief Class for statement annotations
+ * @class qasm3tools::ast::Annotation
+ * @brief Class for statement annotations
  */
 class Annotation final : public ASTNode {
     std::string keyword_; ///< annotation keyword (including '@' symbol)
@@ -50,18 +50,18 @@ class Annotation final : public ASTNode {
 
   public:
     /**
-     * \brief Constructs a statement annotation
+     * @brief Constructs a statement annotation
      *
-     * \param pos The source position
-     * \param keyword The annotation keyword
-     * \param rest Optional remaining content
+     * @param pos The source position
+     * @param keyword The annotation keyword
+     * @param rest Optional remaining content
      */
     Annotation(parser::Position pos, std::string keyword,
                std::optional<std::string> rest = std::nullopt)
         : ASTNode(pos), keyword_(keyword), rest_(rest) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<Annotation>
     create(parser::Position pos, std::string keyword,
@@ -70,16 +70,16 @@ class Annotation final : public ASTNode {
     }
 
     /**
-     * \brief Get the annotation keyword
+     * @brief Get the annotation keyword
      *
-     * \return The keyword
+     * @return The keyword
      */
     std::string keyword() { return keyword_; }
 
     /**
-     * \brief Get the remaining content
+     * @brief Get the remaining content
      *
-     * \return Optional remaining content
+     * @return Optional remaining content
      */
     std::optional<std::string> rest() { return rest_; }
 
@@ -100,8 +100,8 @@ class Annotation final : public ASTNode {
 };
 
 /**
- * \class qasm3tools::ast::Stmt
- * \brief Base class for OpenQASM statements
+ * @class qasm3tools::ast::Stmt
+ * @brief Base class for OpenQASM statements
  */
 class Stmt : public ASTNode {
   public:
@@ -109,11 +109,11 @@ class Stmt : public ASTNode {
     virtual ~Stmt() = default;
 
     /**
-     * \brief Internal pretty-printer which can suppress the output of the
+     * @brief Internal pretty-printer which can suppress the output of the
      * stdlib, and/or add indentation to block statements
      *
-     * \param suppress_std Whether to suppress output of the standard library
-     * \param indents Current indentation level
+     * @param suppress_std Whether to suppress output of the standard library
+     * @param indents Current indentation level
      */
     virtual std::ostream& pretty_print(std::ostream& os, bool suppress_std,
                                        size_t indents) const = 0;
@@ -128,11 +128,11 @@ class Stmt : public ASTNode {
 
     enum class Type { Regular, Global, Quantum };
     /**
-     * \brief Extraction operator overload for Stmt::Type enum class
+     * @brief Extraction operator overload for Stmt::Type enum class
      *
-     * \param os Output stream passed by reference
-     * \param type Stmt::Type enum class
-     * \return Reference to the output stream
+     * @param os Output stream passed by reference
+     * @param type Stmt::Type enum class
+     * @return Reference to the output stream
      */
     friend std::ostream& operator<<(std::ostream& os, const Type& type) {
         switch (type) {
@@ -159,8 +159,8 @@ class Stmt : public ASTNode {
     virtual Stmt* clone() const override = 0;
 };
 /**
- * \class qasm3tools::ast::GlobalStmt
- * \brief Statement sub-class for global statements
+ * @class qasm3tools::ast::GlobalStmt
+ * @brief Statement sub-class for global statements
  */
 class GlobalStmt : public Stmt {
   public:
@@ -173,8 +173,8 @@ class GlobalStmt : public Stmt {
     virtual GlobalStmt* clone() const override = 0;
 };
 /**
- * \class qasm3tools::ast::QuantumStmt
- * \brief Statement sub-class for quantum statements
+ * @class qasm3tools::ast::QuantumStmt
+ * @brief Statement sub-class for quantum statements
  */
 class QuantumStmt : public Stmt {
   public:

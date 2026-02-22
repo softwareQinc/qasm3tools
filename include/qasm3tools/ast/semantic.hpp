@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/semantic.hpp
- * \brief Semantic analysis for syntax trees
+ * @file qasm3tools/ast/semantic.hpp
+ * @brief Semantic analysis for syntax trees
  */
 
 #ifndef QASM3TOOLS_AST_SEMANTIC_HPP_
@@ -42,8 +42,8 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::SemanticError
- * \brief Exception class for semantic errors
+ * @class qasm3tools::ast::SemanticError
+ * @brief Exception class for semantic errors
  */
 class SemanticError : public std::exception {
   public:
@@ -53,8 +53,8 @@ class SemanticError : public std::exception {
 };
 
 /**
- * \class qasm3tools::ast::ConstExprChecker
- * \brief Checks that const expressions are only defined in terms of other
+ * @class qasm3tools::ast::ConstExprChecker
+ * @brief Checks that const expressions are only defined in terms of other
  * const expressions, and that const variables are not assigned to. Also
  * replaces occurences of const expressions with their values, e.g.
  *   const int[32] n = 8;
@@ -66,11 +66,11 @@ class SemanticError : public std::exception {
  *   int[16] i = int[32](8);
  *
  * Finally, also computes and sets the program's total number of qubits
- * \see qasm3tools::ast::Visitor
+ * @see qasm3tools::ast::Visitor
  */
 class ConstExprChecker final : public Visitor {
     /**
-     * \brief Data struct denoting a constant variable
+     * @brief Data struct denoting a constant variable
      */
     struct ConstVar {
         Expr* value;
@@ -78,17 +78,17 @@ class ConstExprChecker final : public Visitor {
     };
 
     /**
-     * \brief Data struct denoting a for-loop variable
+     * @brief Data struct denoting a for-loop variable
      */
     struct LoopVar {};
 
     /**
-     * \brief Data struct for all other variable types
+     * @brief Data struct for all other variable types
      */
     struct OtherVar {};
 
     /**
-     * \brief OpenQASM types as a std::variant
+     * @brief OpenQASM types as a std::variant
      *
      * Functional-style syntax trees in C++17 as a simpler alternative
      * to inheritance hierarchy. Support is still lacking for large-scale.
@@ -730,23 +730,23 @@ class ConstExprChecker final : public Visitor {
     std::optional<ptr<Expr>> replacement_expr_; ///< replace current expression
 
     /**
-     * \brief Enters a new scope
+     * @brief Enters a new scope
      */
     void push_scope() { symbol_table_.push_front({}); }
 
     /**
-     * \brief Exits the current scope
+     * @brief Exits the current scope
      */
     void pop_scope() { symbol_table_.pop_front(); }
 
     /**
-     * \brief Looks up a symbol in the symbol table
+     * @brief Looks up a symbol in the symbol table
      *
      * Lookup checks in each symbol table going backwards up the enclosing
      * scopes.
      *
-     * \param id Const reference to a symbol
-     * \return The type of the symbol, if found
+     * @param id Const reference to a symbol
+     * @return The type of the symbol, if found
      */
     std::optional<Type> lookup(const ast::symbol& id) {
         for (auto& table : symbol_table_) {
@@ -758,10 +758,10 @@ class ConstExprChecker final : public Visitor {
     }
 
     /**
-     * \brief Looks up a symbol in the local scope.
+     * @brief Looks up a symbol in the local scope.
      *
-     * \param id Const reference to a symbol
-     * \return The type of the symbol, if found
+     * @param id Const reference to a symbol
+     * @return The type of the symbol, if found
      */
     std::optional<Type> lookup_local(const ast::symbol& id) {
         if (!(symbol_table_.empty())) {
@@ -774,11 +774,11 @@ class ConstExprChecker final : public Visitor {
     }
 
     /**
-     * \brief Assigns a symbol in the current scope if it has not yet been
+     * @brief Assigns a symbol in the current scope if it has not yet been
      * defined in the current scope
      *
-     * \param id Const reference to a symbol
-     * \param typ The type of the symbol
+     * @param id Const reference to a symbol
+     * @param typ The type of the symbol
      */
     void set(const ast::symbol& id, Type typ, const parser::Position& pos) {
         if (symbol_table_.empty()) {
@@ -793,9 +793,9 @@ class ConstExprChecker final : public Visitor {
     }
 
     /**
-     * \brief Visit an optional expression in the AST
+     * @brief Visit an optional expression in the AST
      *
-     * \param exp Reference to the optional expression
+     * @param exp Reference to the optional expression
      */
     void visit_optional_expr(std::optional<ptr<Expr>>& exp) {
         if (exp) {
@@ -808,9 +808,9 @@ class ConstExprChecker final : public Visitor {
     }
 
     /**
-     * \class qasm3tools::ast::ConstExprChecker::ConstIntEvaluator
-     * \brief Evaluates constant integer expressions
-     * \see qasm3tools::ast::Visitor
+     * @class qasm3tools::ast::ConstExprChecker::ConstIntEvaluator
+     * @brief Evaluates constant integer expressions
+     * @see qasm3tools::ast::Visitor
      */
     class ConstIntEvaluator final : public Visitor {
         std::optional<int> value_ = std::nullopt; ///< return value
@@ -943,10 +943,10 @@ class ConstExprChecker final : public Visitor {
     };
 
     /**
-     * \brief Evaluate a constant integer expression
+     * @brief Evaluate a constant integer expression
      *
-     * \param exp Reference to the expression
-     * \return Optional integer value
+     * @param exp Reference to the expression
+     * @return Optional integer value
      */
     static std::optional<int> evaluate(Expr& exp) {
         return ConstIntEvaluator().evaluate(exp);
@@ -954,19 +954,19 @@ class ConstExprChecker final : public Visitor {
 };
 
 /**
- * \class qasm3tools::ast::TypeChecker
- * \brief Type checking
- * \see qasm3tools::ast::Visitor
+ * @class qasm3tools::ast::TypeChecker
+ * @brief Type checking
+ * @see qasm3tools::ast::Visitor
  */
 class TypeChecker final : public Visitor {
   public:
     /**
-     * \brief None type
+     * @brief None type
      */
     struct NoneType {};
 
     /**
-     * \brief Standard (i.e. classical and quantum) types
+     * @brief Standard (i.e. classical and quantum) types
      */
     enum class StdType {
         Bool,
@@ -980,7 +980,7 @@ class TypeChecker final : public Visitor {
     };
 
     /**
-     * \brief Data struct for array types
+     * @brief Data struct for array types
      */
     struct ArrType {
         StdType subtype;
@@ -989,7 +989,7 @@ class TypeChecker final : public Visitor {
     };
 
     /**
-     * \brief OpenQASM expression types as a std::variant
+     * @brief OpenQASM expression types as a std::variant
      *
      * Functional-style syntax trees in C++17 as a simpler alternative
      * to inheritance hierarchy. Support is still lacking for large-scale.
@@ -997,7 +997,7 @@ class TypeChecker final : public Visitor {
     using ExprType = std::variant<NoneType, StdType, ArrType>;
 
     /**
-     * \brief Data struct for quantum gate types
+     * @brief Data struct for quantum gate types
      */
     struct GateType {
         int num_c_params;
@@ -1005,7 +1005,7 @@ class TypeChecker final : public Visitor {
     };
 
     /**
-     * \brief Data struct for subroutine types
+     * @brief Data struct for subroutine types
      */
     struct SubroutineType {
         std::vector<ExprType> param_types; ///< function signature
@@ -1013,7 +1013,7 @@ class TypeChecker final : public Visitor {
     };
 
     /**
-     * \brief OpenQASM types as a std::variant
+     * @brief OpenQASM types as a std::variant
      *
      * Functional-style syntax trees in C++17 as a simpler alternative
      * to inheritance hierarchy. Support is still lacking for large-scale.
@@ -1021,11 +1021,11 @@ class TypeChecker final : public Visitor {
     using Type = std::variant<ExprType, GateType, SubroutineType>;
 
     /**
-     * \brief Extraction operator overload for NoneType class
+     * @brief Extraction operator overload for NoneType class
      *
-     * \param os Output stream passed by reference
-     * \param _ TypeChecker::NoneType class
-     * \return Reference to the output stream
+     * @param os Output stream passed by reference
+     * @param _ TypeChecker::NoneType class
+     * @return Reference to the output stream
      */
     friend std::ostream& operator<<(std::ostream& os, const NoneType&) {
         os << "None";
@@ -1033,11 +1033,11 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Extraction operator overload for TypeChecker::StdType enum class
+     * @brief Extraction operator overload for TypeChecker::StdType enum class
      *
-     * \param os Output stream passed by reference
-     * \param type TypeChecker::StdType enum class
-     * \return Reference to the output stream
+     * @param os Output stream passed by reference
+     * @param type TypeChecker::StdType enum class
+     * @return Reference to the output stream
      */
     friend std::ostream& operator<<(std::ostream& os, const StdType& type) {
         switch (type) {
@@ -1070,11 +1070,11 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Extraction operator overload for ArrType class
+     * @brief Extraction operator overload for ArrType class
      *
-     * \param os Output stream passed by reference
-     * \param type TypeChecker::ArrType class
-     * \return Reference to the output stream
+     * @param os Output stream passed by reference
+     * @param type TypeChecker::ArrType class
+     * @return Reference to the output stream
      */
     friend std::ostream& operator<<(std::ostream& os, const ArrType& type) {
         os << "array[" << type.subtype << ", #dim = " << type.dims << "]";
@@ -1082,11 +1082,11 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Extraction operator overload for ExprType variant class
+     * @brief Extraction operator overload for ExprType variant class
      *
-     * \param os Output stream passed by reference
-     * \param type TypeChecker::ExprType class
-     * \return Reference to the output stream
+     * @param os Output stream passed by reference
+     * @param type TypeChecker::ExprType class
+     * @return Reference to the output stream
      */
     friend std::ostream& operator<<(std::ostream& os, const ExprType& type) {
         std::visit([&os](auto&& arg) { os << arg; }, type);
@@ -1096,9 +1096,9 @@ class TypeChecker final : public Visitor {
   private:
     // static member functions
     /**
-     * \brief Checks whether a data type is a quantum type
+     * @brief Checks whether a data type is a quantum type
      *
-     * \return True if the data type is a quantum type, false otherwise
+     * @return True if the data type is a quantum type, false otherwise
      */
     static bool is_quantum(const ExprType& type) {
         if (std::holds_alternative<StdType>(type)) {
@@ -1110,9 +1110,9 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Checks whether a data type is a classical bit or creg type
+     * @brief Checks whether a data type is a classical bit or creg type
      *
-     * \return True if the data type is a classical bit type, false otherwise
+     * @return True if the data type is a classical bit type, false otherwise
      */
     static bool is_classical_bit(const ExprType& type) {
         if (std::holds_alternative<StdType>(type)) {
@@ -1125,9 +1125,9 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Checks whether a data type is a classical type
+     * @brief Checks whether a data type is a classical type
      *
-     * \return True if the data type is a classical type, false otherwise
+     * @return True if the data type is a classical type, false otherwise
      */
     static bool is_classical(const ExprType& type) {
         if (std::holds_alternative<StdType>(type)) {
@@ -1139,9 +1139,9 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Checks whether a data type is mutable
+     * @brief Checks whether a data type is mutable
      *
-     * \return True if the data type is mutable, false otherwise
+     * @return True if the data type is mutable, false otherwise
      */
     static bool is_mutable(const ExprType& type) {
         if (std::holds_alternative<StdType>(type)) {
@@ -1153,9 +1153,9 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Checks whether a data type can be indexed
+     * @brief Checks whether a data type can be indexed
      *
-     * \return True if the data type can be indexed, false otherwise
+     * @return True if the data type can be indexed, false otherwise
      */
     static bool is_indexable(const ExprType& type) {
         if (std::holds_alternative<StdType>(type)) {
@@ -1168,9 +1168,9 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Checks whether the source type is castable to the target type
+     * @brief Checks whether the source type is castable to the target type
      *
-     * \return True if the source type is castable to the target type
+     * @return True if the source type is castable to the target type
      */
     static bool castable(StdType source, StdType target) {
         switch (source) {
@@ -1233,9 +1233,9 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Checks whether the source type is castable to the target type
+     * @brief Checks whether the source type is castable to the target type
      *
-     * \return True if the source type is castable to the target type
+     * @return True if the source type is castable to the target type
      */
     static bool general_castable(const ExprType& source,
                                  const ExprType& target) {
@@ -1265,9 +1265,9 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Checks whether the two types are exactly the same
+     * @brief Checks whether the two types are exactly the same
      *
-     * \return True if the types are exactly the same
+     * @return True if the types are exactly the same
      */
     static bool is_same(const ExprType& source, const ExprType& target) {
         if (std::holds_alternative<StdType>(source) &&
@@ -1284,7 +1284,7 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Checks whether two types are both numeric, and the first is
+     * @brief Checks whether two types are both numeric, and the first is
      * a subtype of the second.
      *
      * int is subtype of float and complex; float is subtype of complex.
@@ -1311,9 +1311,9 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Checks whether the 'actual' stmt type is a subtype of 'expected'
+     * @brief Checks whether the 'actual' stmt type is a subtype of 'expected'
      *
-     * \return True if 'actual' is a subtype of 'expected'
+     * @return True if 'actual' is a subtype of 'expected'
      */
     static bool is_stmt_subtype(Stmt::Type actual, Stmt::Type expected) {
         switch (expected) {
@@ -2314,23 +2314,23 @@ class TypeChecker final : public Visitor {
     ExprType expected_array_type_ = NONE; ///< allowed array types
 
     /**
-     * \brief Enters a new scope
+     * @brief Enters a new scope
      */
     void push_scope() { symbol_table_.push_front({}); }
 
     /**
-     * \brief Exits the current scope
+     * @brief Exits the current scope
      */
     void pop_scope() { symbol_table_.pop_front(); }
 
     /**
-     * \brief Looks up a symbol in the symbol table
+     * @brief Looks up a symbol in the symbol table
      *
      * Lookup checks in each symbol table going backwards up the enclosing
      * scopes.
      *
-     * \param id Const reference to a symbol
-     * \return The type of the symbol, if found
+     * @param id Const reference to a symbol
+     * @return The type of the symbol, if found
      */
     std::optional<Type> lookup(const ast::symbol& id) {
         for (auto& table : symbol_table_) {
@@ -2342,10 +2342,10 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Looks up a symbol in the local scope.
+     * @brief Looks up a symbol in the local scope.
      *
-     * \param id Const reference to a symbol
-     * \return The type of the symbol, if found
+     * @param id Const reference to a symbol
+     * @return The type of the symbol, if found
      */
     std::optional<Type> lookup_local(const ast::symbol& id) {
         if (!(symbol_table_.empty())) {
@@ -2358,11 +2358,11 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Assigns a symbol in the current scope if it has not yet been
+     * @brief Assigns a symbol in the current scope if it has not yet been
      * defined in the current scope
      *
-     * \param id Const reference to a symbol
-     * \param typ The type of the symbol
+     * @param id Const reference to a symbol
+     * @param typ The type of the symbol
      */
     void set(const ast::symbol& id, Type typ, const parser::Position& pos) {
         if (symbol_table_.empty()) {
@@ -2377,10 +2377,10 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Visit a classical expression in the AST
+     * @brief Visit a classical expression in the AST
      *
-     * \param exp Reference to the expression
-     * \param expected_type Expected type of the expression
+     * @param exp Reference to the expression
+     * @param expected_type Expected type of the expression
      */
     void visit_classical_expr(Expr& exp, const ExprType& expected_type) {
         exp.accept(*this);
@@ -2393,10 +2393,10 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Visit an optional classical expression in the AST
+     * @brief Visit an optional classical expression in the AST
      *
-     * \param exp Reference to the optional expression
-     * \param expected_type Expected type of the expression
+     * @param exp Reference to the optional expression
+     * @param expected_type Expected type of the expression
      */
     void visit_optional_classical_expr(std::optional<ptr<Expr>>& exp,
                                        const ExprType& expected_type) {
@@ -2406,9 +2406,9 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Visit a classical expression in the AST with numeric type
+     * @brief Visit a classical expression in the AST with numeric type
      *
-     * \param exp Reference to the expression
+     * @param exp Reference to the expression
      */
     void visit_numeric_expr(Expr& exp) {
         exp.accept(*this);
@@ -2425,9 +2425,9 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Visit a quantum register in the AST
+     * @brief Visit a quantum register in the AST
      *
-     * \param indexid Reference to the register
+     * @param indexid Reference to the register
      */
     void visit_quantum_indexid(IndexId& indexid) {
         indexid.accept(*this);
@@ -2440,9 +2440,9 @@ class TypeChecker final : public Visitor {
     }
 
     /**
-     * \brief Check that an lvalue is mutable
+     * @brief Check that an lvalue is mutable
      *
-     * \param indexid Reference to the lvalue
+     * @param indexid Reference to the lvalue
      */
     void check_mutable(IndexId& lval) {
         auto entry = lookup(lval.var());
@@ -2460,7 +2460,7 @@ class TypeChecker final : public Visitor {
 };
 
 /**
- * \brief Checks a program for semantic errors
+ * @brief Checks a program for semantic errors
  */
 inline void check_source(Program& prog) {
     if (ConstExprChecker().run(prog) || TypeChecker().run(prog)) {

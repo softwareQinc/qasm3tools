@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/exprbase.hpp
- * \brief Base class for OpenQASM expressions
+ * @file qasm3tools/ast/exprbase.hpp
+ * @brief Base class for OpenQASM expressions
  */
 
 #ifndef QASM3TOOLS_AST_EXPRBASE_HPP_
@@ -40,8 +40,8 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::Expr
- * \brief Base class for OpenQASM expressions
+ * @class qasm3tools::ast::Expr
+ * @brief Base class for OpenQASM expressions
  */
 class Expr : public ASTNode {
   public:
@@ -49,19 +49,19 @@ class Expr : public ASTNode {
     virtual ~Expr() = default;
 
     /**
-     * \brief Evaluate constant expressions
+     * @brief Evaluate constant expressions
      *
      * All sub-classes must override this
      *
-     * \return Returns the value of the expression if it
+     * @return Returns the value of the expression if it
      *         is constant, or nullopt otherwise
      */
     virtual std::optional<double> constant_eval() const = 0;
 
     /**
-     * \brief Internal pretty-printer with associative context
+     * @brief Internal pretty-printer with associative context
      *
-     * \param ctx Whether the current associative context is ambiguous
+     * @param ctx Whether the current associative context is ambiguous
      */
     virtual std::ostream& pretty_print(std::ostream& os, bool ctx) const = 0;
     std::ostream& pretty_print(std::ostream& os) const override {

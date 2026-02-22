@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/decl.hpp
- * \brief OpenQASM declarations
+ * @file qasm3tools/ast/decl.hpp
+ * @brief OpenQASM declarations
  */
 
 #ifndef QASM3TOOLS_AST_DECL_HPP_
@@ -50,18 +50,18 @@ static const std::set<std::string_view> stdgates{
     "cu",  "CX",  "phase", "cphase", "id", "u1",   "u2",  "u3"};
 
 /**
- * \brief Tests if identifier is part of the OpenQASM 3 standard library
+ * @brief Tests if identifier is part of the OpenQASM 3 standard library
  *
- * \param id Identifier
- * \return True if \a id is part of the standard OpenQASM qelib, false otherwise
+ * @param id Identifier
+ * @return True if \a id is part of the standard OpenQASM qelib, false otherwise
  */
 inline bool is_std_gate(const std::string& id) {
     return stdgates.find(id) != stdgates.end();
 }
 
 /**
- * \class qasm3tools::ast::Decl
- * \brief Base class for OpenQASM declarations
+ * @class qasm3tools::ast::Decl
+ * @brief Base class for OpenQASM declarations
  *
  * Declarations are attribute classes as they can occur in different
  * statement contexts. To avoid diamond inheritance, any derived declaration
@@ -76,42 +76,42 @@ class Decl {
     virtual ~Decl() = default;
 
     /**
-     * \brief Return the name being declared
+     * @brief Return the name being declared
      *
-     * \return Constant reference to the identifier
+     * @return Constant reference to the identifier
      */
     const symbol& id() { return id_; }
 };
 
 /**
- * \class qasm3tools::ast::Param
- * \brief Class for subroutine parameters
+ * @class qasm3tools::ast::Param
+ * @brief Class for subroutine parameters
  */
 class Param : public ASTNode, public Decl {
     ptr<Type> type_;
 
   public:
     /**
-     * \brief Constructs a subroutine parameter
+     * @brief Constructs a subroutine parameter
      *
-     * \param pos The source position
-     * \param id The parameter identifier
-     * \param type The parameter type
+     * @param pos The source position
+     * @param id The parameter identifier
+     * @param type The parameter type
      */
     Param(parser::Position pos, symbol id, ptr<Type> type)
         : ASTNode(pos), Decl(id), type_(std::move(type)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<Param> create(parser::Position pos, symbol id, ptr<Type> type) {
         return std::make_unique<Param>(pos, id, std::move(type));
     }
 
     /**
-     * \brief Get the parmeter type
+     * @brief Get the parmeter type
      *
-     * \return Reference to the type
+     * @return Reference to the type
      */
     Type& type() { return *type_; }
 
@@ -128,10 +128,10 @@ class Param : public ASTNode, public Decl {
 };
 
 /**
- * \class qasm3tools::ast::SubroutineDecl
- * \brief Class for subroutine declarations
- * \see qasm3tools::ast::Stmt
- * \see qasm3tools::ast::Decl
+ * @class qasm3tools::ast::SubroutineDecl
+ * @brief Class for subroutine declarations
+ * @see qasm3tools::ast::Stmt
+ * @see qasm3tools::ast::Decl
  */
 class SubroutineDecl final : public GlobalStmt, public Decl {
     std::vector<ptr<Param>> params_;               ///< parameters
@@ -140,13 +140,13 @@ class SubroutineDecl final : public GlobalStmt, public Decl {
 
   public:
     /**
-     * \brief Constructs a subroutine declaration
+     * @brief Constructs a subroutine declaration
      *
-     * \param pos The source position
-     * \param id The subroutine identifier
-     * \param params List of parameters
-     * \param return_type Optional return type (default = std::nullopt)
-     * \param body The subroutine body
+     * @param pos The source position
+     * @param id The subroutine identifier
+     * @param params List of parameters
+     * @param return_type Optional return type (default = std::nullopt)
+     * @param body The subroutine body
      */
     SubroutineDecl(parser::Position pos, symbol id,
                    std::vector<ptr<Param>>&& params, ptr<ProgramBlock> body)
@@ -160,7 +160,7 @@ class SubroutineDecl final : public GlobalStmt, public Decl {
           return_type_(std::move(return_type)), body_(std::move(body)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<SubroutineDecl> create(parser::Position pos, symbol id,
                                       std::vector<ptr<Param>>&& params,
@@ -178,23 +178,23 @@ class SubroutineDecl final : public GlobalStmt, public Decl {
     }
 
     /**
-     * \brief Get the parameter list
+     * @brief Get the parameter list
      *
-     * \return Reference to the list of parameters
+     * @return Reference to the list of parameters
      */
     std::vector<ptr<Param>>& params() { return params_; }
 
     /**
-     * \brief Get the return type
+     * @brief Get the return type
      *
-     * \return Reference to the return type
+     * @return Reference to the return type
      */
     std::optional<ptr<NonArrayType>>& return_type() { return return_type_; }
 
     /**
-     * \brief Get the subroutine body
+     * @brief Get the subroutine body
      *
-     * \return Reference to the body
+     * @return Reference to the body
      */
     ProgramBlock& body() { return *body_; }
 
@@ -230,10 +230,10 @@ class SubroutineDecl final : public GlobalStmt, public Decl {
 };
 
 /**
- * \class qasm3tools::ast::ExternDecl
- * \brief Class for external subroutine declarations
- * \see qasm3tools::ast::Stmt
- * \see qasm3tools::ast::Decl
+ * @class qasm3tools::ast::ExternDecl
+ * @brief Class for external subroutine declarations
+ * @see qasm3tools::ast::Stmt
+ * @see qasm3tools::ast::Decl
  */
 class ExternDecl final : public GlobalStmt, public Decl {
     std::vector<ptr<ClassicalType>> param_types_;  ///< parameter types
@@ -241,12 +241,12 @@ class ExternDecl final : public GlobalStmt, public Decl {
 
   public:
     /**
-     * \brief Constructs an external subroutine declaration
+     * @brief Constructs an external subroutine declaration
      *
-     * \param pos The source position
-     * \param id The subroutine identifier
-     * \param param_types List of parameter types
-     * \param return_type Optional return type (default = std::nullopt)
+     * @param pos The source position
+     * @param id The subroutine identifier
+     * @param param_types List of parameter types
+     * @param return_type Optional return type (default = std::nullopt)
      */
     ExternDecl(parser::Position pos, symbol id,
                std::vector<ptr<ClassicalType>>&& param_types,
@@ -255,7 +255,7 @@ class ExternDecl final : public GlobalStmt, public Decl {
           return_type_(std::move(return_type)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ExternDecl>
     create(parser::Position pos, symbol id,
@@ -266,16 +266,16 @@ class ExternDecl final : public GlobalStmt, public Decl {
     }
 
     /**
-     * \brief Get the parameter type list
+     * @brief Get the parameter type list
      *
-     * \return Reference to the list of parameter types
+     * @return Reference to the list of parameter types
      */
     std::vector<ptr<ClassicalType>>& param_types() { return param_types_; }
 
     /**
-     * \brief Get the return type
+     * @brief Get the return type
      *
-     * \return Reference to the return type
+     * @return Reference to the return type
      */
     std::optional<ptr<NonArrayType>>& return_type() { return return_type_; }
 
@@ -309,10 +309,10 @@ class ExternDecl final : public GlobalStmt, public Decl {
 };
 
 /**
- * \class qasm3tools::ast::GateDecl
- * \brief Class for gate declarations
- * \see qasm3tools::ast::Stmt
- * \see qasm3tools::ast::Decl
+ * @class qasm3tools::ast::GateDecl
+ * @brief Class for gate declarations
+ * @see qasm3tools::ast::Stmt
+ * @see qasm3tools::ast::Decl
  */
 class GateDecl final : public GlobalStmt, public Decl {
     std::vector<symbol> c_params_; ///< classical parameters
@@ -321,13 +321,13 @@ class GateDecl final : public GlobalStmt, public Decl {
 
   public:
     /**
-     * \brief Constructs a gate declaration
+     * @brief Constructs a gate declaration
      *
-     * \param pos The source position
-     * \param id The gate identifier
-     * \param c_params List of classical parameters
-     * \param q_params List of quantum parameters
-     * \param body Gate body
+     * @param pos The source position
+     * @param id The gate identifier
+     * @param c_params List of classical parameters
+     * @param q_params List of quantum parameters
+     * @param body Gate body
      */
     GateDecl(parser::Position pos, symbol id, std::vector<symbol> c_params,
              std::vector<symbol> q_params, ptr<ProgramBlock> body)
@@ -335,7 +335,7 @@ class GateDecl final : public GlobalStmt, public Decl {
           body_(std::move(body)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<GateDecl> create(parser::Position pos, symbol id,
                                 std::vector<symbol> c_params,
@@ -346,37 +346,37 @@ class GateDecl final : public GlobalStmt, public Decl {
     }
 
     /**
-     * \brief Get the classical parameter list
+     * @brief Get the classical parameter list
      *
-     * \return Reference to the list of classical parameter names
+     * @return Reference to the list of classical parameter names
      */
     std::vector<symbol>& c_params() { return c_params_; }
 
     /**
-     * \brief Get the quantum parameter list
+     * @brief Get the quantum parameter list
      *
-     * \return Reference to the list of quantum parameter names
+     * @return Reference to the list of quantum parameter names
      */
     std::vector<symbol>& q_params() { return q_params_; }
 
     /**
-     * \brief Get the gate body
+     * @brief Get the gate body
      *
-     * \return Reference to the body of the gate
+     * @return Reference to the body of the gate
      */
     ProgramBlock& body() { return *body_; }
 
     /**
-     * \brief Get an iterator to the beginning of the body
+     * @brief Get an iterator to the beginning of the body
      *
-     * \return std::list iterator
+     * @return std::list iterator
      */
     std::list<ptr<Stmt>>::iterator begin() { return body_->body().begin(); }
 
     /**
-     * \brief Get an iterator to the end of the body
+     * @brief Get an iterator to the end of the body
      *
-     * \return std::list iterator
+     * @return std::list iterator
      */
     std::list<ptr<Stmt>>::iterator end() { return body_->body().end(); }
 
@@ -412,26 +412,26 @@ class GateDecl final : public GlobalStmt, public Decl {
 };
 
 /**
- * \class qasm3tools::ast::QuantumDecl
- * \brief Class for quantum declarations
- * \see qasm3tools::ast::Decl
+ * @class qasm3tools::ast::QuantumDecl
+ * @brief Class for quantum declarations
+ * @see qasm3tools::ast::Decl
  */
 class QuantumDecl final : public GlobalStmt, public Decl {
     ptr<QuantumType> type_; ///< the type
 
   public:
     /**
-     * \brief Constructs a quantum declaration
+     * @brief Constructs a quantum declaration
      *
-     * \param pos The source position
-     * \param id The register identifier
-     * \param type The quantum type
+     * @param pos The source position
+     * @param id The register identifier
+     * @param type The quantum type
      */
     QuantumDecl(parser::Position pos, symbol id, ptr<QuantumType> type)
         : GlobalStmt(pos), Decl(id), type_(std::move(type)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<QuantumDecl> create(parser::Position pos, symbol id,
                                    ptr<QuantumType> type) {
@@ -439,9 +439,9 @@ class QuantumDecl final : public GlobalStmt, public Decl {
     }
 
     /**
-     * \brief Get the type
+     * @brief Get the type
      *
-     * \return Reference to the type
+     * @return Reference to the type
      */
     QuantumType& type() { return *type_; }
 
@@ -458,9 +458,9 @@ class QuantumDecl final : public GlobalStmt, public Decl {
 };
 
 /**
- * \class qasm3tools::ast::ClassicalDecl
- * \brief Class for classical type declarations
- * \see qasm3tools::ast::Decl
+ * @class qasm3tools::ast::ClassicalDecl
+ * @brief Class for classical type declarations
+ * @see qasm3tools::ast::Decl
  */
 class ClassicalDecl final : public Stmt, public Decl {
     ptr<ClassicalType> type_;            ///< the type
@@ -469,13 +469,13 @@ class ClassicalDecl final : public Stmt, public Decl {
 
   public:
     /**
-     * \brief Constructs a classical declaration
+     * @brief Constructs a classical declaration
      *
-     * \param pos The source position
-     * \param id The identifier
-     * \param type The type
-     * \param equalsexp The initialized value
-     * \param is_const Whether the declaration is const
+     * @param pos The source position
+     * @param id The identifier
+     * @param type The type
+     * @param equalsexp The initialized value
+     * @param is_const Whether the declaration is const
      */
     ClassicalDecl(parser::Position pos, symbol id, ptr<ClassicalType> type,
                   std::optional<ptr<Expr>>&& equalsexp = std::nullopt,
@@ -484,7 +484,7 @@ class ClassicalDecl final : public Stmt, public Decl {
           equalsexp_(std::move(equalsexp)), is_const_(is_const) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ClassicalDecl>
     create(parser::Position pos, symbol id, ptr<ClassicalType> type,
@@ -495,23 +495,23 @@ class ClassicalDecl final : public Stmt, public Decl {
     }
 
     /**
-     * \brief Get the type
+     * @brief Get the type
      *
-     * \return Reference to the type
+     * @return Reference to the type
      */
     ClassicalType& type() { return *type_; }
 
     /**
-     * \brief Get the intitialized value
+     * @brief Get the intitialized value
      *
-     * \return Optional expr intitialized value
+     * @return Optional expr intitialized value
      */
     std::optional<ptr<Expr>>& equalsexp() { return equalsexp_; }
 
     /**
-     * \brief Get whether the declaration is const
+     * @brief Get whether the declaration is const
      *
-     * \return Whether the declaration is const
+     * @return Whether the declaration is const
      */
     bool is_const() { return is_const_; }
 
@@ -540,9 +540,9 @@ class ClassicalDecl final : public Stmt, public Decl {
 };
 
 /**
- * \class qasm3tools::ast::IODecl
- * \brief Class for i/o declarations
- * \see qasm3tools::ast::Decl
+ * @class qasm3tools::ast::IODecl
+ * @brief Class for i/o declarations
+ * @see qasm3tools::ast::Decl
  */
 class IODecl final : public GlobalStmt, public Decl {
     ptr<ClassicalType> type_; ///< the type
@@ -550,12 +550,12 @@ class IODecl final : public GlobalStmt, public Decl {
 
   public:
     /**
-     * \brief Constructs an i/o declarations
+     * @brief Constructs an i/o declarations
      *
-     * \param pos The source position
-     * \param id The identifier
-     * \param type The type
-     * \param is_input True if input, false if output
+     * @param pos The source position
+     * @param id The identifier
+     * @param type The type
+     * @param is_input True if input, false if output
      */
     IODecl(parser::Position pos, symbol id, ptr<ClassicalType> type,
            bool is_input)
@@ -563,7 +563,7 @@ class IODecl final : public GlobalStmt, public Decl {
           is_input_(is_input) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<IODecl> create(parser::Position pos, symbol id,
                               ptr<ClassicalType> type, bool is_input) {
@@ -571,16 +571,16 @@ class IODecl final : public GlobalStmt, public Decl {
     }
 
     /**
-     * \brief Get the type
+     * @brief Get the type
      *
-     * \return Reference to the type
+     * @return Reference to the type
      */
     ClassicalType& type() { return *type_; }
 
     /**
-     * \brief Get whether the i/o declaration is input
+     * @brief Get whether the i/o declaration is input
      *
-     * \return Whether the i/o declaration is input
+     * @return Whether the i/o declaration is input
      */
     bool is_input() { return is_input_; }
 

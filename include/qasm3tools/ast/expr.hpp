@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/expr.hpp
- * \brief OpenQASM expressions
+ * @file qasm3tools/ast/expr.hpp
+ * @brief OpenQASM expressions
  */
 
 #ifndef QASM3TOOLS_AST_EXPR_HPP_
@@ -46,7 +46,7 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \brief Enum of constants
+ * @brief Enum of constants
  */
 enum class Constant { Pi, Tau, Euler };
 inline std::ostream& operator<<(std::ostream& os, const Constant& c) {
@@ -65,7 +65,7 @@ inline std::ostream& operator<<(std::ostream& os, const Constant& c) {
 }
 
 /**
- * \brief Enum of binary operators
+ * @brief Enum of binary operators
  */
 enum class BinaryOp {
     LogicalOr,
@@ -152,7 +152,7 @@ inline std::ostream& operator<<(std::ostream& os, const BinaryOp& bop) {
 }
 
 /**
- * \brief Enum of unary operators
+ * @brief Enum of unary operators
  */
 enum class UnaryOp { BitNot, LogicalNot, Neg };
 inline std::ostream& operator<<(std::ostream& os, const UnaryOp& uop) {
@@ -171,7 +171,7 @@ inline std::ostream& operator<<(std::ostream& os, const UnaryOp& uop) {
 }
 
 /**
- * \brief Enum of math operators
+ * @brief Enum of math operators
  */
 enum class MathOp {
     Arccos,
@@ -254,9 +254,9 @@ inline std::ostream& operator<<(std::ostream& os, const MathOp& mop) {
 }
 
 /**
- * \class qasm3tools::ast::BExpr
- * \brief Class for binary operator expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::BExpr
+ * @brief Class for binary operator expressions
+ * @see qasm3tools::ast::Expr
  */
 class BExpr final : public Expr {
     ptr<Expr> lexp_; ///< the left sub-expression
@@ -265,18 +265,18 @@ class BExpr final : public Expr {
 
   public:
     /**
-     * \brief Constructs a Binary expression
+     * @brief Constructs a Binary expression
      *
-     * \param pos The source position
-     * \param lexp The left sub-expression
-     * \param op The binary operator
-     * \param rexp The right sub-expression
+     * @param pos The source position
+     * @param lexp The left sub-expression
+     * @param op The binary operator
+     * @param rexp The right sub-expression
      */
     BExpr(parser::Position pos, ptr<Expr> lexp, BinaryOp op, ptr<Expr> rexp)
         : Expr(pos), lexp_(std::move(lexp)), op_(op), rexp_(std::move(rexp)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<BExpr> create(parser::Position pos, ptr<Expr> lexp, BinaryOp op,
                              ptr<Expr> rexp) {
@@ -285,37 +285,37 @@ class BExpr final : public Expr {
     }
 
     /**
-     * \brief Get the binary operator
+     * @brief Get the binary operator
      *
-     * \return A binary operator enum
+     * @return A binary operator enum
      */
     BinaryOp op() const { return op_; }
 
     /**
-     * \brief Get the left sub-expression
+     * @brief Get the left sub-expression
      *
-     * \return A reference to the left sub-expression
+     * @return A reference to the left sub-expression
      */
     Expr& lexp() { return *lexp_; }
 
     /**
-     * \brief Get the right sub-expression
+     * @brief Get the right sub-expression
      *
-     * \return A reference to the right sub-expression
+     * @return A reference to the right sub-expression
      */
     Expr& rexp() { return *rexp_; }
 
     /**
-     * \brief Set the left sub-expression
+     * @brief Set the left sub-expression
      *
-     * \param exp The new left sub-expression
+     * @param exp The new left sub-expression
      */
     void set_lexp(ptr<Expr> exp) { lexp_ = std::move(exp); }
 
     /**
-     * \brief Set the right sub-expression
+     * @brief Set the right sub-expression
      *
-     * \param exp The new right sub-expression
+     * @param exp The new right sub-expression
      */
     void set_rexp(ptr<Expr> exp) { rexp_ = std::move(exp); }
 
@@ -371,9 +371,9 @@ class BExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::UExpr
- * \brief Class for unary operator expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::UExpr
+ * @brief Class for unary operator expressions
+ * @see qasm3tools::ast::Expr
  */
 class UExpr final : public Expr {
     UnaryOp op_;    ///< the unary operator
@@ -381,40 +381,40 @@ class UExpr final : public Expr {
 
   public:
     /**
-     * \brief Constructs a Unary expression
+     * @brief Constructs a Unary expression
      *
-     * \param pos The source position
-     * \param op The unary operator
-     * \param exp The sub-expression
+     * @param pos The source position
+     * @param op The unary operator
+     * @param exp The sub-expression
      */
     UExpr(parser::Position pos, UnaryOp op, ptr<Expr> exp)
         : Expr(pos), op_(op), exp_(std::move(exp)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<UExpr> create(parser::Position pos, UnaryOp op, ptr<Expr> exp) {
         return std::make_unique<UExpr>(pos, op, std::move(exp));
     }
 
     /**
-     * \brief Get the operator
+     * @brief Get the operator
      *
-     * \return A unary operator enum
+     * @return A unary operator enum
      */
     UnaryOp op() const { return op_; }
 
     /**
-     * \brief Get the sub-expression
+     * @brief Get the sub-expression
      *
-     * \return A reference to the sub-expression
+     * @return A reference to the sub-expression
      */
     Expr& subexp() { return *exp_; }
 
     /**
-     * \brief Set the sub-expression
+     * @brief Set the sub-expression
      *
-     * \param exp The new sub-expression
+     * @param exp The new sub-expression
      */
     void set_subexp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
@@ -449,9 +449,9 @@ class UExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::MathExpr
- * \brief Class for math operator expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::MathExpr
+ * @brief Class for math operator expressions
+ * @see qasm3tools::ast::Expr
  */
 class MathExpr final : public Expr {
     MathOp op_;                   ///< the math operator
@@ -459,17 +459,17 @@ class MathExpr final : public Expr {
 
   public:
     /**
-     * \brief Constructs a Math expression
+     * @brief Constructs a Math expression
      *
-     * \param pos The source position
-     * \param op The math operator
-     * \param args The arguments
+     * @param pos The source position
+     * @param op The math operator
+     * @param args The arguments
      */
     MathExpr(parser::Position pos, MathOp op, std::vector<ptr<Expr>>&& args)
         : Expr(pos), op_(op), args_(std::move(args)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<MathExpr> create(parser::Position pos, MathOp op,
                                 std::vector<ptr<Expr>>&& args) {
@@ -477,32 +477,32 @@ class MathExpr final : public Expr {
     }
 
     /**
-     * \brief Get the operator
+     * @brief Get the operator
      *
-     * \return A unary operator enum
+     * @return A unary operator enum
      */
     MathOp op() const { return op_; }
 
     /**
-     * \brief Get the number of arguments
+     * @brief Get the number of arguments
      *
-     * \return The number of arguments
+     * @return The number of arguments
      */
     int num_args() const { return static_cast<int>(args_.size()); }
 
     /**
-     * \brief Get the ith argument
+     * @brief Get the ith argument
      *
-     * \param i The number of the argument, 0-indexed
-     * \return Reference to an expression
+     * @param i The number of the argument, 0-indexed
+     * @return Reference to an expression
      */
     Expr& arg(int i) { return *(args_[i]); }
 
     /**
-     * \brief Set the ith argument
+     * @brief Set the ith argument
      *
-     * \param i The number of the argument, 0-indexed
-     * \param expr An expression giving the new argument
+     * @param i The number of the argument, 0-indexed
+     * @param expr An expression giving the new argument
      */
     void set_arg(int i, ptr<Expr> expr) { args_[i] = std::move(expr); }
 
@@ -564,9 +564,9 @@ class MathExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::CastExpr
- * \brief Class for typecast expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::CastExpr
+ * @brief Class for typecast expressions
+ * @see qasm3tools::ast::Expr
  */
 class CastExpr final : public Expr {
     ptr<ClassicalType> type_; ///< the type specifier
@@ -574,17 +574,17 @@ class CastExpr final : public Expr {
 
   public:
     /**
-     * \brief Constructs a Cast expression
+     * @brief Constructs a Cast expression
      *
-     * \param pos The source position
-     * \param type The type specifier
-     * \param exp The sub-expression
+     * @param pos The source position
+     * @param type The type specifier
+     * @param exp The sub-expression
      */
     CastExpr(parser::Position pos, ptr<ClassicalType> type, ptr<Expr> exp)
         : Expr(pos), type_(std::move(type)), exp_(std::move(exp)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<CastExpr> create(parser::Position pos, ptr<ClassicalType> type,
                                 ptr<Expr> exp) {
@@ -592,30 +592,30 @@ class CastExpr final : public Expr {
     }
 
     /**
-     * \brief Get the type
+     * @brief Get the type
      *
-     * \return A reference to the type
+     * @return A reference to the type
      */
     ClassicalType& type() { return *type_; }
 
     /**
-     * \brief Set the type
+     * @brief Set the type
      *
-     * \param type The new type
+     * @param type The new type
      */
     void set_type(ptr<ClassicalType> type) { type_ = std::move(type); }
 
     /**
-     * \brief Get the sub-expression
+     * @brief Get the sub-expression
      *
-     * \return A reference to the sub-expression
+     * @return A reference to the sub-expression
      */
     Expr& subexp() { return *exp_; }
 
     /**
-     * \brief Set the sub-expression
+     * @brief Set the sub-expression
      *
-     * \param exp The new sub-expression
+     * @param exp The new sub-expression
      */
     void set_subexp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
@@ -638,9 +638,9 @@ class CastExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::SizeofExpr
- * \brief Class for sizeof() expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::SizeofExpr
+ * @brief Class for sizeof() expressions
+ * @see qasm3tools::ast::Expr
  */
 class SizeofExpr final : public Expr {
     ptr<Expr> arr_;                ///< array being queried
@@ -648,18 +648,18 @@ class SizeofExpr final : public Expr {
 
   public:
     /**
-     * \brief Constructs a Sizeof expression
+     * @brief Constructs a Sizeof expression
      *
-     * \param pos The source position
-     * \param arr The array being queried
-     * \param dim The dimension number
+     * @param pos The source position
+     * @param arr The array being queried
+     * @param dim The dimension number
      */
     SizeofExpr(parser::Position pos, ptr<Expr> arr,
                std::optional<ptr<Expr>>&& dim = std::nullopt)
         : Expr(pos), arr_(std::move(arr)), dim_(std::move(dim)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<SizeofExpr>
     create(parser::Position pos, ptr<Expr> arr,
@@ -669,23 +669,23 @@ class SizeofExpr final : public Expr {
     }
 
     /**
-     * \brief Get the array being queried
+     * @brief Get the array being queried
      *
-     * \return A reference to the array
+     * @return A reference to the array
      */
     Expr& arr() { return *arr_; }
 
     /**
-     * \brief Get the dimension number
+     * @brief Get the dimension number
      *
-     * \return Optional expr dimension number
+     * @return Optional expr dimension number
      */
     std::optional<ptr<Expr>>& dim() { return dim_; }
 
     /**
-     * \brief Set the array
+     * @brief Set the array
      *
-     * \param arr The new array
+     * @param arr The new array
      */
     void set_arr(ptr<Expr> arr) { arr_ = std::move(arr); }
 
@@ -716,9 +716,9 @@ class SizeofExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::FunctionCall
- * \brief Class for subroutine-call expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::FunctionCall
+ * @brief Class for subroutine-call expressions
+ * @see qasm3tools::ast::Expr
  */
 class FunctionCall final : public Expr {
     symbol name_;                 ///< the subroutine identifier
@@ -726,18 +726,18 @@ class FunctionCall final : public Expr {
 
   public:
     /**
-     * \brief Constructs a subroutine-call expression
+     * @brief Constructs a subroutine-call expression
      *
-     * \param pos The source position
-     * \param name The subroutine name
-     * \param args The arguments
+     * @param pos The source position
+     * @param name The subroutine name
+     * @param args The arguments
      */
     FunctionCall(parser::Position pos, symbol name,
                  std::vector<ptr<Expr>>&& args)
         : Expr(pos), name_(name), args_(std::move(args)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<FunctionCall> create(parser::Position pos, symbol name,
                                     std::vector<ptr<Expr>>&& args) {
@@ -745,32 +745,32 @@ class FunctionCall final : public Expr {
     }
 
     /**
-     * \brief Get the subroutine name
+     * @brief Get the subroutine name
      *
-     * \return Const reference to the subroutine name
+     * @return Const reference to the subroutine name
      */
     const symbol& name() const { return name_; }
 
     /**
-     * \brief Get the number of arguments
+     * @brief Get the number of arguments
      *
-     * \return The number of arguments
+     * @return The number of arguments
      */
     int num_args() const { return static_cast<int>(args_.size()); }
 
     /**
-     * \brief Get the ith argument
+     * @brief Get the ith argument
      *
-     * \param i The number of the argument, 0-indexed
-     * \return Reference to an expression
+     * @param i The number of the argument, 0-indexed
+     * @return Reference to an expression
      */
     Expr& arg(int i) { return *(args_[i]); }
 
     /**
-     * \brief Set the ith argument
+     * @brief Set the ith argument
      *
-     * \param i The number of the argument, 0-indexed
-     * \param expr An expression giving the new argument
+     * @param i The number of the argument, 0-indexed
+     * @param expr An expression giving the new argument
      */
     void set_arg(int i, ptr<Expr> expr) { args_[i] = std::move(expr); }
 
@@ -801,9 +801,9 @@ class FunctionCall final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::AccessExpr
- * \brief Class for access expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::AccessExpr
+ * @brief Class for access expressions
+ * @see qasm3tools::ast::Expr
  */
 class AccessExpr final : public Expr {
     ptr<Expr> exp_;         ///< the expression
@@ -811,17 +811,17 @@ class AccessExpr final : public Expr {
 
   public:
     /**
-     * \brief Constructs an Access expression
+     * @brief Constructs an Access expression
      *
-     * \param pos The source position
-     * \param exp The expression
-     * \param index_op The index operator
+     * @param pos The source position
+     * @param exp The expression
+     * @param index_op The index operator
      */
     AccessExpr(parser::Position pos, ptr<Expr> exp, ptr<IndexOp> index_op)
         : Expr(pos), exp_(std::move(exp)), index_op_(std::move(index_op)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<AccessExpr> create(parser::Position pos, ptr<Expr> exp,
                                   ptr<IndexOp> index_op) {
@@ -830,30 +830,30 @@ class AccessExpr final : public Expr {
     }
 
     /**
-     * \brief Get the expression
+     * @brief Get the expression
      *
-     * \return A reference to the expression
+     * @return A reference to the expression
      */
     Expr& exp() { return *exp_; }
 
     /**
-     * \brief Get the index operator
+     * @brief Get the index operator
      *
-     * \return A reference to the index operator
+     * @return A reference to the index operator
      */
     IndexOp& index_op() { return *index_op_; }
 
     /**
-     * \brief Set the expression
+     * @brief Set the expression
      *
-     * \param exp The new expression
+     * @param exp The new expression
      */
     void set_exp(ptr<Expr> exp) { exp_ = std::move(exp); }
 
     /**
-     * \brief Set the index operator
+     * @brief Set the index operator
      *
-     * \param index_op The new index operator
+     * @param index_op The new index operator
      */
     void set_index_op(ptr<IndexOp> index_op) {
         index_op_ = std::move(index_op);
@@ -880,34 +880,34 @@ class AccessExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::ConstantExpr
- * \brief Class for defined constant expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::ConstantExpr
+ * @brief Class for defined constant expressions
+ * @see qasm3tools::ast::Expr
  */
 class ConstantExpr final : public Expr {
     Constant constant_;
 
   public:
     /**
-     * \brief Construct a contant expression
+     * @brief Construct a contant expression
      *
-     * \param pos The source position
-     * \param constant The constant
+     * @param pos The source position
+     * @param constant The constant
      */
     ConstantExpr(parser::Position pos, Constant constant)
         : Expr(pos), constant_(constant) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ConstantExpr> create(parser::Position pos, Constant constant) {
         return std::make_unique<ConstantExpr>(pos, constant);
     }
 
     /**
-     * \brief Get the constant
+     * @brief Get the constant
      *
-     * \return A constant enum
+     * @return A constant enum
      */
     Constant constant() const { return constant_; }
 
@@ -938,33 +938,33 @@ class ConstantExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::IntExpr
- * \brief Class for integer literal expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::IntExpr
+ * @brief Class for integer literal expressions
+ * @see qasm3tools::ast::Expr
  */
 class IntExpr final : public Expr {
     int value_; ///< the integer value
 
   public:
     /**
-     * \brief Construct an integer expression
+     * @brief Construct an integer expression
      *
-     * \param pos The source position
-     * \param val The integer value
+     * @param pos The source position
+     * @param val The integer value
      */
     IntExpr(parser::Position pos, int value) : Expr(pos), value_(value) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<IntExpr> create(parser::Position pos, int value) {
         return std::make_unique<IntExpr>(pos, value);
     }
 
     /**
-     * \brief Get the integer value
+     * @brief Get the integer value
      *
-     * \return The integer value
+     * @return The integer value
      */
     int value() const { return value_; }
 
@@ -982,33 +982,33 @@ class IntExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::RealExpr
- * \brief Class for floating point literal expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::RealExpr
+ * @brief Class for floating point literal expressions
+ * @see qasm3tools::ast::Expr
  */
 class RealExpr final : public Expr {
     double value_; ///< the floating point value
 
   public:
     /**
-     * \brief Construct a real-value expression
+     * @brief Construct a real-value expression
      *
-     * \param pos The source position
-     * \param val The floating point value
+     * @param pos The source position
+     * @param val The floating point value
      */
     RealExpr(parser::Position pos, double value) : Expr(pos), value_(value) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<RealExpr> create(parser::Position pos, double value) {
         return std::make_unique<RealExpr>(pos, value);
     }
 
     /**
-     * \brief Get the real value
+     * @brief Get the real value
      *
-     * \return The floating point value
+     * @return The floating point value
      */
     double value() const { return value_; }
 
@@ -1027,33 +1027,33 @@ class RealExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::ImagExpr
- * \brief Class for imaginary literal expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::ImagExpr
+ * @brief Class for imaginary literal expressions
+ * @see qasm3tools::ast::Expr
  */
 class ImagExpr final : public Expr {
     double value_; ///< the floating point value (which is multiplied by i)
 
   public:
     /**
-     * \brief Construct an imaginary expression
+     * @brief Construct an imaginary expression
      *
-     * \param pos The source position
-     * \param val The floating point value
+     * @param pos The source position
+     * @param val The floating point value
      */
     ImagExpr(parser::Position pos, double value) : Expr(pos), value_(value) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ImagExpr> create(parser::Position pos, double value) {
         return std::make_unique<ImagExpr>(pos, value);
     }
 
     /**
-     * \brief Get the real value
+     * @brief Get the real value
      *
-     * \return The floating point value
+     * @return The floating point value
      */
     double value() const { return value_; }
 
@@ -1074,33 +1074,33 @@ class ImagExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::BoolExpr
- * \brief Class for boolean literal expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::BoolExpr
+ * @brief Class for boolean literal expressions
+ * @see qasm3tools::ast::Expr
  */
 class BoolExpr final : public Expr {
     bool value_; ///< the boolean value
 
   public:
     /**
-     * \brief Construct a boolean expression
+     * @brief Construct a boolean expression
      *
-     * \param pos The source position
-     * \param val The boolean value
+     * @param pos The source position
+     * @param val The boolean value
      */
     BoolExpr(parser::Position pos, bool value) : Expr(pos), value_(value) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<BoolExpr> create(parser::Position pos, bool value) {
         return std::make_unique<BoolExpr>(pos, value);
     }
 
     /**
-     * \brief Get the boolean value
+     * @brief Get the boolean value
      *
-     * \return The boolean value
+     * @return The boolean value
      */
     bool value() const { return value_; }
 
@@ -1118,33 +1118,33 @@ class BoolExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::VarExpr
- * \brief Class for variable expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::VarExpr
+ * @brief Class for variable expressions
+ * @see qasm3tools::ast::Expr
  */
 class VarExpr final : public Expr {
     symbol var_; ///< the identifier
 
   public:
     /**
-     * \brief Construct a variable expression
+     * @brief Construct a variable expression
      *
-     * \param pos The source position
-     * \param var The variable name
+     * @param pos The source position
+     * @param var The variable name
      */
     VarExpr(parser::Position pos, symbol var) : Expr(pos), var_(var) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<VarExpr> create(parser::Position pos, symbol var) {
         return std::make_unique<VarExpr>(pos, var);
     }
 
     /**
-     * \brief Get the variable name
+     * @brief Get the variable name
      *
-     * \return Constant reference to the name
+     * @return Constant reference to the name
      */
     const symbol& var() const { return var_; }
 
@@ -1163,9 +1163,9 @@ class VarExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::BitString
- * \brief Class for bit string expressions
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::BitString
+ * @brief Class for bit string expressions
+ * @see qasm3tools::ast::Expr
  *
  * The string should only consist of 0s and 1s, but this class does not
  * verify this.
@@ -1175,25 +1175,25 @@ class BitString final : public Expr {
 
   public:
     /**
-     * \brief Construct a bit string expression
+     * @brief Construct a bit string expression
      *
-     * \param pos The source position
-     * \param text The string
+     * @param pos The source position
+     * @param text The string
      */
     BitString(parser::Position pos, std::string text)
         : Expr(pos), text_(text) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<BitString> create(parser::Position pos, std::string text) {
         return std::make_unique<BitString>(pos, text);
     }
 
     /**
-     * \brief Get the string text
+     * @brief Get the string text
      *
-     * \return Constant reference to the text
+     * @return Constant reference to the text
      */
     const std::string& text() const { return text_; }
 
@@ -1212,25 +1212,25 @@ class BitString final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::ArrayInitExpr
- * \brief Class for array initialization
- * \see qasm3tools::ast::Expr
+ * @class qasm3tools::ast::ArrayInitExpr
+ * @brief Class for array initialization
+ * @see qasm3tools::ast::Expr
  */
 class ArrayInitExpr final : public Expr {
     std::vector<ptr<Expr>> arr_; ///< array elements
 
   public:
     /**
-     * \brief Constructs an array initialization
+     * @brief Constructs an array initialization
      *
-     * \param pos The source position
-     * \param arr The array elements
+     * @param pos The source position
+     * @param arr The array elements
      */
     ArrayInitExpr(parser::Position pos, std::vector<ptr<Expr>>&& arr)
         : Expr(pos), arr_(std::move(arr)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ArrayInitExpr> create(parser::Position pos,
                                      std::vector<ptr<Expr>>&& arr) {
@@ -1238,25 +1238,25 @@ class ArrayInitExpr final : public Expr {
     }
 
     /**
-     * \brief Get the number of elements
+     * @brief Get the number of elements
      *
-     * \return The number of elements
+     * @return The number of elements
      */
     int size() const { return static_cast<int>(arr_.size()); }
 
     /**
-     * \brief Get the ith element
+     * @brief Get the ith element
      *
-     * \param i The number of the element, 0-indexed
-     * \return Reference to an expression
+     * @param i The number of the element, 0-indexed
+     * @return Reference to an expression
      */
     Expr& at(int i) { return *(arr_[i]); }
 
     /**
-     * \brief Set the ith element
+     * @brief Set the ith element
      *
-     * \param i The number of the element, 0-indexed
-     * \param expr An expression giving the new argument
+     * @param i The number of the element, 0-indexed
+     * @param expr An expression giving the new argument
      */
     void set_at(int i, ptr<Expr> expr) { arr_[i] = std::move(expr); }
 
@@ -1287,33 +1287,33 @@ class ArrayInitExpr final : public Expr {
 };
 
 /**
- * \class qasm3tools::ast::MeasureExpr
- * \brief Class for quantum measurements
+ * @class qasm3tools::ast::MeasureExpr
+ * @brief Class for quantum measurements
  */
 class MeasureExpr final : public Expr {
     ptr<IndexId> q_arg_; ///< the quantum bit|register
 
   public:
     /**
-     * \brief Constructs a quantum measurement
+     * @brief Constructs a quantum measurement
      *
-     * \param pos The source position
-     * \param q_arg Rvalue reference to the quantum argument
+     * @param pos The source position
+     * @param q_arg Rvalue reference to the quantum argument
      */
     MeasureExpr(parser::Position pos, ptr<IndexId> q_arg)
         : Expr(pos), q_arg_(std::move(q_arg)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<MeasureExpr> create(parser::Position pos, ptr<IndexId> q_arg) {
         return std::make_unique<MeasureExpr>(pos, std::move(q_arg));
     }
 
     /**
-     * \brief Get the quantum argument
+     * @brief Get the quantum argument
      *
-     * \return Reference to the quantum argument
+     * @return Reference to the quantum argument
      */
     IndexId& q_arg() { return *q_arg_; }
 
@@ -1335,10 +1335,10 @@ class MeasureExpr final : public Expr {
 };
 
 /**
- * \brief Returns an Expr representing the given angle
+ * @brief Returns an Expr representing the given angle
  *
- * \param theta The angle
- * \return The equivalent QASM expression
+ * @param theta The angle
+ * @return The equivalent QASM expression
  */
 inline ptr<Expr> angle_to_expr(const utils::Angle& theta) {
     parser::Position pos;

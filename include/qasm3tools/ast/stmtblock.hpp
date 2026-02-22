@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/stmtblock.hpp
- * \brief OpenQASM block statements
+ * @file qasm3tools/ast/stmtblock.hpp
+ * @brief OpenQASM block statements
  */
 
 #ifndef QASM3TOOLS_AST_STMTBLOCK_HPP_
@@ -43,40 +43,40 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::BlockBase
- * \brief Base class for statement blocks
+ * @class qasm3tools::ast::BlockBase
+ * @brief Base class for statement blocks
  * D is derived class
  */
 template <typename D>
 class BlockBase : public ASTNode {
   public:
     /**
-     * \brief Constructs a program block
+     * @brief Constructs a program block
      *
-     * \param pos The source position
-     * \param body The block body
+     * @param pos The source position
+     * @param body The block body
      */
     BlockBase(parser::Position pos, std::list<ptr<Stmt>>&& body)
         : ASTNode(pos), body_(std::move(body)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<D> create(parser::Position pos, std::list<ptr<Stmt>>&& body) {
         return std::make_unique<D>(pos, std::move(body));
     }
 
     /**
-     * \brief Get the block body
+     * @brief Get the block body
      *
-     * \return Reference to the body as a list of statements
+     * @return Reference to the body as a list of statements
      */
     typename std::list<ptr<Stmt>>& body() { return body_; }
 
     /**
-     * \brief Apply a function to each stetement
+     * @brief Apply a function to each stetement
      *
-     * \param f Void function accepting a reference to the statement
+     * @param f Void function accepting a reference to the statement
      */
     void foreach_stmt(std::function<void(Stmt&)> f) {
         for (auto& x : body_) {
@@ -85,23 +85,23 @@ class BlockBase : public ASTNode {
     }
 
     /**
-     * \brief Get an iterator to the beginning of the body
+     * @brief Get an iterator to the beginning of the body
      *
-     * \return std::list iterator
+     * @return std::list iterator
      */
     typename std::list<ptr<Stmt>>::iterator begin() { return body_.begin(); }
 
     /**
-     * \brief Get an iterator to the end of the body
+     * @brief Get an iterator to the end of the body
      *
-     * \return std::list iterator
+     * @return std::list iterator
      */
     typename std::list<ptr<Stmt>>::iterator end() { return body_.end(); }
 
     /**
-     * \brief Internal pretty-printer which adds indentation to each line
+     * @brief Internal pretty-printer which adds indentation to each line
      *
-     * \param indents Current indentation level
+     * @param indents Current indentation level
      */
     virtual std::ostream& pretty_print(std::ostream& os, size_t indents) const {
         os << "{\n";
@@ -141,8 +141,8 @@ class BlockBase : public ASTNode {
 };
 
 /**
- * \class qasm3tools::ast::ProgramBlock
- * \brief Class for program blocks
+ * @class qasm3tools::ast::ProgramBlock
+ * @brief Class for program blocks
  */
 class ProgramBlock final : public BlockBase<ProgramBlock> {
     using BlockBase<ProgramBlock>::BlockBase;

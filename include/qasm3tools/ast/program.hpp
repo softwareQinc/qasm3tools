@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/program.hpp
- * \brief OpenQASM programs
+ * @file qasm3tools/ast/program.hpp
+ * @brief OpenQASM programs
  */
 
 #ifndef QASM3TOOLS_AST_PROGRAM_HPP_
@@ -38,8 +38,8 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::Program
- * \brief Program class
+ * @class qasm3tools::ast::Program
+ * @brief Program class
  */
 class Program final : public BlockBase<Program> {
     bool std_include_;
@@ -48,13 +48,13 @@ class Program final : public BlockBase<Program> {
 
   public:
     /**
-     * \brief Constructs a QASM program
+     * @brief Constructs a QASM program
      *
-     * \param pos The source position
-     * \param body The program body
-     * \param std_include Whether the standard library has been included
-     * \param qubits The number of qubits
-     * \param inputs The number of inputs
+     * @param pos The source position
+     * @param body The program body
+     * @param std_include Whether the standard library has been included
+     * @param qubits The number of qubits
+     * @param inputs The number of inputs
      */
     Program(parser::Position pos, std::list<ptr<Stmt>>&& body,
             bool std_include = false, std::optional<int> qubits = std::nullopt,
@@ -63,7 +63,7 @@ class Program final : public BlockBase<Program> {
           qubits_(qubits), inputs_(inputs) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<Program> create(parser::Position pos,
                                std::list<ptr<Stmt>>&& body,
@@ -75,36 +75,36 @@ class Program final : public BlockBase<Program> {
     }
 
     /**
-     * \brief Get the number of qubits
+     * @brief Get the number of qubits
      *
-     * \return The number of qubits
+     * @return The number of qubits
      */
     int qubits() { return *qubits_; }
 
     /**
-     * \brief Set the number of qubits
+     * @brief Set the number of qubits
      *
-     * \param qubits The number of qubits
+     * @param qubits The number of qubits
      */
     void set_qubits(int qubits) { qubits_ = qubits; }
 
     /**
-     * \brief Get the number of inputs
+     * @brief Get the number of inputs
      *
-     * \return The number of inputs
+     * @return The number of inputs
      */
     int inputs() { return *inputs_; }
 
     /**
-     * \brief Set the number of inputs
+     * @brief Set the number of inputs
      *
-     * \param qubits The number of inputs
+     * @param qubits The number of inputs
      */
     void set_inputs(int inputs) { inputs_ = inputs; }
 
     /**
-     * \brief Add another program's contents to the end of this program
-     * \note This clears the other program's body
+     * @brief Add another program's contents to the end of this program
+     * @note This clears the other program's body
      */
     void extend(Program& other) {
         std_include_ = std_include_ || other.std_include_;

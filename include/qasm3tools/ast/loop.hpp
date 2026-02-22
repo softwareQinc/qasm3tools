@@ -25,8 +25,8 @@
  */
 
 /**
- * \file qasm3tools/ast/loop.hpp
- * \brief OpenQASM loop statements
+ * @file qasm3tools/ast/loop.hpp
+ * @brief OpenQASM loop statements
  */
 
 #ifndef QASM3TOOLS_AST_LOOP_HPP_
@@ -45,8 +45,8 @@ namespace qasm3tools {
 namespace ast {
 
 /**
- * \class qasm3tools::ast::IndexSet
- * \brief Class for index sets
+ * @class qasm3tools::ast::IndexSet
+ * @brief Class for index sets
  */
 class IndexSet : public ASTNode {
   public:
@@ -58,8 +58,8 @@ class IndexSet : public ASTNode {
 };
 
 /**
- * \class qasm3tools::ast::RangeSet
- * \brief Class for range index sets
+ * @class qasm3tools::ast::RangeSet
+ * @brief Class for range index sets
  */
 class RangeSet : public IndexSet {
     std::optional<ptr<Expr>> start_;
@@ -68,12 +68,12 @@ class RangeSet : public IndexSet {
 
   public:
     /**
-     * \brief Constructs a range index set
+     * @brief Constructs a range index set
      *
-     * \param pos The source position
-     * \param start Start index
-     * \param step Optional step size (default = std::nullopt)
-     * \param stop Stop index
+     * @param pos The source position
+     * @param start Start index
+     * @param step Optional step size (default = std::nullopt)
+     * @param stop Stop index
      */
     RangeSet(parser::Position pos, std::optional<ptr<Expr>>&& start,
              std::optional<ptr<Expr>>&& stop)
@@ -85,7 +85,7 @@ class RangeSet : public IndexSet {
           stop_(std::move(stop)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<RangeSet> create(parser::Position pos,
                                 std::optional<ptr<Expr>>&& start,
@@ -102,21 +102,21 @@ class RangeSet : public IndexSet {
     }
 
     /**
-     * \brief Get the start index
+     * @brief Get the start index
      *
      * return std::optional reference to start index
      */
     std::optional<ptr<Expr>>& start() { return start_; }
 
     /**
-     * \brief Get the step size
+     * @brief Get the step size
      *
      * return std::optional reference to step size
      */
     std::optional<ptr<Expr>>& step() { return step_; }
 
     /**
-     * \brief Get the stop index
+     * @brief Get the stop index
      *
      * return std::optional reference to stop index
      */
@@ -159,24 +159,24 @@ class RangeSet : public IndexSet {
 };
 
 /**
- * \class qasm3tools::ast::ListSet
- * \brief Class for list index sets
+ * @class qasm3tools::ast::ListSet
+ * @brief Class for list index sets
  */
 class ListSet : public IndexSet {
     std::vector<ptr<Expr>> indices_;
 
   public:
     /**
-     * \brief Construct a list index set
+     * @brief Construct a list index set
      *
-     * \param pos The source position
-     * \param indices The list of indices
+     * @param pos The source position
+     * @param indices The list of indices
      */
     ListSet(parser::Position pos, std::vector<ptr<Expr>>&& indices)
         : IndexSet(pos), indices_(std::move(indices)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ListSet> create(parser::Position pos,
                                std::vector<ptr<Expr>>&& indices) {
@@ -184,9 +184,9 @@ class ListSet : public IndexSet {
     }
 
     /**
-     * \brief Get the list of indices
+     * @brief Get the list of indices
      *
-     * \return Reference to the list of indices
+     * @return Reference to the list of indices
      */
     std::vector<ptr<Expr>>& indices() { return indices_; }
 
@@ -211,32 +211,32 @@ class ListSet : public IndexSet {
 };
 
 /**
- * \class qasm3tools::ast::VarSet
- * \brief Class for variable index sets
+ * @class qasm3tools::ast::VarSet
+ * @brief Class for variable index sets
  */
 class VarSet : public IndexSet {
     symbol var_;
 
   public:
     /**
-     * \brief Construct a variable index set
+     * @brief Construct a variable index set
      *
-     * \param pos The source position
-     * \param var The variable
+     * @param pos The source position
+     * @param var The variable
      */
     VarSet(parser::Position pos, symbol var) : IndexSet(pos), var_(var) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<VarSet> create(parser::Position pos, symbol var) {
         return std::make_unique<VarSet>(pos, var);
     }
 
     /**
-     * \brief Get the variable
+     * @brief Get the variable
      *
-     * \return Const reference to the variable
+     * @return Const reference to the variable
      */
     const symbol& var() const { return var_; }
 
@@ -251,9 +251,9 @@ class VarSet : public IndexSet {
 };
 
 /**
- * \class qasm3tools::ast::ForStmt
- * \brief Class for for-loops
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::ForStmt
+ * @brief Class for for-loops
+ * @see qasm3tools::ast::StmtBase
  */
 class ForStmt final : public QuantumStmt {
     ptr<NonArrayType> var_type_; ///< type of the loop variable
@@ -263,13 +263,13 @@ class ForStmt final : public QuantumStmt {
 
   public:
     /**
-     * \brief Constructs a for loop
+     * @brief Constructs a for loop
      *
-     * \param pos The source position
-     * \param var_type The type of the loop variable
-     * \param var The loop variable
-     * \param index_set The index set
-     * \param body The loop body
+     * @param pos The source position
+     * @param var_type The type of the loop variable
+     * @param var The loop variable
+     * @param index_set The index set
+     * @param body The loop body
      */
     ForStmt(parser::Position pos, ptr<NonArrayType> var_type, symbol var,
             ptr<IndexSet> index_set, ptr<ProgramBlock> body)
@@ -277,7 +277,7 @@ class ForStmt final : public QuantumStmt {
           index_set_(std::move(index_set)), body_(std::move(body)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<ForStmt> create(parser::Position pos, ptr<NonArrayType> var_type,
                                symbol var, ptr<IndexSet> index_set,
@@ -287,30 +287,30 @@ class ForStmt final : public QuantumStmt {
     }
 
     /**
-     * \brief Get the type of the loop variable
+     * @brief Get the type of the loop variable
      *
-     * \return A reference to the type
+     * @return A reference to the type
      */
     NonArrayType& var_type() { return *var_type_; }
 
     /**
-     * \brief Return the loop variable
+     * @brief Return the loop variable
      *
-     * \return Constant reference to the loop variable
+     * @return Constant reference to the loop variable
      */
     const symbol& var() const { return var_; }
 
     /**
-     * \brief Get the index set
+     * @brief Get the index set
      *
-     * \return A reference to the index set
+     * @return A reference to the index set
      */
     IndexSet& index_set() { return *index_set_; }
 
     /**
-     * \brief Get the loop body
+     * @brief Get the loop body
      *
-     * \return Reference to the body
+     * @return Reference to the body
      */
     ProgramBlock& body() { return *body_; }
 
@@ -331,9 +331,9 @@ class ForStmt final : public QuantumStmt {
 };
 
 /**
- * \class qasm3tools::ast::WhileStmt
- * \brief Class for while loops
- * \see qasm3tools::ast::StmtBase
+ * @class qasm3tools::ast::WhileStmt
+ * @brief Class for while loops
+ * @see qasm3tools::ast::StmtBase
  */
 class WhileStmt final : public QuantumStmt {
     ptr<Expr> cond_;         ///< boolean expression to check
@@ -341,17 +341,17 @@ class WhileStmt final : public QuantumStmt {
 
   public:
     /**
-     * \brief Constructs a while loop
+     * @brief Constructs a while loop
      *
-     * \param pos The source position
-     * \param cond The boolean to check
-     * \param body The loop body
+     * @param pos The source position
+     * @param cond The boolean to check
+     * @param body The loop body
      */
     WhileStmt(parser::Position pos, ptr<Expr> cond, ptr<ProgramBlock> body)
         : QuantumStmt(pos), cond_(std::move(cond)), body_(std::move(body)) {}
 
     /**
-     * \brief Protected heap-allocated construction
+     * @brief Protected heap-allocated construction
      */
     static ptr<WhileStmt> create(parser::Position pos, ptr<Expr> cond,
                                  ptr<ProgramBlock> body) {
@@ -360,23 +360,23 @@ class WhileStmt final : public QuantumStmt {
     }
 
     /**
-     * \brief Get the boolean expression
+     * @brief Get the boolean expression
      *
-     * \return A reference to the boolean expression
+     * @return A reference to the boolean expression
      */
     Expr& cond() { return *cond_; }
 
     /**
-     * \brief Set the boolean expression
+     * @brief Set the boolean expression
      *
-     * \param cond The new expression
+     * @param cond The new expression
      */
     void set_cond(ptr<Expr> cond) { cond_ = std::move(cond); }
 
     /**
-     * \brief Get the loop body
+     * @brief Get the loop body
      *
-     * \return Reference to the body
+     * @return Reference to the body
      */
     ProgramBlock& body() { return *body_; }
 
